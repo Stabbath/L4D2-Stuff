@@ -102,7 +102,6 @@ public Action:HeightTrace(Handle:unused, any:client)
 				new Float:fETA = fDistance / fVelNorm; //ignoring gravity accel
 				
 				CreateTimer(fETA,Damage,client);
-				CreateTimer(fETA,Explode,client);
 			}
 			return Plugin_Stop;
 		}
