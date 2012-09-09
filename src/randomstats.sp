@@ -1041,11 +1041,11 @@ stock String:GetAmmoType(wp_index)
 	decl String:ammo_type[22];
 	switch (wp_index)
 	{
-		case WP_SMG, WP_SMG_SILENCED: 									{ammo_type = "ammo_smg_max";}	
-		case WP_PUMPSHOTGUN, WP_SHOTGUN_CHROME: 						{ammo_type = "ammo_shotgun_max";}	
-		case WP_AUTOSHOTGUN, WP_SHOTGUN_SPAS:							{ammo_type = "ammo_autoshotgun_max";}
-		case WP_HUNTING_RIFLE:											{ammo_type = "ammo_huntingrifle_max";}
-		case WP_SNIPER_MILITARY, WP_SNIPER_AWP, WP_SNIPER_SCOUT:		{ammo_type = "ammo_sniperrifle_max";}
+		case WP_SMG, WP_SMG_SILENCED, WP_SMG_MP5: 			{ammo_type = "ammo_smg_max";}	
+		case WP_PUMPSHOTGUN, WP_SHOTGUN_CHROME: 			{ammo_type = "ammo_shotgun_max";}	
+		case WP_AUTOSHOTGUN, WP_SHOTGUN_SPAS:				{ammo_type = "ammo_autoshotgun_max";}
+		case WP_HUNTING_RIFLE:						{ammo_type = "ammo_huntingrifle_max";}
+		case WP_SNIPER_MILITARY, WP_SNIPER_AWP, WP_SNIPER_SCOUT:	{ammo_type = "ammo_sniperrifle_max";}
 		case WP_RIFLE, WP_RIFLE_AK47, WP_RIFLE_DESERT, WP_RIFLE_SG552:	{ammo_type = "ammo_assaultrifle_max";}
 	}
 	return ammo_type;
@@ -1056,11 +1056,11 @@ stock GetDefaultAmmo(wp_index)
 	new ammo = -1;
 	switch (wp_index)
 	{
-		case WP_SMG, WP_SMG_SILENCED: 									{ammo = 650;}	
-		case WP_PUMPSHOTGUN, WP_SHOTGUN_CHROME:							{ammo = 80;}	
-		case WP_AUTOSHOTGUN, WP_SHOTGUN_SPAS:							{ammo = 90;}
-		case WP_HUNTING_RIFLE:											{ammo = 150;}
-		case WP_SNIPER_MILITARY, WP_SNIPER_AWP, WP_SNIPER_SCOUT:		{ammo = 180;}
+		case WP_SMG, WP_SMG_SILENCED, WP_SMG_MP5: 			{ammo = 650;}	
+		case WP_PUMPSHOTGUN, WP_SHOTGUN_CHROME:				{ammo = 80;}	
+		case WP_AUTOSHOTGUN, WP_SHOTGUN_SPAS:				{ammo = 90;}
+		case WP_HUNTING_RIFLE:						{ammo = 150;}
+		case WP_SNIPER_MILITARY, WP_SNIPER_AWP, WP_SNIPER_SCOUT:	{ammo = 180;}
 		case WP_RIFLE, WP_RIFLE_AK47, WP_RIFLE_DESERT, WP_RIFLE_SG552:	{ammo = 360;}
 	}
 	return ammo;
