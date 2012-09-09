@@ -1,49 +1,8 @@
 #pragma semicolon 1	
 
- //T1 | weapons and their ids
-#define WP_SMG 2
-#define WP_PUMPSHOTGUN 3
-#define WP_SMG_SILENCED 7
-#define WP_SHOTGUN_CHROME 8
-//secondary
-#define WP_PISTOL 1
-#define WP_PISTOL_MAGNUM 32
-#define WP_MELEE 19
-//snipers
-#define WP_HUNTING_RIFLE 6
-#define WP_SNIPER_MILITARY 10
-//T2 
-#define WP_RIFLE 5
-#define WP_RIFLE_DESERT 9
-#define WP_AUTOSHOTGUN 4
-#define WP_SHOTGUN_SPAS 11
-#define WP_RIFLE_AK47 26
-//css
-#define WP_SMG_MP5 33
-#define WP_RIFLE_SG552 34
-#define WP_SNIPER_AWP 35
-#define WP_SNIPER_SCOUT 36
-
-//highest actual weapon id + 1
-#define WP_NUM 37
-
-new Float:WepPrecision[WP_NUM];
-new Float:WepRange[WP_NUM];
-
-static DefaultDamage[WP_NUM];
-static Float:DefaultSpreadPerShot[WP_NUM];
-static Float:DefaultMaxSpread[WP_NUM];
-static Float:DefaultSpreadDecay[WP_NUM];
-static Float:DefaultMinDuckingSpread[WP_NUM];
-static Float:DefaultMinStandingSpread[WP_NUM];
-static Float:DefaultMinInAirSpread[WP_NUM];
-static Float:DefaultMaxMovementSpread[WP_NUM];
-static Float:DefaultRange[WP_NUM];
-static Float:DefaultRangeModifier[WP_NUM];
-
 /* Randomised cvar stuff
  * Syntax:
- * rwa_cvar <proportion> <minvalue> <maxvalue> <Cvar1> <Cvar2> <Cvar3> <...>
+ * random_cvar <proportion> <minvalue> <maxvalue> <Cvar1> <Cvar2> <Cvar3> <...>
  * Plugin will select a random number for Cvar1 between minvalue and maxvalue, and scale all the following Cvars. 
  * The % that Cvar1 is increased will be stored and multiplied by the proportion, and Cvar2, Cvar3, etc will be increased or decreased by this percentage of their default value.
  * For simple direct and inverse proportion, just use "1.0" and "-1.0".
@@ -91,15 +50,36 @@ static Float:DefaultRangeModifier[WP_NUM];
 #include <float>
 #include <l4d2weapons.inc>
 
-#define WEAPON_LENGTH 32
+ //T1 | weapons and their ids
+#define WP_SMG 2
+#define WP_PUMPSHOTGUN 3
+#define WP_SMG_SILENCED 7
+#define WP_SHOTGUN_CHROME 8
+//secondary
+#define WP_PISTOL 1
+#define WP_PISTOL_MAGNUM 32
+#define WP_MELEE 19
+//snipers
+#define WP_HUNTING_RIFLE 6
+#define WP_SNIPER_MILITARY 10
+//T2 
+#define WP_RIFLE 5
+#define WP_RIFLE_DESERT 9
+#define WP_AUTOSHOTGUN 4
+#define WP_SHOTGUN_SPAS 11
+#define WP_RIFLE_AK47 26
+//css
+#define WP_SMG_MP5 33
+#define WP_RIFLE_SG552 34
+#define WP_SNIPER_AWP 35
+#define WP_SNIPER_SCOUT 36
 
-//for retrieval of ammo values.
-#define AMMO_INDEX_SMG 0
-#define AMMO_INDEX_SHOTGUN 1
-#define AMMO_INDEX_RIFLE 2
-#define AMMO_INDEX_AUTOSHOTGUN 3
-#define AMMO_INDEX_HR 4
-#define AMMO_INDEX_SNIPER 5
+//highest actual weapon id + 1
+#define WP_NUM 37
+
+#define NUMBER_LENGTH	16
+#define WEAPON_LENGTH	32
+#define BUFFER_LENGTH	48
 
 #define TEAM_SURVIVOR 2
 #define TEAM_INFECTED 3
@@ -127,6 +107,20 @@ public Plugin:myinfo =
 	url = "no url"
 }
 
+new Float:WepPrecision[WP_NUM];
+new Float:WepRange[WP_NUM];
+
+new DefaultDamage[WP_NUM];
+new Float:DefaultSpreadPerShot[WP_NUM];
+new Float:DefaultMaxSpread[WP_NUM];
+new Float:DefaultSpreadDecay[WP_NUM];
+new Float:DefaultMinDuckingSpread[WP_NUM];
+new Float:DefaultMinStandingSpread[WP_NUM];
+new Float:DefaultMinInAirSpread[WP_NUM];
+new Float:DefaultMaxMovementSpread[WP_NUM];
+new Float:DefaultRange[WP_NUM];
+new Float:DefaultRangeModifier[WP_NUM];
+
 new bool:g_bIsWeaponModded[WP_NUM];
 
 //Cvar handles
@@ -143,27 +137,27 @@ public OnPluginStart()
 {
 	//Cvars
 	//announce weapon stats to players?
-	g_hAnnounceWeapons= CreateConVar(	"rwa_announce_weapons",	"1",		"Should the plugin be allowed to announce changes for all modified weapons?", FCVAR_PLUGIN, true,  0.0, true, 1.0);
+	g_hAnnounceWeapons= CreateConVar(	"random_announce_weapons",	"1",		"Should the plugin be allowed to announce changes for all modified weapons?", FCVAR_PLUGIN, true,  0.0, true, 1.0);
 	//hide clipsize/ammo info from announcement?
-	g_hAnnounceAmmo	= CreateConVar(		"rwa_announce_ammo",	"1",		"If 0, will hide ammo and clipsize info for all weapons even if there have been changes to them.", FCVAR_PLUGIN, true,  0.0, true, 1.0);
+	g_hAnnounceAmmo	= CreateConVar(		"random_announce_ammo",		"1",		"If 0, will hide ammo and clipsize info for all weapons even if there have been changes to them.", FCVAR_PLUGIN, true,  0.0, true, 1.0);
 	//should Cvar changes be announced?
-	g_hAnnounceCvars	= CreateConVar(	"rwa_announce_cvars",	"1",		"Should the plugin be allowed to announce changes for all modified Cvars?", FCVAR_PLUGIN, true, 	0.0, true, 1.0);
+	g_hAnnounceCvars	= CreateConVar(	"random_announce_cvars",	"1",		"Should the plugin be allowed to announce changes for all modified Cvars?", FCVAR_PLUGIN, true, 	0.0, true, 1.0);
 	//should on-connect announcements be sent to chat? 0 sends to console
-	g_hAnnounceToChat	= CreateConVar(	"rwa_announce_to_chat",	"1",		"Should the plugin send announcements to chat? If not, sends to console. Flags: 1 - send weapon stats to chat, 2 - send cvar stats to chat.", FCVAR_PLUGIN, true, 	0.0, true, 1.0);
+	g_hAnnounceToChat	= CreateConVar(	"random_announce_to_chat",	"1",		"Should the plugin send announcements to chat? If not, sends to console. Flags: 1 - send weapon stats to chat, 2 - send cvar stats to chat.", FCVAR_PLUGIN, true, 	0.0, true, 1.0);
 	//should the stats be re-randomised every map?
-//	hReRandom		= CreateConVar(		"rwa_mod_everymap",		"1",		"nondescript", FCVAR_PLUGIN, true,  0.0, true, 1.0);
+//	hReRandom		= CreateConVar(		"random_mod_everymap",		"1",		"nondescript", FCVAR_PLUGIN, true,  0.0, true, 1.0);
 	//include melee attribute randomisation?
-//	hModMelee		= CreateConVar(		"rwa_mod_melee",		"0",		"nondescript", FCVAR_PLUGIN, true,  0.0, true, 1.0);
+//	hModMelee		= CreateConVar(		"random_mod_melee",			"0",		"nondescript", FCVAR_PLUGIN, true,  0.0, true, 1.0);
 	//include m2 delay and penalty randomisation?
-//	hModShove		= CreateConVar(		"rwa_mod_shove",		"0",		"nondescript", FCVAR_PLUGIN, true,  0.0, true, 1.0);
+//	hModShove		= CreateConVar(		"random_mod_shove",			"0",		"nondescript", FCVAR_PLUGIN, true,  0.0, true, 1.0);
 	//limits the maximum number of different modded weapons in the game to this number. 0 means no limit
-//	hWepLimit		= CreateConVar(		"rwa_limit_weapons",	"0",		"nondescript", FCVAR_PLUGIN, true,  0.0, true, 10.0);
+//	hWepLimit		= CreateConVar(		"random_limit_weapons",		"0",		"nondescript", FCVAR_PLUGIN, true,  0.0, true, 10.0);
 	
 	for (new n = 1; n < WP_NUM; n++)
 	{
 		if (!IsItAnActualWeapon(n)) { continue; }
 		
-		decl String:sWeapon[32];
+		decl String:sWeapon[WEAPON_LENGTH];
 		sWeapon = GetWeapon(n);
 		
 		//Store default values for everything from current attributes (ClipSize and Bullets are still done through functions though)
@@ -183,15 +177,16 @@ public OnPluginStart()
 		WepRange[n] = 1.0;
 	}
 	
-	g_hArrayModdedCvars	= CreateArray(48);
+	g_hArrayModdedCvars	= CreateArray(BUFFER_LENGTH);
 	g_hTrieModdedCvars	= CreateTrie();
 	
-	RegServerCmd ("rwa_int",		SetIntAtts);
-	RegServerCmd ("rwa_float",		SetFloatAtts);
-	RegServerCmd ("rwa_reset",		ResetAtts);
-	RegConsoleCmd("rwa_showatts", 	ShowAtts);
-	RegConsoleCmd("rwa_showcvars", 	ShowCvars);
-	RegServerCmd ("rwa_cvar",		SetCvar);
+	RegServerCmd ("random_setiwa",		SetIntAtts);
+	RegServerCmd ("random_setfwa",		SetFloatAtts);
+	RegServerCmd ("random_resetatts",	ResetAtts);
+	RegServerCmd ("random_setcvar",		SetCvar);
+	RegServerCmd ("random_resetcvars",	ResetCvars);
+	RegConsoleCmd("random_showatts", 	ShowAtts);
+	RegConsoleCmd("random_showcvars", 	ShowCvars);
 	
 	HookEvent("item_pickup",Event_ItemPickup);	//weapon_pickup doesnt fire ever
 }
@@ -201,8 +196,8 @@ public Action:SetCvar(args)
 	if (args < 4)	{ return; }
 	
 	decl n;	//used in loops
-	decl String:sArArgs[args + 1][48];
-	for (n = 1; n <= args; n++)	{ GetCmdArg(n, sArArgs[n], 48); }	
+	decl String:sArArgs[args + 1][BUFFER_LENGTH];
+	for (n = 1; n <= args; n++)	{ GetCmdArg(n, sArArgs[n], BUFFER_LENGTH); }	
 	
 	new Float:	proportion= StringToFloat(sArArgs[1]);
 	new Float:	minValue  = StringToFloat(sArArgs[2]);
@@ -212,7 +207,7 @@ public Action:SetCvar(args)
 	new Handle:	hCvar = FindConVar(sArArgs[4]);
 	if (hCvar == INVALID_HANDLE) { return; }
 	
-	GetConVarString(hCvar, sArArgs[0], 48);	//index 0 is otherwise unused, save Cvar value as string here
+	GetConVarString(hCvar, sArArgs[0], BUFFER_LENGTH);	//index 0 is otherwise unused, save Cvar value as string here
 	
 	if (GetTrieValue(g_hTrieModdedCvars, sArArgs[0], percentChange))	//means this cvar's already been randomised, store its current variation into percentChange 
 	{																	//to correct thew new percentChange based on the cvar's default, rather than the previous randomised value
@@ -279,13 +274,13 @@ public Action:SetCvar(args)
 
 public Action:SetIntAtts(args)
 {
-	decl String:sWeapon[64];
+	decl String:sWeapon[WEAPON_LENGTH];
 	GetCmdArg(1, sWeapon, sizeof(sWeapon));
-	decl String:stmpAttr[64];
+	decl String:stmpAttr[NUMBER_LENGTH];
 	GetCmdArg(2, stmpAttr,sizeof(stmpAttr));	
-	decl String:stmpMin[64];
+	decl String:stmpMin[NUMBER_LENGTH];
 	GetCmdArg(3, stmpMin, sizeof(stmpMin));	
-	decl String:stmpMax[64];
+	decl String:stmpMax[NUMBER_LENGTH];
 	GetCmdArg(4, stmpMax, sizeof(stmpMax));
 	
 	new minvalue = StringToInt(stmpMin);
@@ -301,13 +296,13 @@ public Action:SetIntAtts(args)
 
 public Action:SetFloatAtts(args)
 {
-	decl String:sWeapon[64];
+	decl String:sWeapon[WEAPON_LENGTH];
 	GetCmdArg(1, sWeapon, sizeof(sWeapon));
-	decl String:stmpAttr[64];
+	decl String:stmpAttr[NUMBER_LENGTH];
 	GetCmdArg(2, stmpAttr,sizeof(stmpAttr));	
-	decl String:stmpMin[64];
+	decl String:stmpMin[NUMBER_LENGTH];
 	GetCmdArg(3, stmpMin, sizeof(stmpMin));	
-	decl String:stmpMax[64];
+	decl String:stmpMax[NUMBER_LENGTH];
 	GetCmdArg(4, stmpMax, sizeof(stmpMax));
 	
 	new Float:minvalue = StringToFloat(stmpMin);
@@ -377,7 +372,7 @@ public Action:PrintText(Handle:unused, any:i)
 
 public Action:OnReload(weapon)
 {
-	decl String:class[56];
+	decl String:class[BUFFER_LENGTH];
 	GetEdictClassname(weapon, class, sizeof(class));
 	
 	if (GetEntProp(weapon, Prop_Send, "m_iClip1") == L4D2_GetIntWeaponAttribute(class, L4D2IWA_ClipSize))
@@ -407,7 +402,7 @@ public Action:WeaponClipFix(Handle:unused, any:client)
 	SDKHook(weapon,SDKHook_Reload,OnReload);	//Hook for reload animation glitch semi-fix
 	//unhook on weapon drop?
 	
-	decl String:class[56];
+	decl String:class[BUFFER_LENGTH];
 	GetEdictClassname(weapon, class, sizeof(class));
 	SetEntProp(weapon, Prop_Send, "m_iClip1", L4D2_GetIntWeaponAttribute(class, L4D2IWA_ClipSize));
 	
@@ -415,14 +410,45 @@ public Action:WeaponClipFix(Handle:unused, any:client)
 }
 
 /*
- * Attribute Reset
+ * Attribute and Cvar Reset
  */
 
 public OnPluginEnd()
 {
 	ResetAtts(1);
+	ResetCvars(1);
 }
- 
+
+public Action:ResetCvars(args)
+{	
+	decl String:sCvarName[BUFFER_LENGTH], String:sCvarValue[BUFFER_LENGTH];
+	decl Float: value;	//used to store the percentChange from the trie
+	new  Handle: hCvar = INVALID_HANDLE;
+
+	new size = GetArraySize(g_hArrayModdedCvars);
+	for (new n = 0; n < size; n++)
+	{
+		GetArrayString(g_hArrayModdedCvars, n, sCvarName, BUFFER_LENGTH);
+		GetTrieValue(g_hTrieModdedCvars, sCvarName, value);
+		
+		hCvar = FindConVar(sCvarName);
+		if (hCvar == INVALID_HANDLE) { return; }	//invalid cvars won't be stored into the trie since this check is done while setting them, but you never know
+
+		GetConVarString(hCvar, sCvarValue, BUFFER_LENGTH);	//index 0 is otherwise unused, save Cvar value as string here
+		
+		if (StrContains(sCvarValue, ".") == -1)
+		{	//it's not a float Cvar
+			SetConVarInt(hCvar, RoundToNearest(GetConVarInt(hCvar) / (1.0 + value)));
+		}
+		else
+		{	//it is a float Cvar
+			SetConVarFloat(hCvar, GetConVarFloat(hCvar) / (1.0 + value));
+		}
+	}
+	ClearTrie(g_hTrieModdedCvars);
+	ClearArray(g_hArrayModdedCvars);	
+}	
+
 public Action:ResetAtts(args)
 {
 	for (new id=0; id<=WP_NUM; id++)
@@ -464,11 +490,11 @@ public Action:ResetAtts(args)
 	
 	for (new n = 0; n < size; n++)
 	{
-		decl String: cvarName[64];
-		decl String: cvarValue[64];
+		decl String: cvarName[BUFFER_LENGTH];
+		decl String: cvarValue[NUMBER_LENGTH];
 		
-		GetArrayString(g_hArrayModdedCvars, n, cvarName, 64);
-		GetConVarString(FindConVar(cvarName), cvarValue, 64);
+		GetArrayString(g_hArrayModdedCvars, n, cvarName, BUFFER_LENGTH);
+		GetConVarString(FindConVar(cvarName), cvarValue, NUMBER_LENGTH);
 		
 		if (GetConVarInt(g_hAnnounceToChat) & 2)	{ PrintToConsole(i, "%s: %s", cvarName, cvarValue); }
 		else										{ PrintToChat(i, "%s: %s", cvarName, cvarValue); }
@@ -490,14 +516,14 @@ stock PrintWeaponStats(i)
 				else 										{ PrintToConsole(i,"\x05Survivor Weapon Stats:"); }
 			}
 			
-			decl String:weapon[32];
+			decl String:weapon[WEAPON_LENGTH];
 			weapon = GetWeapon(n);
 			
-			decl String:buffer[48];
-			decl String:damageString[48];
-			decl String:ammoString[48];
-			decl String:spreadString[48];
-			decl String:rangeString[48];
+			decl String:buffer[BUFFER_LENGTH];
+			decl String:damageString[BUFFER_LENGTH];
+			decl String:ammoString[BUFFER_LENGTH];
+			decl String:spreadString[BUFFER_LENGTH];
+			decl String:rangeString[BUFFER_LENGTH];
 			
 			new bullets		= L4D2_GetIntWeaponAttribute(weapon, L4D2IWA_Bullets);
 			new damage		= L4D2_GetIntWeaponAttribute(weapon, L4D2IWA_Damage);
