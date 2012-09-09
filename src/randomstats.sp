@@ -1,9 +1,5 @@
 #pragma semicolon 1	
 
-/*
- * Endless arrays
- */
-
  //T1 | weapons and their ids
 #define WP_SMG 2
 #define WP_PUMPSHOTGUN 3
@@ -27,511 +23,23 @@
 #define WP_RIFLE_SG552 34
 #define WP_SNIPER_AWP 35
 #define WP_SNIPER_SCOUT 36
-//throwables
-#define WP_MOLOTOV 13
-#define WP_PIPE_BOMB 14
-#define WP_VOMITJAR 25
-//heals and other shit
-#define WP_FIRST_AID_KIT 12
-#define WP_PAIN_PILLS 15
-#define WP_ADRENALINE 23
-#define WP_MACHINEGUN 45
 
-//highest USABLE weapon id + 1
+//highest actual weapon id + 1
 #define WP_NUM 37
 
-//weapons
-new Float:WepPrecision[WP_NUM] =
-{
-	1.0,
-	1.0,
-	1.0,
-	1.0,
-	1.0,	//5
-	1.0,	
-	1.0,
-	1.0,
-	1.0,	
-	1.0,	//10
-	1.0,
-	1.0,
-	1.0,
-	1.0,	
-	1.0,	//15
-	1.0,
-	1.0,
-	1.0,	
-	1.0,
-	1.0,	//20
-	1.0,
-	1.0,
-	1.0,	
-	1.0,	
-	1.0,	//25
-	1.0,
-	1.0,
-	1.0,
-	1.0,
-	1.0,	//30
-	1.0,
-	1.0,	
-	1.0,	
-	1.0,	
-	1.0,	//35
-	1.0,	
-	1.0,	
-};
+new Float:WepPrecision[WP_NUM];
+new Float:WepRange[WP_NUM];
 
-new Float:WepRange[WP_NUM] =
-{
-	1.0,
-	1.0,
-	1.0,
-	1.0,
-	1.0,	//5
-	1.0,	
-	1.0,
-	1.0,
-	1.0,	
-	1.0,	//10
-	1.0,
-	1.0,
-	1.0,
-	1.0,	
-	1.0,	//15
-	1.0,
-	1.0,
-	1.0,	
-	1.0,
-	1.0,	//20
-	1.0,
-	1.0,
-	1.0,	
-	1.0,	
-	1.0,	//25
-	1.0,
-	1.0,
-	1.0,
-	1.0,
-	1.0,	//30
-	1.0,
-	1.0,	
-	1.0,	
-	1.0,	
-	1.0,	//35
-	1.0,	
-	1.0,	
-};
-
-static DefaultDamage[WP_NUM] =
-{
-	-1,	//no weapon - 0
-	1, 	//pistol 
-	20,	//smg
-	25,//pump
-	23,//autosg
-	33,	//rifle - 5
-	90,	//hr
-	25,	//silenced smg
-	31,//chrome
-	44,	//scar
-	90,	//sniper - 10
-	28,//spas
-	-1,	//medkit
-	-1,	//molotov
-	-1,	//pipebomb
-	-1,	//pills - 15
-	-1,	//no weapon
-	-1,	//no weapon
-	-1,	//no weapon
-	1,	//melee
-	-1,	//no weapon - 20
-	-1,	//no weapon
-	-1,	//no weapon
-	-1,	//adren
-	-1,	//no weapon
-	-1,	//no weapon - 25
-	58,	//ak47
-	-1,	//no weapon
-	-1,	//no weapon
-	-1,	//no weapon
-	-1,	//no weapon - 30
-	-1,	//no weapon
-	1,	//deagle
-	24,	//mp5
-	33,	//sg552
-	115,//awp - 35
-	90,	//scout
-};
-
-static Float:DefaultSpreadPerShot[WP_NUM] =
-{
-	-1.0,	//no weapon - 0
-	1.0, 	//pistol 
-	0.31,	//smg
-	1.00,	//pump
-	20.00,	//autosg
-	0.75,	//rifle - 5
-	1.00,	//hr
-	0.40,	//silenced smg
-	1.00,	//chrome
-	0.60,	//scar
-	1.00,	//sniper - 10
-	22.00,	//spas
-	-1.0,	//medkit
-	-1.0,	//molotov
-	-1.0,	//pipebomb
-	-1.0,	//pills - 15
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	1.0,	//melee
-	-1.0,	//no weapon - 20
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//adren
-	-1.0,	//no weapon
-	-1.0,	//no weapon - 25
-	1.60,	//ak47
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon - 30
-	-1.0,	//no weapon
-	1.0,	//deagle
-	0.35,	//mp5
-	0.75,	//sg552
-	1.00,	//awp - 35
-	1.00,	//scout
-};
-
-static Float:DefaultMaxSpread[WP_NUM] =
-{
-	-1.0,	//no weapon - 0
-	1.0, 	//pistol 
-	30.00,	//smg
-	5.00,	//pump
-	5.00,	//autosg
-	30.00,	//rifle - 5
-	15.00,	//hr
-	30.00,	//silenced smg
-	5.00,	//chrome
-	25.00,	//scar
-	15.00,	//sniper - 10
-	5.00,	//spas
-	-1.0,	//medkit
-	-1.0,	//molotov
-	-1.0,	//pipebomb
-	-1.0,	//pills - 15
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	1.0,	//melee
-	-1.0,	//no weapon - 20
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//adren
-	-1.0,	//no weapon
-	-1.0,	//no weapon - 25
-	35.00,	//ak47
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon - 30
-	-1.0,	//no weapon
-	1.0,	//deagle
-	30.00,	//mp5
-	30.00,	//sg552
-	15.00,	//awp - 35
-	15.00,	//scout
-};
-
-static Float:DefaultSpreadDecay[WP_NUM] =
-{
-	-1.0,	//no weapon - 0
-	1.0, 	//pistol 
-	5.00,	//smg
-	5.00,	//pump
-	5.00,	//autosg
-	5.00,	//rifle - 5
-	8.00,	//hr
-	5.00,	//silenced smg
-	5.00,	//chrome
-	4.00,	//scar
-	8.00,	//sniper - 10
-	6.00,	//spas
-	-1.0,	//medkit
-	-1.0,	//molotov
-	-1.0,	//pipebomb
-	-1.0,	//pills - 15
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	1.0,	//melee
-	-1.0,	//no weapon - 20
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//adren
-	-1.0,	//no weapon
-	-1.0,	//no weapon - 25
-	7.00,	//ak47
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon - 30
-	-1.0,	//no weapon
-	1.0,	//deagle
-	5.00,	//mp5
-	5.00,	//sg552
-	8.00,	//awp - 35
-	8.00,	//scout
-};
-
-static Float:DefaultMinDuckingSpread[WP_NUM] =
-{
-	-1.0,	//no weapon - 0
-	1.0, 	//pistol 
-	0.69,	//smg
-	0.00,	//pump
-	0.00,	//autosg
-	0.05,	//rifle - 5
-	0.00,	//hr
-	0.85,	//silenced smg
-	0.00,	//chrome
-	0.05,	//scar
-	0.05,	//sniper - 10
-	0.00,	//spas
-	-1.0,	//medkit
-	-1.0,	//molotov
-	-1.0,	//pipebomb
-	-1.0,	//pills - 15
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	1.0,	//melee
-	-1.0,	//no weapon - 20
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//adren
-	-1.0,	//no weapon
-	-1.0,	//no weapon - 25
-	0.50,	//ak47
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon - 30
-	-1.0,	//no weapon
-	1.0,	//deagle
-	0.75,	//mp5
-	0.05,	//sg552
-	0.00,	//awp - 35
-	0.00,	//scout
-};
-
-static Float:DefaultMinStandingSpread[WP_NUM] =
-{
-	-1.0,	//no weapon - 0
-	1.0, 	//pistol 
-	1.00,	//smg
-	0.80,	//pump
-	0.80,	//autosg
-	0.40,	//rifle - 5
-	0.10,	//hr
-	1.20,	//silenced smg
-	0.80,	//chrome
-	0.34,	//scar
-	0.50,	//sniper - 10
-	0.75,	//spas
-	-1.0,	//medkit
-	-1.0,	//molotov
-	-1.0,	//pipebomb
-	-1.0,	//pills - 15
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	1.0,	//melee
-	-1.0,	//no weapon - 20
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//adren
-	-1.0,	//no weapon
-	-1.0,	//no weapon - 25
-	1.00,	//ak47
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon - 30
-	-1.0,	//no weapon
-	1.0,	//deagle
-	1.10,	//mp5
-	0.40,	//sg552
-	0.10,	//awp - 35
-	0.10,	//scout
-};
-
-static Float:DefaultMinInAirSpread[WP_NUM] =
-{
-	-1.0,	//no weapon - 0
-	1.0, 	//pistol 
-	1.70,	//smg
-	2.50,	//pump
-	2.50,	//autosg
-	1.50,	//rifle - 5
-	1.50,	//hr
-	1.70,	//silenced smg
-	2.50,	//chrome
-	1.25,	//scar
-	1.50,	//sniper - 10
-	2.50,	//spas
-	-1.0,	//medkit
-	-1.0,	//molotov
-	-1.0,	//pipebomb
-	-1.0,	//pills - 15
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	1.0,	//melee
-	-1.0,	//no weapon - 20
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//adren
-	-1.0,	//no weapon
-	-1.0,	//no weapon - 25
-	3.00,	//ak47
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon - 30
-	-1.0,	//no weapon
-	1.0,	//deagle
-	1.70,	//mp5
-	1.50,	//sg552
-	1.50,	//awp - 35
-	1.50,	//scout
-};
-
-static Float:DefaultMaxMovementSpread[WP_NUM] =
-{
-	-1.0,	//no weapon - 0
-	1.0, 	//pistol 
-	3.00,	//smg
-	1.50,	//pump
-	1.50,	//autosg
-	5.00,	//rifle - 5
-	3.00,	//hr
-	3.00,	//silenced smg
-	1.50,	//chrome
-	4.00,	//scar
-	5.00,	//sniper - 10
-	1.50,	//spas
-	-1.0,	//medkit
-	-1.0,	//molotov
-	-1.0,	//pipebomb
-	-1.0,	//pills - 15
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	1.0,	//melee
-	-1.0,	//no weapon - 20
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//adren
-	-1.0,	//no weapon
-	-1.0,	//no weapon - 25
-	6.00,	//ak47
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon - 30
-	-1.0,	//no weapon
-	1.0,	//deagle
-	3.00,	//mp5
-	5.00,	//sg552
-	3.00,	//awp - 35
-	3.00,	//scout
-};
-
-static Float:DefaultRange[WP_NUM] =
-{
-	-1.0,	//no weapon - 0
-	1.0, 	//pistol 
-	2500.0,	//smg
-	3000.0,	//pump
-	3000.0,	//autosg
-	3000.0,	//rifle - 5
-	8192.0,	//hr
-	2200.0,	//silenced smg
-	3000.0,	//chrome
-	3000.0,	//scar
-	8192.0,	//sniper - 10
-	3000.0,	//spas
-	-1.0,	//medkit
-	-1.0,	//molotov
-	-1.0,	//pipebomb
-	-1.0,	//pills - 15
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	1.0,	//melee
-	-1.0,	//no weapon - 20
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//adren
-	-1.0,	//no weapon
-	-1.0,	//no weapon - 25
-	3000.0,	//ak47
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon - 30
-	-1.0,	//no weapon
-	1.0,	//deagle
-	2500.0,	//mp5
-	3000.0,	//sg552
-	8192.0,	//awp - 35
-	8192.0,	//scout	
-};
-
-static Float:DefaultRangeModifier[WP_NUM] =
-{
-	-1.0,	//no weapon - 0
-	1.0, 	//pistol 
-	0.83,	//smg
-	0.69,	//pump
-	0.69,	//autosg
-	0.97,	//rifle - 5
-	1.00,	//hr
-	0.83,	//silenced smg
-	0.69,	//chrome
-	0.97,	//scar
-	1.00,	//sniper - 10
-	0.69,	//spas
-	-1.0,	//medkit
-	-1.0,	//molotov
-	-1.0,	//pipebomb
-	-1.0,	//pills - 15
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	1.0,	//melee
-	-1.0,	//no weapon - 20
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//adren
-	-1.0,	//no weapon
-	-1.0,	//no weapon - 25
-	0.97,	//ak47
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon
-	-1.0,	//no weapon - 30
-	-1.0,	//no weapon
-	1.0,	//deagle
-	0.84,	//mp5
-	0.97,	//sg552
-	1.0,	//awp - 35
-	1.0,	//scout	
-};
+static DefaultDamage[WP_NUM];
+static Float:DefaultSpreadPerShot[WP_NUM];
+static Float:DefaultMaxSpread[WP_NUM];
+static Float:DefaultSpreadDecay[WP_NUM];
+static Float:DefaultMinDuckingSpread[WP_NUM];
+static Float:DefaultMinStandingSpread[WP_NUM];
+static Float:DefaultMinInAirSpread[WP_NUM];
+static Float:DefaultMaxMovementSpread[WP_NUM];
+static Float:DefaultRange[WP_NUM];
+static Float:DefaultRangeModifier[WP_NUM];
 
 /* Randomised cvar stuff
  * Syntax:
@@ -539,6 +47,8 @@ static Float:DefaultRangeModifier[WP_NUM] =
  * Plugin will select a random number for Cvar1 between minvalue and maxvalue, and scale all the following Cvars. 
  * The % that Cvar1 is increased will be stored and multiplied by the proportion, and Cvar2, Cvar3, etc will be increased or decreased by this percentage of their default value.
  * For simple direct and inverse proportion, just use "1.0" and "-1.0".
+ * If Cvar1 is already defined and it's the only cvar listed, it'll be re-randomised.
+ * If Cvar1 is already defined and there's other cvars listed, it will skip the randomisation of Cvar1 and go straight to the scaling of the rest.
  * 
  * To-do:
  * - make it so that if Cvar1 has already been randomised, all the following Cvars will be scaled according to its variation and to proportion. Use tries for this, key is Cvar name, value is difference from default! So easy.
@@ -569,6 +79,10 @@ static Float:DefaultRangeModifier[WP_NUM] =
  *   - Added flag cvar to choose between printing weapon and cvar stats to chat or to console.
  * - Added functionality to random cvars: if Cvar1 has already been randomised, all the following Cvars will be scaled according to its variation and to proportion.
  * - Added CSS weapon attributes.
+ * 0.4.1
+ * - Changed announcement code so that console prints will no longer have the colour characters.
+ * - Added a loop to get the data for the default attribute arrays from the server on plugin start instead of having them pre-defined. It's so much neater and shorter now.
+ * - Made it so that cvars can be re-randomised now, by using only a single cvar argument for the already-randomised cvar. Using several will still scale them according to that cvar.
  */
  
 #include <sourcemod>
@@ -609,7 +123,7 @@ public Plugin:myinfo =
 	name = "Randomised Stats - Weapon Attributes and Cvars",
 	author = "Stabby",
 	description = "Allows for randomisation of weapon attributes and cvars and the announcement of changes to players.",
-	version = "0.4",
+	version = "0.4.1",
 	url = "no url"
 }
 
@@ -645,6 +159,30 @@ public OnPluginStart()
 	//limits the maximum number of different modded weapons in the game to this number. 0 means no limit
 //	hWepLimit		= CreateConVar(		"rwa_limit_weapons",	"0",		"nondescript", FCVAR_PLUGIN, true,  0.0, true, 10.0);
 	
+	for (new n = 1; n < WP_NUM; n++)
+	{
+		if (!IsItAnActualWeapon(n)) { continue; }
+		
+		decl String:sWeapon[32];
+		sWeapon = GetWeapon(n);
+		
+		//Store default values for everything from current attributes (ClipSize and Bullets are still done through functions though)
+		DefaultDamage[n]			=	L4D2_GetIntWeaponAttribute(sWeapon, L4D2IWA_Damage);
+		DefaultMaxMovementSpread[n]	=	L4D2_GetFloatWeaponAttribute(sWeapon, L4D2FWA_MaxMovementSpread	);
+		DefaultMaxSpread[n]			=	L4D2_GetFloatWeaponAttribute(sWeapon, L4D2FWA_MaxSpread			);
+		DefaultMinDuckingSpread[n]	=	L4D2_GetFloatWeaponAttribute(sWeapon, L4D2FWA_MinDuckingSpread	);
+		DefaultMinInAirSpread[n]	=	L4D2_GetFloatWeaponAttribute(sWeapon, L4D2FWA_MinInAirSpread	);
+		DefaultMinStandingSpread[n]	=	L4D2_GetFloatWeaponAttribute(sWeapon, L4D2FWA_MinStandingSpread	);
+		DefaultRange[n]				=	L4D2_GetFloatWeaponAttribute(sWeapon, L4D2FWA_Range				);
+		DefaultRangeModifier[n]		=	L4D2_GetFloatWeaponAttribute(sWeapon, L4D2FWA_RangeModifier		);
+		DefaultSpreadDecay[n]		=	L4D2_GetFloatWeaponAttribute(sWeapon, L4D2FWA_SpreadDecay		);
+		DefaultSpreadPerShot[n]		=	L4D2_GetFloatWeaponAttribute(sWeapon, L4D2FWA_SpreadPerShot		);
+		
+		//take care of precision and range arrays
+		WepPrecision[n] = 1.0;
+		WepRange[n] = 1.0;
+	}
+	
 	g_hArrayModdedCvars	= CreateArray(48);
 	g_hTrieModdedCvars	= CreateTrie();
 	
@@ -660,6 +198,8 @@ public OnPluginStart()
 
 public Action:SetCvar(args)
 {	
+	if (args < 4)	{ return; }
+	
 	decl n;	//used in loops
 	decl String:sArArgs[args + 1][48];
 	for (n = 1; n <= args; n++)	{ GetCmdArg(n, sArArgs[n], 48); }	
@@ -674,9 +214,29 @@ public Action:SetCvar(args)
 	
 	GetConVarString(hCvar, sArArgs[0], 48);	//index 0 is otherwise unused, save Cvar value as string here
 	
-	if (GetTrieValue(g_hTrieModdedCvars, sArArgs[0], percentChange))	//means this cvar's already been randomised
-	{
-		percentChange *= proportion;
+	if (GetTrieValue(g_hTrieModdedCvars, sArArgs[0], percentChange))	//means this cvar's already been randomised, store its current variation into percentChange 
+	{																	//to correct thew new percentChange based on the cvar's default, rather than the previous randomised value
+		if (args == 4)	//only 1 cvar argument, let's re-randomise that cvar
+		{
+			if (StrContains(sArArgs[0], ".") == -1)
+			{	//it's not a float Cvar
+				new randValue	= GetRandomInt(RoundToNearest(minValue), RoundToNearest(maxValue));
+				percentChange = (float(randValue) / (float(GetConVarInt(hCvar)) * (1.0 + percentChange)) - 1.0) * proportion;
+				SetConVarInt(hCvar, randValue);
+			}
+			else
+			{	//it is a float Cvar
+				new Float:randValue	= GetRandomFloat(minValue, maxValue);
+				percentChange = (randValue / (GetConVarFloat(hCvar) * (1.0 + percentChange))- 1.0) * proportion;
+				SetConVarFloat(hCvar, randValue);
+			}
+			SetTrieValue(g_hTrieModdedCvars, sArArgs[4], percentChange / proportion, true);	//save offset percent to set new cvars according to this cvar's change
+			PushArrayString(g_hArrayModdedCvars, sArArgs[4]);	//and store key in array so we don't lose it! used in the printcvarstats loop, possibly in other things later
+		}
+		else	//several cvar arguments, let's use the first one to scale the rest
+		{
+			percentChange *= proportion;
+		}
 	}
 	else
 	{
@@ -930,7 +490,7 @@ stock PrintWeaponStats(i)
 				else 										{ PrintToConsole(i,"\x05Survivor Weapon Stats:"); }
 			}
 			
-			decl String:weapon[33];
+			decl String:weapon[32];
 			weapon = GetWeapon(n);
 			
 			decl String:buffer[48];
@@ -944,10 +504,13 @@ stock PrintWeaponStats(i)
 			new clipsize	= L4D2_GetIntWeaponAttribute(weapon, L4D2IWA_ClipSize);
 			new ammo 		= GetConVarInt(FindConVar(GetAmmoType(n)));
 			new Float:percentageDifference;
+
 			new bool:bDamageModded 	= (bullets != GetDefaultBullets(n) || damage != DefaultDamage[n]);
 			new bool:bAmmoModded 	= (clipsize != GetDefaultClipSize(n) || ammo != GetDefaultAmmo(n)) && GetConVarBool(g_hAnnounceAmmo);
 			new bool:bSpreadModded	= (L4D2_GetFloatWeaponAttribute(weapon, L4D2FWA_SpreadDecay) != DefaultSpreadDecay[n]);
 			new bool:bRangeModded	= (L4D2_GetFloatWeaponAttribute(weapon, L4D2FWA_Range) != DefaultRange[n] || L4D2_GetFloatWeaponAttribute(weapon, L4D2FWA_RangeModifier) != DefaultRangeModifier[n]);			
+			
+			new bool:bToChat = bool:(GetConVarInt(g_hAnnounceToChat) & 1);
 			
 			//in case nothing besides ammo has been changed and ammo is hidden
 			if (!bDamageModded && !bSpreadModded && !bRangeModded && !bAmmoModded)	{ continue; }
@@ -955,7 +518,9 @@ stock PrintWeaponStats(i)
 			//format announcement according to what's been changed
 			if (bDamageModded)			
 			{
-				damageString = "\x01Dmg: \x03";
+				if (bToChat)	{ damageString = "\x01Dmg: \x03"; }
+				else			{ damageString = "Dmg: "; }	
+				
 				if (StrContains(weapon, "shotgun") != -1)
 				{
 					IntToString(bullets, buffer, sizeof(buffer));
@@ -965,47 +530,59 @@ stock PrintWeaponStats(i)
 				IntToString(damage, buffer, sizeof(buffer));
 				StrCat(damageString, sizeof(damageString), buffer);
 				
+				if (bToChat)	{ StrCat(damageString, sizeof(damageString), "\x01(\x04"); }
+				else			{ StrCat(damageString, sizeof(damageString), "("); }	
+				
 				percentageDifference = float(L4D2_GetIntWeaponAttribute(weapon, L4D2IWA_Bullets)*L4D2_GetIntWeaponAttribute(weapon, L4D2IWA_Damage))*100.0/float(DefaultDamage[n]);
 				FloatToString(percentageDifference, buffer, 3);
-				StrCat(damageString, sizeof(damageString), "\x01(\x04");
 				StrCat(damageString, sizeof(damageString), buffer);
-				StrCat(damageString, sizeof(damageString), "%%\x01); ");				
+
+				if (bToChat)	{ StrCat(damageString, sizeof(damageString), "%%\x01); "); }
+				else			{ StrCat(damageString, sizeof(damageString), "%%); "); }
 			}
 			
 			if (bAmmoModded)
 			{
-				ammoString = "Ammo: \x03";
+				if (bToChat)	{ ammoString = "Ammo: \x03"; }
+				else			{ ammoString = "Ammo: "; }
+				
 				IntToString(clipsize, buffer, sizeof(buffer));
 				StrCat(ammoString, sizeof(ammoString), buffer);
 				StrCat(ammoString, sizeof(ammoString), "/");
 				IntToString(ammo, buffer, sizeof(buffer));
 				StrCat(ammoString, sizeof(ammoString), buffer);
-				StrCat(ammoString, sizeof(ammoString), "\x01; ");
+				if (bToChat)	{ StrCat(ammoString, sizeof(ammoString), "\x01; "); }
+				else			{ StrCat(ammoString, sizeof(ammoString), "; "); }
 			}
 			
 			if (bSpreadModded)
 			{
-				spreadString = "Spread: \x04";
+				if (bToChat)	{ spreadString = "Spread: \x04"; }
+				else			{ spreadString = "Spread: "; }
 				
 				percentageDifference = WepPrecision[n]*100.0;
 				FloatToString(percentageDifference, buffer, 3);
 				StrCat(damageString, sizeof(damageString), buffer);
-				StrCat(damageString, sizeof(damageString), "%%\x01; ");
+				
+				if (bToChat)	{ StrCat(damageString, sizeof(damageString), "%%\x01; "); }
+				else			{ StrCat(damageString, sizeof(damageString), "%%; "); }
 			}
 
 			if (bRangeModded)
 			{
-				rangeString = "Range: \x04";
+				if (bToChat) 	{ rangeString = "Range: \x04"; }
+				else	 		{ rangeString = "Range: "; }
 				
 				percentageDifference = WepRange[n]*100.0;
 				FloatToString(percentageDifference, buffer, 3);
 				StrCat(rangeString, sizeof(rangeString), buffer);
-				StrCat(rangeString, sizeof(rangeString), "%%\x01;");
+				if (bToChat)	{ StrCat(rangeString, sizeof(rangeString), "%%\x01;"); }
+				else			{ StrCat(rangeString, sizeof(rangeString), "%%;"); }				
 			}
 			//end announcement formatting
 			
 			
-			if (GetConVarInt(g_hAnnounceToChat) & 1)		//announce!
+			if (bToChat)		//announce!
 			{
 				PrintToChat(i,"\x05%s: %s%s%s%s",
 					GetShortName(weapon),
@@ -1016,7 +593,7 @@ stock PrintWeaponStats(i)
 			}
 			else
 			{
-				PrintToConsole(i,"\x05%s: %s%s%s%s",
+				PrintToConsole(i,"%s: %s%s%s%s",
 					GetShortName(weapon),
 					bDamageModded	? damageString	: "",
 					bAmmoModded		? ammoString	: "",
@@ -1041,11 +618,11 @@ stock String:GetAmmoType(wp_index)
 	decl String:ammo_type[22];
 	switch (wp_index)
 	{
-		case WP_SMG, WP_SMG_SILENCED, WP_SMG_MP5: 			{ammo_type = "ammo_smg_max";}	
-		case WP_PUMPSHOTGUN, WP_SHOTGUN_CHROME: 			{ammo_type = "ammo_shotgun_max";}	
-		case WP_AUTOSHOTGUN, WP_SHOTGUN_SPAS:				{ammo_type = "ammo_autoshotgun_max";}
-		case WP_HUNTING_RIFLE:						{ammo_type = "ammo_huntingrifle_max";}
-		case WP_SNIPER_MILITARY, WP_SNIPER_AWP, WP_SNIPER_SCOUT:	{ammo_type = "ammo_sniperrifle_max";}
+		case WP_SMG, WP_SMG_SILENCED, WP_SMG_MP5: 						{ammo_type = "ammo_smg_max";}	
+		case WP_PUMPSHOTGUN, WP_SHOTGUN_CHROME: 						{ammo_type = "ammo_shotgun_max";}	
+		case WP_AUTOSHOTGUN, WP_SHOTGUN_SPAS:							{ammo_type = "ammo_autoshotgun_max";}
+		case WP_HUNTING_RIFLE:											{ammo_type = "ammo_huntingrifle_max";}
+		case WP_SNIPER_MILITARY, WP_SNIPER_AWP, WP_SNIPER_SCOUT:		{ammo_type = "ammo_sniperrifle_max";}
 		case WP_RIFLE, WP_RIFLE_AK47, WP_RIFLE_DESERT, WP_RIFLE_SG552:	{ammo_type = "ammo_assaultrifle_max";}
 	}
 	return ammo_type;
@@ -1056,11 +633,11 @@ stock GetDefaultAmmo(wp_index)
 	new ammo = -1;
 	switch (wp_index)
 	{
-		case WP_SMG, WP_SMG_SILENCED, WP_SMG_MP5: 			{ammo = 650;}	
-		case WP_PUMPSHOTGUN, WP_SHOTGUN_CHROME:				{ammo = 80;}	
-		case WP_AUTOSHOTGUN, WP_SHOTGUN_SPAS:				{ammo = 90;}
-		case WP_HUNTING_RIFLE:						{ammo = 150;}
-		case WP_SNIPER_MILITARY, WP_SNIPER_AWP, WP_SNIPER_SCOUT:	{ammo = 180;}
+		case WP_SMG, WP_SMG_SILENCED, WP_SMG_MP5: 						{ammo = 650;}	
+		case WP_PUMPSHOTGUN, WP_SHOTGUN_CHROME:							{ammo = 80;}	
+		case WP_AUTOSHOTGUN, WP_SHOTGUN_SPAS:							{ammo = 90;}
+		case WP_HUNTING_RIFLE:											{ammo = 150;}
+		case WP_SNIPER_MILITARY, WP_SNIPER_AWP, WP_SNIPER_SCOUT:		{ammo = 180;}
 		case WP_RIFLE, WP_RIFLE_AK47, WP_RIFLE_DESERT, WP_RIFLE_SG552:	{ammo = 360;}
 	}
 	return ammo;
@@ -1173,5 +750,10 @@ stock GetDefaultClipSize(id)
 	return buffer;
 }
 
+stock bool:IsItAnActualWeapon(id)
+{
+	if ((id >= 1 && id <= 11) || (id == 19) || (id == 26) || (id >= 32 && id <= 36))	{ return true; }
+	return false;	
+}
 
 
