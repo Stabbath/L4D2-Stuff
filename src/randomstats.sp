@@ -676,7 +676,7 @@ stock GetInt(const String:weapon[])
 	if (StrEqual(weapon,"weapon_smg_silenced",false)) 		{return WP_SMG_SILENCED;}
 	if (StrEqual(weapon,"weapon_smg_mp5",false)) 			{return WP_SMG_MP5;}	
 	if (StrEqual(weapon,"weapon_pistol",false)) 			{return WP_PISTOL;}
-	if (StrEqual(weapon,"weapon_pitstol_magnum",false)) 	{return WP_PISTOL_MAGNUM;}
+	if (StrEqual(weapon,"weapon_pistol_magnum",false)) 		{return WP_PISTOL_MAGNUM;}
 	if (StrEqual(weapon,"weapon_pumpshotgun",false)) 		{return WP_PUMPSHOTGUN;}
 	if (StrEqual(weapon,"weapon_shotgun_chrome",false)) 	{return WP_SHOTGUN_CHROME;}
 	if (StrEqual(weapon,"weapon_autoshotgun",false)) 		{return WP_AUTOSHOTGUN;}
@@ -701,6 +701,7 @@ stock String:GetWeapon(int)
 	{
 		case WP_SMG: 				{buffer = "weapon_smg";}	
 		case WP_SMG_SILENCED: 		{buffer = "weapon_smg_silenced";}
+		case WP_SMG_MP5:	 		{buffer = "weapon_smg_mp5";}
 		case WP_PISTOL: 			{buffer = "weapon_pistol";}	
 		case WP_PISTOL_MAGNUM: 		{buffer = "weapon_pistol_magnum";}	
 		case WP_PUMPSHOTGUN: 		{buffer = "weapon_pumpshotgun";}	
@@ -728,7 +729,7 @@ stock String:GetShortName(const String:weapon[])
 	if (StrEqual(weapon,"weapon_smg_silenced",false)) 		{buff = "Si.SMG";}
 	if (StrEqual(weapon,"weapon_smg_mp5",false)) 			{buff = "MP5";}	
 	if (StrEqual(weapon,"weapon_pistol",false)) 			{buff = "Pistol";}
-	if (StrEqual(weapon,"weapon_pitstol_magnum",false)) 	{buff = "Magnum";}
+	if (StrEqual(weapon,"weapon_pistol_magnum",false)) 		{buff = "Magnum";}
 	if (StrEqual(weapon,"weapon_pumpshotgun",false)) 		{buff = "Pump";}
 	if (StrEqual(weapon,"weapon_shotgun_chrome",false)) 	{buff = "Chrome";}
 	if (StrEqual(weapon,"weapon_autoshotgun",false)) 		{buff = "AutoSG";}
