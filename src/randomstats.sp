@@ -10,7 +10,6 @@
  * If Cvar1 is already defined and there's other cvars listed, it will skip the randomisation of Cvar1 and go straight to the scaling of the rest.
  * 
  * To-do:
- * - make it so that if Cvar1 has already been randomised, all the following Cvars will be scaled according to its variation and to proportion. Use tries for this, key is Cvar name, value is difference from default! So easy.
  * - maybe add melee randomisation
  * - maybe add client command to print to console regardless of to-chat Cvar, and make the existing one always print to chat
  * - maybe look into pistols again to find out what exactly was wrong with them
@@ -121,6 +120,7 @@ new Float:DefaultMaxMovementSpread[WP_NUM];
 new Float:DefaultRange[WP_NUM];
 new Float:DefaultRangeModifier[WP_NUM];
 
+new bool:g_bCSSWeaponsAvailable = false;
 new bool:g_bIsWeaponModded[WP_NUM];
 
 //Cvar handles
@@ -136,6 +136,13 @@ new Handle: g_hArrayModdedCvars					= INVALID_HANDLE;	//stores keys for g_hTrieM
 
 public OnPluginStart()
 {
+	new tmpEntity = CreateEntityByName(GetWeaponName(33));	//check if CSS weapons exist in the server, to avoid erroring out
+	if (tmpEntity != -1)
+	{
+		g_bCSSWeaponsAvailable = true;
+		AcceptEntityInput(tmpEntity, "Kill");
+	}
+
 	//Cvars
 	//announce weapon stats to players?
 	g_hAnnounceWeapons= CreateConVar(	"random_announce_weapons",	"1",		"Should the plugin be allowed to announce changes for all modified weapons?", FCVAR_PLUGIN, true,  0.0, true, 1.0);
@@ -149,8 +156,6 @@ public OnPluginStart()
 //	hReRandom		= CreateConVar(		"random_mod_everymap",		"1",		"nondescript", FCVAR_PLUGIN, true,  0.0, true, 1.0);
 	//include melee attribute randomisation?
 //	hModMelee		= CreateConVar(		"random_mod_melee",			"0",		"nondescript", FCVAR_PLUGIN, true,  0.0, true, 1.0);
-	//include m2 delay and penalty randomisation?
-//	hModShove		= CreateConVar(		"random_mod_shove",			"0",		"nondescript", FCVAR_PLUGIN, true,  0.0, true, 1.0);
 	//limits the maximum number of different modded weapons in the game to this number. 0 means no limit
 //	hWepLimit		= CreateConVar(		"random_limit_weapons",		"0",		"nondescript", FCVAR_PLUGIN, true,  0.0, true, 10.0);
 	
@@ -169,12 +174,12 @@ public OnPluginStart()
 	
 	HookEvent("item_pickup",Event_ItemPickup);	//weapon_pickup doesnt fire ever
 	
-	for (new n = 1; n < WP_NUM; n++)		//will error out at 33 if css weapons aren't found, like happens in my ds
+	for (new n = 1; n < WP_NUM; n++)
 	{
-		if (!IsItAnActualWeapon(n)) { continue; }
+		if (!((n >= 1 && n <= 11) || (n == 26) || (n >= 33 && n <= 36 && g_bCSSWeaponsAvailable))) { continue; }
 		
 		decl String:sWeapon[WEAPON_LENGTH];
-		sWeapon = GetWeapon(n);
+		sWeapon = GetWeaponName(n);
 		
 		//Store default values for everything from current attributes (ClipSize and Bullets are still done through functions though)
 		DefaultDamage[n]			=	L4D2_GetIntWeaponAttribute(sWeapon, L4D2IWA_Damage);
@@ -197,7 +202,7 @@ public OnPluginStart()
 public Action:SetCvar(args)
 {	
 	if (args < 4)	{ return; }
-	
+		
 	decl n;	//used in loops
 	decl String:sArArgs[args + 1][BUFFER_LENGTH];
 	for (n = 1; n <= args; n++)	{ GetCmdArg(n, sArArgs[n], BUFFER_LENGTH); }	
@@ -212,8 +217,8 @@ public Action:SetCvar(args)
 	
 	GetConVarString(hCvar, sArArgs[0], BUFFER_LENGTH);	//index 0 is otherwise unused, save Cvar value as string here
 	
-	if (GetTrieValue(g_hTrieModdedCvars, sArArgs[0], percentChange))	//means this cvar's already been randomised, store its current variation into percentChange 
-	{																	//to correct thew new percentChange based on the cvar's default, rather than the previous randomised value
+	if (GetTrieValue(g_hTrieModdedCvars, sArArgs[4], percentChange))	//means this cvar's already been randomised, store its current variation into percentChange 
+	{																	//to correct thew new percentChange based on the cvar's default, rather than the previous randomised value		
 		if (args == 4)	//only 1 cvar argument, let's re-randomise that cvar
 		{				//but let's store the previous value too
 			ServerCommand("random_undocvar %s", sArArgs[4]);	//but first: if it's been re-randomised before, undo the change back to the first randomised value. This is done automatically thanks to the key existing or not in g_hTriePreReRandomisationCvarValues (the key is only created the first time this is done, and removed when it's undone. Its undoing is meaningless when re-randomising as it is added again right after, but that doesnt affect anything, just let it be removed every undo for simplicity)
@@ -225,6 +230,7 @@ public Action:SetCvar(args)
 				new randValue	= GetRandomInt(RoundToNearest(minValue), RoundToNearest(maxValue));
 				percentChange = (float(randValue) / (float(GetConVarInt(hCvar)) * (1.0 + percentChange)) - 1.0) * proportion;
 				SetConVarInt(hCvar, randValue);
+				PrintToServer("Re-randomised %s, new value: %d", sArArgs[4], randValue);
 			}
 			else
 			{	//it is a float Cvar
@@ -233,8 +239,9 @@ public Action:SetCvar(args)
 				new Float:randValue	= GetRandomFloat(minValue, maxValue);
 				percentChange = (randValue / (GetConVarFloat(hCvar) * (1.0 + percentChange))- 1.0) * proportion;
 				SetConVarFloat(hCvar, randValue);
+				PrintToServer("Re-randomised %s, new value: %f", sArArgs[4], randValue);				
 			}
-			SetTrieValue(g_hTrieModdedCvars, sArArgs[4], percentChange / proportion, true);	//save offset percent to set new cvars according to this cvar's change
+			SetTrieValue(g_hTrieModdedCvars, sArArgs[4], percentChange / proportion, true);	//save offset percent to set new cvars according to this cvar's change			
 		}
 		else	//several cvar arguments, let's use the first one to scale the rest
 		{
@@ -242,18 +249,20 @@ public Action:SetCvar(args)
 		}
 	}
 	else
-	{
+	{		
 		if (StrContains(sArArgs[0], ".") == -1)
 		{	//it's not a float Cvar
 			new randValue	= GetRandomInt(RoundToNearest(minValue), RoundToNearest(maxValue));
 			percentChange = (float(randValue) / float(GetConVarInt(hCvar)) - 1.0) * proportion;
 			SetConVarInt(hCvar, randValue);
+			PrintToServer("Randomised cvar %s, new value: %d", sArArgs[4], randValue);
 		}
 		else
 		{	//it is a float Cvar
 			new Float:randValue	= GetRandomFloat(minValue, maxValue);
 			percentChange = (randValue / GetConVarFloat(hCvar) - 1.0) * proportion;
 			SetConVarFloat(hCvar, randValue);
+			PrintToServer("Randomised cvar %s, new value: %f", sArArgs[4], randValue);
 		}	//percentChange for the 1st cvar is percentChange without taking proportion into account
 		SetTrieValue(g_hTrieModdedCvars, sArArgs[4], percentChange / proportion, true);	//save offset percent to set new cvars according to this cvar's change
 		PushArrayString(g_hArrayModdedCvars, sArArgs[4]);	//and store key in array so we don't lose it! used in the printcvarstats loop, possibly in other things later
@@ -269,11 +278,13 @@ public Action:SetCvar(args)
 		{
 			new buffer = RoundToNearest(float(GetConVarInt(hCvar)) * (1.0 + percentChange));
 			SetConVarInt(hCvar, buffer);
+			PrintToServer("Scaled cvar %s according to %s, new value: %d", sArArgs[n], sArArgs[4], buffer);
 		}
 		else 
 		{
 			new Float:buffer = GetConVarFloat(hCvar) * (1.0 + percentChange);
 			SetConVarFloat(hCvar, buffer);
+			PrintToServer("Scaled cvar %s according to %s, new value: %f", sArArgs[n], sArArgs[4], buffer);
 		}
 		SetTrieValue(g_hTrieModdedCvars, sArArgs[n], percentChange, true);	//save offset percent to set new cvars according to this cvar's change
 		PushArrayString(g_hArrayModdedCvars, sArArgs[n]);	//and store key in array so we don't lose it! and then it takes forever to find and you just know the keys are in the last place you'd think of
@@ -497,7 +508,7 @@ public Action:ResetAtts(args)
 		if (!g_bIsWeaponModded[id]) { continue; }
 		
 		decl String:sWeapon[WEAPON_LENGTH];
-		sWeapon = GetWeapon(id);
+		sWeapon = GetWeaponName(id);
 		
 		L4D2_SetIntWeaponAttribute(sWeapon, L4D2IWA_Damage, DefaultDamage[id]);
 		L4D2_SetIntWeaponAttribute(sWeapon, L4D2IWA_Damage, GetDefaultBullets(id));
@@ -558,7 +569,7 @@ stock PrintWeaponStats(i)
 			}
 			
 			decl String:weapon[WEAPON_LENGTH];
-			weapon = GetWeapon(n);
+			weapon = GetWeaponName(n);
 			
 			decl String:buffer[BUFFER_LENGTH];
 			decl String:damageString[BUFFER_LENGTH];
@@ -735,7 +746,7 @@ stock GetInt(const String:weapon[])
 }
 
 //inverse function of GetInt
-stock String:GetWeapon(int)
+stock String:GetWeaponName(int)
 {
 	new String:buffer[WEAPON_LENGTH] = "no_weapon";
 	switch (int)
@@ -818,10 +829,5 @@ stock GetDefaultClipSize(id)
 	return buffer;
 }
 
-stock bool:IsItAnActualWeapon(id)
-{
-	if ((id >= 1 && id <= 11) || (id == 19) || (id == 26) || (id >= 33 && id <= 36))	{ return true; }
-	return false;
-}
 
 
