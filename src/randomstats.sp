@@ -30,7 +30,7 @@
  *   - added cvar to control if things are announced or not and to allow clip/ammo info to be hidden no matter what
  *   - made it so that only stats that have been changed are displayed.
  * 0.4:
- * - Removed "ammo" as a possible argument for int atts, since this can be done with rwa_Cvar now. Plugin will only print ammo in weapon announcement if there were other changes to the weapon.
+ * - Removed "ammo" as a possible argument for int atts, since this can be done with random_setcvar now. Plugin will only print ammo in weapon announcement if there were other changes to the weapon.
  * - Added "range" safeguard in case RangeModifier > 1.0 caused issues or made damage increase with distance.
  * - More announcement revamping:
  *   - Changed announcement cvars to separate weapons from cvars.
@@ -130,8 +130,9 @@ new Handle:	g_hAnnounceCvars	= INVALID_HANDLE;
 new Handle:	g_hAnnounceToChat	= INVALID_HANDLE;
 
 //cvar-randomisation-related structures and things
-new Handle: g_hTrieModdedCvars	= INVALID_HANDLE;
-new Handle: g_hArrayModdedCvars	= INVALID_HANDLE;
+new Handle: g_hTriePreReRandomisationCvarValues	= INVALID_HANDLE;	//stores cvar values for cvars that get re-randomised before they are re-randomised. This is useful to revert temporary changes, so you can toggle the cvar back to a value that had been previously randomised
+new Handle: g_hTrieModdedCvars					= INVALID_HANDLE;	//stores the difference between the new value and the default value, as a percentage, for proportioning and scaling
+new Handle: g_hArrayModdedCvars					= INVALID_HANDLE;	//stores keys for g_hTrieModdedCvars, for cycling through all of them in loops
 
 public OnPluginStart()
 {
@@ -153,7 +154,22 @@ public OnPluginStart()
 	//limits the maximum number of different modded weapons in the game to this number. 0 means no limit
 //	hWepLimit		= CreateConVar(		"random_limit_weapons",		"0",		"nondescript", FCVAR_PLUGIN, true,  0.0, true, 10.0);
 	
-	for (new n = 1; n < WP_NUM; n++)
+	g_hArrayModdedCvars	= CreateArray(BUFFER_LENGTH);
+	g_hTrieModdedCvars	= CreateTrie();
+	g_hTriePreReRandomisationCvarValues = CreateTrie();
+	
+	RegServerCmd ("random_setiwa",		SetIntAtts);	//sets damage, clipsize and bullets to a set value
+	RegServerCmd ("random_setfwa",		SetFloatAtts);	//sets spread or range attributes as a group, to a percentage of their default
+	RegServerCmd ("random_resetatts",	ResetAtts);		//resets all attribute changes to the values that were on the server before randomisation
+	RegServerCmd ("random_setcvar",		SetCvar);		//extensive explanation in comment at the beginning of this file
+	RegServerCmd ("random_undocvar",	UndoCvar);		//toggles a re-randomised cvar back to its previous randomised value
+	RegServerCmd ("random_resetcvars",	ResetCvars);	//resets cvars to default values
+	RegConsoleCmd("random_showatts", 	ShowAtts);		//displays attribute changes to players, if allowed by config
+	RegConsoleCmd("random_showcvars", 	ShowCvars);		//displays cvar changes to players, if allowed by config
+	
+	HookEvent("item_pickup",Event_ItemPickup);	//weapon_pickup doesnt fire ever
+	
+	for (new n = 1; n < WP_NUM; n++)		//will error out at 33 if css weapons aren't found, like happens in my ds
 	{
 		if (!IsItAnActualWeapon(n)) { continue; }
 		
@@ -176,19 +192,6 @@ public OnPluginStart()
 		WepPrecision[n] = 1.0;
 		WepRange[n] = 1.0;
 	}
-	
-	g_hArrayModdedCvars	= CreateArray(BUFFER_LENGTH);
-	g_hTrieModdedCvars	= CreateTrie();
-	
-	RegServerCmd ("random_setiwa",		SetIntAtts);
-	RegServerCmd ("random_setfwa",		SetFloatAtts);
-	RegServerCmd ("random_resetatts",	ResetAtts);
-	RegServerCmd ("random_setcvar",		SetCvar);
-	RegServerCmd ("random_resetcvars",	ResetCvars);
-	RegConsoleCmd("random_showatts", 	ShowAtts);
-	RegConsoleCmd("random_showcvars", 	ShowCvars);
-	
-	HookEvent("item_pickup",Event_ItemPickup);	//weapon_pickup doesnt fire ever
 }
 
 public Action:SetCvar(args)
@@ -212,21 +215,26 @@ public Action:SetCvar(args)
 	if (GetTrieValue(g_hTrieModdedCvars, sArArgs[0], percentChange))	//means this cvar's already been randomised, store its current variation into percentChange 
 	{																	//to correct thew new percentChange based on the cvar's default, rather than the previous randomised value
 		if (args == 4)	//only 1 cvar argument, let's re-randomise that cvar
-		{
+		{				//but let's store the previous value too
+			ServerCommand("random_undocvar %s", sArArgs[4]);	//but first: if it's been re-randomised before, undo the change back to the first randomised value. This is done automatically thanks to the key existing or not in g_hTriePreReRandomisationCvarValues (the key is only created the first time this is done, and removed when it's undone. Its undoing is meaningless when re-randomising as it is added again right after, but that doesnt affect anything, just let it be removed every undo for simplicity)
+			
 			if (StrContains(sArArgs[0], ".") == -1)
 			{	//it's not a float Cvar
+				SetTrieValue(g_hTriePreReRandomisationCvarValues, sArArgs[4], percentChange, true);	//store old percentChange for cvar undoing
+				
 				new randValue	= GetRandomInt(RoundToNearest(minValue), RoundToNearest(maxValue));
 				percentChange = (float(randValue) / (float(GetConVarInt(hCvar)) * (1.0 + percentChange)) - 1.0) * proportion;
 				SetConVarInt(hCvar, randValue);
 			}
 			else
 			{	//it is a float Cvar
+				SetTrieValue(g_hTriePreReRandomisationCvarValues, sArArgs[4], percentChange, true);	//store old percentChange for cvar undoing
+				
 				new Float:randValue	= GetRandomFloat(minValue, maxValue);
 				percentChange = (randValue / (GetConVarFloat(hCvar) * (1.0 + percentChange))- 1.0) * proportion;
 				SetConVarFloat(hCvar, randValue);
 			}
 			SetTrieValue(g_hTrieModdedCvars, sArArgs[4], percentChange / proportion, true);	//save offset percent to set new cvars according to this cvar's change
-			PushArrayString(g_hArrayModdedCvars, sArArgs[4]);	//and store key in array so we don't lose it! used in the printcvarstats loop, possibly in other things later
 		}
 		else	//several cvar arguments, let's use the first one to scale the rest
 		{
@@ -246,7 +254,7 @@ public Action:SetCvar(args)
 			new Float:randValue	= GetRandomFloat(minValue, maxValue);
 			percentChange = (randValue / GetConVarFloat(hCvar) - 1.0) * proportion;
 			SetConVarFloat(hCvar, randValue);
-		}
+		}	//percentChange for the 1st cvar is percentChange without taking proportion into account
 		SetTrieValue(g_hTrieModdedCvars, sArArgs[4], percentChange / proportion, true);	//save offset percent to set new cvars according to this cvar's change
 		PushArrayString(g_hArrayModdedCvars, sArArgs[4]);	//and store key in array so we don't lose it! used in the printcvarstats loop, possibly in other things later
 	}
@@ -271,6 +279,39 @@ public Action:SetCvar(args)
 		PushArrayString(g_hArrayModdedCvars, sArArgs[n]);	//and store key in array so we don't lose it! and then it takes forever to find and you just know the keys are in the last place you'd think of
 	}
 }	
+
+public Action:UndoCvar(args)			//1. undo re-randomisation's percentChange; 2. apply first randomisation's percentChange.
+{	
+	if (args != 1)	{ return; }
+	
+	decl String:sCvarName[BUFFER_LENGTH];
+	decl String:sCvarValue[BUFFER_LENGTH];
+	
+	new Float:	reRandomPercentChange;
+	new Float:	firstRandomPercentChange;
+	
+	new Handle:	hCvar = FindConVar(sCvarName);
+	if (hCvar == INVALID_HANDLE) { return; }
+	
+	GetConVarString(hCvar, sCvarValue, BUFFER_LENGTH);	//to check if it was stored as a float or int
+	
+	if (GetTrieValue(g_hTriePreReRandomisationCvarValues, sCvarName, firstRandomPercentChange))	//means this cvar's been RE-randomised, and if so stores its current variation into percentChange 
+	{
+		GetTrieValue(g_hTrieModdedCvars, sCvarName, reRandomPercentChange);
+		
+		if (StrContains(sCvarValue, ".") == -1)
+		{	//it's not a float Cvar
+			new value = RoundToNearest(float(GetConVarInt(hCvar)) / (1.0 + firstRandomPercentChange) * (1.0 + reRandomPercentChange));
+			SetConVarInt(hCvar, value);
+		}
+		else
+		{	//it is a float Cvar
+			new Float: value = GetConVarFloat(hCvar) / (1.0 + firstRandomPercentChange) * (1.0 + reRandomPercentChange);
+			SetConVarFloat(hCvar, value);
+		}
+		SetTrieValue(g_hTrieModdedCvars, sCvarName, reRandomPercentChange, true);	//save offset percent to set new cvars according to this cvar's change
+	}
+}
 
 public Action:SetIntAtts(args)
 {
@@ -779,8 +820,8 @@ stock GetDefaultClipSize(id)
 
 stock bool:IsItAnActualWeapon(id)
 {
-	if ((id >= 1 && id <= 11) || (id == 19) || (id == 26) || (id >= 32 && id <= 36))	{ return true; }
-	return false;	
+	if ((id >= 1 && id <= 11) || (id == 19) || (id == 26) || (id >= 33 && id <= 36))	{ return true; }
+	return false;
 }
 
 
