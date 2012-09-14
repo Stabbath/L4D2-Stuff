@@ -245,6 +245,8 @@ public Action:SetCvar(args)
 		}
 		else	//several cvar arguments, let's use the first one to scale the rest
 		{
+			PrintToServer("Scaling cvars.");
+			
 			percentChange *= proportion;
 		}
 	}
@@ -268,9 +270,8 @@ public Action:SetCvar(args)
 		PushArrayString(g_hArrayModdedCvars, sArArgs[4]);	//and store key in array so we don't lose it! used in the printcvarstats loop, possibly in other things later
 	}
 	
-	
 	for (n = 5; n <= args; n++)
-	{
+	{		
 		hCvar = FindConVar(sArArgs[n]);
 		if (hCvar == INVALID_HANDLE) { continue; }
 		
