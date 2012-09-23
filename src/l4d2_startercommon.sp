@@ -1,91 +1,88 @@
 #pragma semicolon 1
 
-/*
- * Currently very, very broken, I'll look into it later.
- */
-
 #include <sourcemod>
 #include <sdktools>
 #include <left4downtown>
 
-new g_iDefaultCommonLimit;
-new Handle:g_hCvarCommonLimit = INVALID_HANDLE;
-
-new Handle:hTimer 	= INVALID_HANDLE;
-new bool:bFirstRoundOfGame = true;
-new bool:bGameStart = false;
-new iTickCount 		= 3;
-new iInfectedNum 	= 0;
-new iStartCommonMax	= 0;
+new 		iDefaultCommonLimit;
+new			iSixthOfDefaultCommonLimit;
+new			iTickCount = 3;
+new bool:	bTimerHasNotBeenUsedYet = true;
+new Handle:	hCvarCommonLimit = INVALID_HANDLE;
+new Handle:	hTimer = INVALID_HANDLE;
 
 public Plugin:myinfo =
 {
 	name = "L4D2 Starter Common",
-	author = "Blade, Stabby",
-	description = "Decreases amount of common before leaving the saferoom.",
-	version = "1.1.2",
+	author = "Stabby, original by Blade",
+	description = "Decreases amount of common before leaving the saferoom to a sixth, and then increases it every 5 seconds to a quarter, half and finally to the full cfg-defined value.",
+	version = "2.0.2",
 	url = "nope"
-}
-
-public OnEntityCreated(entity, const String:classname[])
-{	
-	if (!bGameStart && StrEqual(classname, "infected"))
-	{
-		PrintToChatAll("new common; %d/%d",iInfectedNum + 1, iStartCommonMax);
-		if (++iInfectedNum > iStartCommonMax) { 
-			PrintToChatAll("Infected killed.");
-			AcceptEntityInput(entity, "Kill"); }
-	}
-	return;
 }
 
 public OnPluginStart()
 {
-	g_hCvarCommonLimit = FindConVar("z_common_limit");	
+	hCvarCommonLimit = FindConVar("z_common_limit");
+	iDefaultCommonLimit = GetConVarInt(hCvarCommonLimit);	//will be adjusted if the .cfg's change it to non-default
+	HookConVarChange(hCvarCommonLimit, CommonLimitChanged);
+	
+	HookEvent("round_start",	Event_RoundStart);
+	HookEvent("round_end",		Event_RoundEnd);
+	HookEvent("player_left_start_area",	PlayerLeftStartArea);
+}
 
-	HookEvent("round_start", Event_RoundStart);
-	HookEvent("round_end", Event_RoundEnd);
-	HookEvent("player_left_start_area", PlayerLeftStartArea);	
+public CommonLimitChanged(Handle:cvar, const String:oldVal[], const String:newVal[])
+{
+	if (StringToInt(oldVal) == iSixthOfDefaultCommonLimit && StringToInt(newVal) == iDefaultCommonLimit) 
+	{
+		SetConVarInt(cvar, iSixthOfDefaultCommonLimit);
+		return;
+	} //to prevent map changes from messing things up
+
+	if (bTimerHasNotBeenUsedYet && StringToInt(newVal) != iSixthOfDefaultCommonLimit)	//second condition to avoid recursion when cvar is preemptively set before round start
+	{
+		iDefaultCommonLimit = StringToInt(newVal);
+		
+		new buffer = iDefaultCommonLimit / 6;	//set it the first time since round_start is too late
+		SetConVarInt(cvar, buffer);
+		iSixthOfDefaultCommonLimit = buffer;
+	}
 }
 
 public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	bGameStart = false;
-	
-	if (bFirstRoundOfGame)
-	{
-		g_iDefaultCommonLimit = GetConVarInt(g_hCvarCommonLimit);
-		bFirstRoundOfGame = false;
-	}
-	
-	PrintToChatAll("default common limit: %d",g_iDefaultCommonLimit);	
-	
-	new buffer = g_iDefaultCommonLimit / 6;
-	SetConVarInt(g_hCvarCommonLimit, buffer);
-	iStartCommonMax = buffer;
+	new buffer = iDefaultCommonLimit / 6;
+	SetConVarInt(hCvarCommonLimit, buffer);
 }
 
 public Action:Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	if (hTimer != INVALID_HANDLE) { PrintToChatAll("timer killed because of early wipe"); KillTimer(hTimer); }	//in case of early double/tri cap
+	if (hTimer != INVALID_HANDLE)
+	{	//in case of early double/tri cap
+		KillTimer(hTimer);
+		hTimer = INVALID_HANDLE;
+	}
+	
+	new buffer = iDefaultCommonLimit / 6;
+	SetConVarInt(hCvarCommonLimit, buffer);
 	iTickCount 		= 3;
-	iInfectedNum 	= 0;
 }
 
 public Action:PlayerLeftStartArea(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	bGameStart = true;	
-	PrintToChatAll("game started, starting timer");
 	hTimer = CreateTimer(5.0, CommonLimitDelay, INVALID_HANDLE, TIMER_REPEAT);
+	bTimerHasNotBeenUsedYet = false;
 }
 
 public Action:CommonLimitDelay(Handle:timer)
 {	
-	SetConVarInt(g_hCvarCommonLimit, g_iDefaultCommonLimit / (1 << --iTickCount));
+	SetConVarInt(hCvarCommonLimit, iDefaultCommonLimit / (1 << --iTickCount));
 	
-	PrintToChatAll("%d tick count, common limit: %d",iTickCount,g_iDefaultCommonLimit);
+	if (!iTickCount)
+	{
+		hTimer = INVALID_HANDLE;
+		return Plugin_Stop;
+	}
 	
-	if (!iTickCount)	{ PrintToChatAll("timer stopped"); return Plugin_Stop; }
-
 	return Plugin_Continue;
 }
