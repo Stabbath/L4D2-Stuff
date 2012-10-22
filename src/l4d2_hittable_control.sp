@@ -20,15 +20,15 @@ new Handle: hHaybaleStandingDamage		= INVALID_HANDLE;
 new Handle: hBaggageStandingDamage		= INVALID_HANDLE;
 new Handle: hStandardIncapDamage		= INVALID_HANDLE;
 new Handle: hTankSelfDamage				= INVALID_HANDLE;
-new Handle: hDisallowOverHit			= INVALID_HANDLE;
+new Handle: hOverHitInterval			= INVALID_HANDLE;
 
-//use tries with model names (and damage values)?
+//use tries with model names (and damage values?)?
 
 public Plugin:myinfo = 
 {
     name = "L4D2 Hittable Control",
     author = "Stabby",
-    version = "0.2.2",
+    version = "0.3.1",
     description = "Allows for customisation of hittable damage values."
 };
 
@@ -64,22 +64,22 @@ public OnPluginStart()
 	hBaggageStandingDamage	= CreateConVar( "hc_baggage_standing_damage",	"48.0",
 											"Damage of hittable baggage carts to non-incapped survivors.",
 											FCVAR_PLUGIN, true, 0.0, true, 300.0 );
-	hStandardIncapDamage	= CreateConVar( "hc_incap_standard_damage",		"100.0",
+	hStandardIncapDamage	= CreateConVar( "hc_incap_standard_damage",		"100",
 											"Damage of all hittables to incapped players. -1 will have incap damage default to valve's standard incoherent damages. -2 will have incap damage default to each hittable's corresponding standing damage.",
 											FCVAR_PLUGIN, true, -2.0, true, 300.0 );
 	hTankSelfDamage			= CreateConVar( "hc_disable_self_damage",		"0",
 											"If set, tank will not damage itself with hittables.",
 											FCVAR_PLUGIN, true, 0.0, true, 1.0 );
-	hDisallowOverHit		= CreateConVar( "hc_disable_overhit",			"1",
-											"If set, hittables will not be allowed to incap and do further damage in a single hit.",
-											FCVAR_PLUGIN, true, 0.0, true, 1.0 );
+	hOverHitInterval		= CreateConVar( "hc_overhit_time",				"1.2",
+											"The amount of time to wait before allowing consecutive hits from the same hittable to register. Recommended values: 0.0-0.5: instant kill; 0.5-0.7: sizeable overhit; 0.7-1.0: standard overhit; 1.0-1.2: reduced overhit; 1.2+: no overhit unless the car rolls back on top. Set to tank's punch interval (default 1.5) to fully remove all possibility of overhit.",
+											FCVAR_PLUGIN, true, 0.0, false );
 }
 
 public OnMapStart()
 {
 	decl String:buffer[64];
 	GetCurrentMap(buffer, sizeof(buffer));
-	if (StrContains(buffer, "c5m5") != -1)
+	if (StrContains(buffer, "c5m5") != -1)	//so it works for darkparish. should probably find out what causes the changes to the cars though, this is ugly
 	{
 		bIsBridge = true;
 	}
@@ -111,65 +111,72 @@ public Action:OnTakeDamage( victim, &attacker, &inflictor, &Float:damage, &damag
 		decl String:sModelName[128];
 		GetEntPropString(inflictor, Prop_Data, "m_ModelName", sModelName, 128);
 		
-		if (bIsBridge)
+		new Float:val = GetConVarFloat(hStandardIncapDamage);
+		if (GetEntProp(victim, Prop_Send, "m_isIncapacitated") && val != -2)
 		{
-			damage = 4.0*GetConVarFloat(hBridgeCarDamage);
-			inflictor = 0;	//because valve is silly and damage on incapped players would be ignored otherwise
-		}
-		else
-		{	//incapacitated? 
-			if (GetEntProp(victim, Prop_Send, "m_isIncapacitated"))
+			if (val >= 0.0)
 			{
-				new Float:val = GetConVarFloat(hStandardIncapDamage);
-				if (val >= 0.0)
-				{
-					damage = val;
-				}
-				else if (val == -1) { return Plugin_Continue; }
+				damage = val;
 			}
-			else 
+			else
 			{
-				if (StrEqual(sModelName, "models/props_vehicles/airport_baggage_cart2.mdl"))
+				return Plugin_Continue;
+			}
+		}
+		else 
+		{
+			if (StrContains(sModelName, "cara_") != -1 || StrContains(sModelName, "taxi_") != -1 || StrContains(sModelName, "police_car") != -1)
+			{
+				if (bIsBridge)
 				{
-					damage = GetConVarFloat(hBaggageStandingDamage);
+					damage = 4.0*GetConVarFloat(hBridgeCarDamage);
+					inflictor = 0;	//because valve is silly and damage on incapped players would be ignored otherwise
 				}
-				else if (StrEqual(sModelName, "models/props_unique/haybails_single.mdl"))
-				{
-					damage = GetConVarFloat(hHaybaleStandingDamage);
-				}
-				else if (StrEqual(sModelName, "models/props_foliage/Swamp_FallenTree01_bare.mdl"))
-				{
-					damage = GetConVarFloat(hLogStandingDamage);
-				}
-				else if (StrEqual(sModelName, "models/props_foliage/tree_trunk_fallen.mdl"))
-				{
-					damage = GetConVarFloat(hBHLogStandingDamage);
-				}
-				else if (StrEqual(sModelName, "models/props_fairgrounds/bumpercar.mdl"))
-				{
-					damage = GetConVarFloat(hBumperCarStandingDamage);
-				}
-				else if (StrEqual(sModelName, "models/props/cs_assault/handtruck.mdl"))
-				{
-					damage = GetConVarFloat(hHandtruckStandingDamage);
-				}
-				else if (StrEqual(sModelName, "models/props/cs_assault/forklift.mdl"))
-				{
-					damage = GetConVarFloat(hForkliftStandingDamage);
-				}
-				else if (StrContains(sModelName, "dumpster") != -1)
-				{
-					damage = GetConVarFloat(hDumpsterStandingDamage);
-				}
-				else if (StrContains(sModelName, "cara_") != -1 || StrContains(sModelName, "taxi_") != -1 || StrContains(sModelName, "police_car") != -1)
+				else
 				{
 					damage = GetConVarFloat(hCarStandingDamage);
 				}
 			}
-		}			
+			else if (StrContains(sModelName, "dumpster") != -1)
+			{
+				damage = GetConVarFloat(hDumpsterStandingDamage);
+			}
+			else if (StrEqual(sModelName, "models/props/cs_assault/forklift.mdl"))
+			{
+				damage = GetConVarFloat(hForkliftStandingDamage);
+			}			
+			else if (StrEqual(sModelName, "models/props_vehicles/airport_baggage_cart2.mdl"))
+			{
+				damage = GetConVarFloat(hBaggageStandingDamage);
+			}
+			else if (StrEqual(sModelName, "models/props_unique/haybails_single.mdl"))
+			{
+				damage = GetConVarFloat(hHaybaleStandingDamage);
+			}
+			else if (StrEqual(sModelName, "models/props_foliage/Swamp_FallenTree01_bare.mdl"))
+			{
+				damage = GetConVarFloat(hLogStandingDamage);
+			}
+			else if (StrEqual(sModelName, "models/props_foliage/tree_trunk_fallen.mdl"))
+			{
+				damage = GetConVarFloat(hBHLogStandingDamage);
+			}
+			else if (StrEqual(sModelName, "models/props_fairgrounds/bumpercar.mdl"))
+			{
+				damage = GetConVarFloat(hBumperCarStandingDamage);
+			}
+			else if (StrEqual(sModelName, "models/props/cs_assault/handtruck.mdl"))
+			{
+				damage = GetConVarFloat(hHandtruckStandingDamage);
+			}
+		}
 		
-		bIgnoreOverkill[victim] = true;	//standardise them bitchin over-hits
-		if (GetConVarBool(hDisallowOverHit)) { CreateTimer(1.2, Timed_ClearInvulnerability, victim); }
+		new Float:interval = GetConVarFloat(hOverHitInterval);		
+		if (interval >= 0.0)
+		{
+			bIgnoreOverkill[victim] = true;	//standardise them bitchin over-hits
+			CreateTimer(interval, Timed_ClearInvulnerability, victim);
+		}
 		
 		return Plugin_Changed;
 	}

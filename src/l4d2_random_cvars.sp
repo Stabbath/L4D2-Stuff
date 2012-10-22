@@ -6,7 +6,9 @@
  * For simple direct and inverse proportion, just use "1.0" and "-1.0".
  * If Cvar1 is already defined and it's the only cvar listed, it'll be re-randomised.
  * If Cvar1 is already defined and there's other cvars listed, it will skip the randomisation of Cvar1 and go straight to the scaling of the rest.
- * All cvars are stored as floats.
+ * By default, all cvars are treated as floats.
+ * If you want to treat a cvar as an integer instead, type it in as, for example, "int:z_common_limit".
+ * For the sake of tidiness and OCD you can use "float:<cvar name>" as well: this will have no effect, meaning they'll still be treated as floats by default.
  * 
  * random_resetcvars <cvar1> <cvar2> <cvar3> <...>
  * Resets specified cvars to engine defaults.
@@ -16,6 +18,7 @@
  * Plugin will save the value of a randomised cvar when it's re-randomised the first time.
  * Undoing a cvar will return it to that first randomised value.
  * To store a new random value as the non-engine default, reset the cvar to engine default first with random_resetcvars.
+ * Remember to use "int:" and "float:", otherwise values are fetched as floats by default.
  * 
  * random_showcvars
  * Will simply show details on changed cvars to the client who requests it.
@@ -80,6 +83,8 @@ public Action:SetCvars(args)
 	decl String:sArStrings[args + 1][BUFFER_LENGTH];
 	for (n = 1; n <= args; n++)	{ GetCmdArg(n, sArStrings[n], BUFFER_LENGTH); }
 	
+	new bool:isInteger = IsForcingIntegerDataType(sArStrings[4]);
+	
 	new Handle:	hCvar = FindConVar(sArStrings[4]);
 	if (hCvar == INVALID_HANDLE) { DebugPrintToServer("[random] Error: Could not find first cvar in SetCvar call: %s.",sArStrings[4]); return; }
 	new Float:	proportion= StringToFloat(sArStrings[1]);
@@ -98,7 +103,7 @@ public Action:SetCvars(args)
 			ResetConVar(FindConVar(sArStrings[4]));
 			
 			percentChange = randValue / GetConVarFloat(hCvar) - 1.0;
-			SetConVarFloat(hCvar, randValue);
+			SetConVarValue(hCvar, randValue, isInteger);
 			
 			SetTrieValue(g_hTriePercentChanges, sArStrings[4], percentChange, true);	//save offset percent to set new cvars according to this cvar's change
 			
@@ -110,7 +115,7 @@ public Action:SetCvars(args)
 		PushArrayString(g_hArrayCvarList, sArStrings[4]);
 		
 		percentChange = randValue / GetConVarFloat(hCvar) - 1.0;
-		SetConVarFloat(hCvar, randValue);
+		SetConVarValue(hCvar, randValue, isInteger);
 		
 		DebugPrintToServer("[random] Randomised %s, new value: %f, percent change: %f", sArStrings[4], randValue, percentChange);
 		
@@ -122,6 +127,8 @@ public Action:SetCvars(args)
 	decl Float: newPercentChange, Float: newValue;	//because they're reused every loop
 	for (n = 5; n <= args; n++)
 	{
+		isInteger = IsForcingIntegerDataType(sArStrings[n]);
+		
 		hCvar = FindConVar(sArStrings[n]);
 		if (hCvar == INVALID_HANDLE) { DebugPrintToServer("[random] Warning: Could not find %s. Will skip to next listed cvar if one exists.", sArStrings[n]); continue; }
 		
@@ -137,7 +144,7 @@ public Action:SetCvars(args)
 		
 		newValue = GetConVarFloat(hCvar) * (1.0 + percentChange);
 		newPercentChange = newValue / GetConVarFloat(hCvar) - 1.0;
-		SetConVarFloat(hCvar, newValue);
+		SetConVarValue(hCvar, newValue, isInteger);
 		
 		SetTrieValue(g_hTriePercentChanges, sArStrings[n], newPercentChange, true);	//save offset percent to set new cvars according to this cvar's change
 		
@@ -153,10 +160,13 @@ public Action:UndoCvars(args)
 	new Float:  defaultValue;
 	new Float:  percentChange;
 	new Handle:	hCvar;
+	new bool:	isInteger;
 	
 	for (new n = 1; n <= args; n++)
 	{
 		GetCmdArg(n, sCvarName, BUFFER_LENGTH);
+		
+		isInteger = IsForcingIntegerDataType(sCvarName);
 		
 		hCvar = FindConVar(sCvarName);
 		if (hCvar == INVALID_HANDLE) { DebugPrintToServer("[random] Warning: Failed to undo %s: cvar not found!", sCvarName); continue; }
@@ -166,7 +176,7 @@ public Action:UndoCvars(args)
 			GetTrieValue(g_hTriePercentChanges, sCvarName, percentChange);
 			
 			oldValue = GetConVarFloat(hCvar);
-			SetConVarFloat(hCvar, newValue);
+			SetConVarValue(hCvar, newValue, isInteger);
 			defaultValue = oldValue / (1.0 + percentChange);
 			percentChange = newValue / defaultValue - 1.0;
 			SetTrieValue(g_hTriePercentChanges, sCvarName, percentChange, true);
@@ -246,20 +256,40 @@ public Action:ShowCvars(i, args)
 		{
 			if (GetConVarInt(g_hAnnounceToChat) & BIT_CVAR)	{ PrintToConsole(i, "* *Randomised Cvar Values: * *"); }
 			else											{ PrintToChat(i, "* *Randomised Cvar Values: * *"); }
-		}
-		
-		for (new n = 0; n < size; n++)
-		{
-			decl String: cvarName[BUFFER_LENGTH];
-			decl String: cvarValue[NUMBER_LENGTH];
 			
-			GetArrayString(g_hArrayCvarList, n, cvarName, BUFFER_LENGTH);
-			GetConVarString(FindConVar(cvarName), cvarValue, NUMBER_LENGTH);
-			
-			if (GetConVarInt(g_hAnnounceToChat) & BIT_CVAR)	{ PrintToConsole(i, "%s: %s", cvarName, cvarValue); }
-			else											{ PrintToChat(i, "%s: %s", cvarName, cvarValue); }
+			for (new n = 0; n < size; n++)
+			{
+				decl String: cvarName[BUFFER_LENGTH];
+				decl String: cvarValue[NUMBER_LENGTH];
+				
+				GetArrayString(g_hArrayCvarList, n, cvarName, BUFFER_LENGTH);
+				GetConVarString(FindConVar(cvarName), cvarValue, NUMBER_LENGTH);
+				
+				if (GetConVarInt(g_hAnnounceToChat) & BIT_CVAR)	{ PrintToConsole(i, "%s: %s", cvarName, cvarValue); }
+				else											{ PrintToChat(i, "%s: %s", cvarName, cvarValue); }
+			}
 		}
 	}
+}
+
+//Sets cvar to float or int depending on the datatype that is enforced by the user
+stock SetConVarValue(Handle:hCvar, Float:randValue, bool:isInteger)
+{
+	if (isInteger)	{ SetConVarInt	(hCvar, RoundToNearest(randValue)); }	//simply rounding to nearest here for the sake of simplicity
+	else 			{ SetConVarFloat(hCvar, randValue); }					//even though probability of extremes is probably somewhat tampered with
+}
+
+// Checks if user wishes cvar to be treated as an integer, 
+// and formats the cvar argument to contain only the cvar name
+stock bool:IsForcingIntegerDataType(&String:cvar[])
+{
+	decl String:buffers[2][BUFFER_LENGTH];
+	
+	ExplodeString(cvar, ":", buffers, 2, BUFFER_LENGTH, false);
+	cvar = buffers[1];
+	
+	if (StrEqual(buffers[0],"int")) { return true; }
+	return false;
 }
 
 stock DebugPrintToServer(const String:message[], any:...)
