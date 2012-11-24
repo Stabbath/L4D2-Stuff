@@ -57,7 +57,7 @@ public PostTankSpawn(Handle:event, const String:name[], bool:dontBroadcast)
 
 public Action:Timed_CheckRange(Handle:unused, any:newTank)
 {
-	if (GetEntProp(newTank, Prop_Send, "m_zombieClass") == 8)
+	if (GetClientTeam(newTank) == 3 && GetEntProp(newTank, Prop_Send, "m_zombieClass") == 8)
 	{
 		decl Float:	survPos[3];
 		decl Float:	tankPos[3];
