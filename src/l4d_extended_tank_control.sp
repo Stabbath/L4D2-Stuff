@@ -10,7 +10,7 @@ new Handle:	g_hLOSRange				= INVALID_HANDLE;
 new Handle:	g_hLOSRangeCheckDelay	= INVALID_HANDLE;
 new Handle: g_hValveLOSCvar			= INVALID_HANDLE;
 
-new Float:	g_fDefaultLOSDelay = 2.0;
+new Float:	g_fDefaultLOSDelay = 1.0;
 new bool:	g_bGameStarted = false;
 
 public Plugin:myinfo =
@@ -52,7 +52,11 @@ public ConVarChange_LOSDelay(Handle:cvar, const String:oldVal[], const String:ne
 
 public PostTankSpawn(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	CreateTimer(GetConVarFloat(g_hLOSRangeCheckDelay), Timed_CheckRange, GetClientOfUserId(GetEventInt(event, "userid")), TIMER_REPEAT);
+	new tank = GetClientOfUserId(GetEventInt(event, "userid"));
+	if (!IsFakeClient(tank))
+	{
+		CreateTimer(GetConVarFloat(g_hLOSRangeCheckDelay), Timed_CheckRange, tank, TIMER_REPEAT);
+	}
 }
 
 public Action:Timed_CheckRange(Handle:unused, any:newTank)
