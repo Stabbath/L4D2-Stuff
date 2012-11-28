@@ -72,8 +72,6 @@
         "start_dist" "50.000000"
         "start_extra_dist" "200.000000"
         "end_dist" "150.000000"
-        "tank_ban_flow_min" "55"
-        "tank_ban_flow_max" "100"
         "max_distance" "450"
     }
     "c2m4_barns"
@@ -131,7 +129,7 @@
     {
         "start_point" "-5023.209473 -1574.434448 -20.564751"
         "end_point" "1056.862549 806.977112 208.031250"
-        "start_dist" "50.000000"
+		"start_dist" "50.000000"
         "start_extra_dist" "200.000000"
         "end_dist" "200.000000"
         "max_distance" "750"
