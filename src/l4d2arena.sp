@@ -9,6 +9,7 @@
 
 /* To-do:
  * - Make it so tank stops rock sequence when shoved since the rock disappears.
+ * - Do something similar about smoker movement after firing tongue, since it was choppy. Or maybe that as just my insane lag.
  * - Make jockey damage itself while riding.
  * - Make adrenaline give its already planned death protection.
  * - Make spitter initial hit do damage.
@@ -364,7 +365,7 @@ public Plugin:myinfo =
 	name = "Left 4 Dead 2 Arena",
 	author = "Stabby",
 	description = "Has all the features of L4D2A: respawning, classes, scoring, etc.",
-	version = "test",
+	version = "0.1",
 	url = "none"
 }
 
