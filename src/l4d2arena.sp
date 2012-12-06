@@ -7,28 +7,222 @@
 #include <sdktools>
 #include <sourcemod>
 
+/* VERSION HISTORY
+ * test: L4D2Arena is born
+ * 0.1:
+ * 		- Fully functional spawning system for players.
+ * 			- Works for both infected and survivors.
+ * 			- Finds random spawns, accepting the first one that is clear of enemies.
+ * 			- Including easy to use spawn-storing system to ease map development.
+ * 		- Fully functional powerup system.
+ * 			- Including easy to use spawn-storing system to ease map development.
+ * 			- 8 different types:
+ * 				- medkits: +60 health, green glow
+ * 				- pills: +30 health, light green glow
+ * 				- defib: +1 instant respawn, teal glow
+ * 				- adrenaline: +30% speed for 20 seconds, light teal glow
+ * 				- shield: -25% damage taken for 60 seconds, blue glow
+ * 				- incendiary: +20% damage for 30 seconds, pink glow
+ * 				- explosive: +100% damage for 20 seconds, red glow
+ * 				- the holy gnome: not implemented, white glow
+ * 			- respawn times:
+ * 				20 secs: pills, medkit
+ * 				60 secs: defib, adrenaline, shield, incendiary
+ * 				150 secs: explosive
+ * 		- Created keyvalues structure to store spawns and powerups, as well as arena center, where players are teleported to as spectator on connect.
+ * 		- Blocked all witches, including unusual non-cvar-respecting witch spawns.
+ * 		- Removed common infected.
+ * 		- Removed all items from maps.
+ * 		- Set up parish 3's cemetery as the first arena map.
+ * 			- 25 player spawns.
+ * 			- 15 powerup spawns:
+ * 				- 2 Incendiary
+ * 				- 1 Explosive
+ * 				- 2 Defibs
+ * 				- 2 Medkits
+ * 				- 2 Shields
+ * 				- 2 Adrenalines
+ * 				- 4 Pills
+ * 		- All 7 si classes defined, 3 survivor classes (jug, nin, sha)
+ * 			- No slowdown on anything because of the way max speed is set.
+ * 			- Juggernaut
+ * 				- 150 health, 300 speed
+ * 				- Can shove only once per 4 seconds
+ * 					- Shoves do 25% of jug's current health as damage
+ * 				- Pump shotgun
+ * 					- Moderately reduced spread
+ * 					- Decreased range modifier to 0.45 (default 0.69)
+ * 					- Clipsize 4, 600 ammo
+ * 					- Damage: 15 pellets 2 damage
+ * 				- Axe does 1.0 damage per hit ray (about 14 hit rays but varying, function to cap them isn't implemented yet)
+ * 			- Ninja
+ * 				- 80 health, 325 speed
+ * 				- Can shove only once per 7 seconds
+ * 					- Except he can shove up to 3 extra times in the first 2 seconds
+ * 				- Chrome shotgun
+ * 					- Slightly increased spread
+ * 					- Decreased range modifier to 0.45 (default 0.69)
+ * 					- Clipsize 3, 450 ammo
+ * 					- Damage: 6 pellets 4 damage
+ * 				- Katana does 3.5 damage per hit ray (about 10 hit rays but varied, function to cap them not yet implemented)
+ * 			- Sharpshooter
+ * 				- 100 health, 275 speed
+ * 				- Can shove only once per 6 seconds
+ * 				- Damage while crouched increases by 10%.
+ * 				- Damage while scoped increases by 10%. (not working)
+ * 				- AWP:
+ * 					- Removed all spread.
+ * 					- Range modifier decreased to 0.9 (default 1.0)
+ * 					- Clipsize is 4, 600 ammo
+ * 					- 30 damage
+ * 				- Deagle does
+ * 					- Decreased spread
+ * 					- Range modifier still 0.75
+ * 					- Clipsize still 8
+ * 					- Damage is 6
+ * 			- Hunter
+ * 				- 100 health, 312.5 speed
+ * 				- Hunters scratches for 13 damage
+ * 				- Hunter dies when pouncing a survivor, dealing 50 damage to him
+ * 					- Does not do extra damage from long distance pounces
+ * 					- Faster respawn for hunter from this, and his death does not affect score (but the kill does)
+ * 			- Jockey
+ * 				- 100 health, 300 speed
+ * 				- Scratches for 8 damage
+ * 				- Jockey can ride players normally, for 4 damage every 1 second
+ * 			- Smoker
+ * 				- 100 health, 275 speed
+ * 				- scratches for 2 damage
+ * 				- tongue breaks on contact but deals 18 damage
+ * 				- tongue can be used every 2 seconds
+ * 				- tongue moves slowly but has a very long range
+ * 			- Tank:
+ * 				- 80 health, 312.5 speed
+ * 				- Punches for 10 damage
+ * 				- Can be shoved.
+ * 				- Rock health reduced to 10 (Default 50)
+ * 				- Rocks are thrown with a greater force
+ * 				- Rock interval increased to 6
+ * 				- Rock radius decreased to 50 (default 75)
+ * 				- Disabled frustration on tanks.
+ * 			- Boomer
+ * 				- 80 health, 350 speed
+ * 				- Scratches for 8 damage
+ * 			- Spitter
+ * 				- 100 health, 300 speed
+ * 				- Scratches for 4 damage
+ * 				- Spit has an extremely long range and travels at high speeds
+ * 				- Spitter can spit every 4 seconds
+ * 			- Charger:
+ * 				- 200 health, 270 speed
+ * 				- Chargers punch for 10 damage
+ * 				- Chargers do 15 damage on secondary impacts
+ * 				- Charge pound damage is 7
+ * 				- Charges only last 1 second but can be used again after 1.5 seconds
+ * 				- Impact death charges are tracked as player kills rather than world kills
+ * 				- Can only be shoved by jugs.
+ * 		- Muted all idle SI sounds.
+ * 		- Disabled SI getting natural spawns.
+ * 		- Blocked natural team change.
+ * 		- Added menus/commands for team change and class change.
+ * 		- Blocked survivors dropping weapons on death.
+ * 		- Blocked end saferoom door from being closed.
+ * 		- Added shitty basic scoring system to track individual kills.
+ * 		- Added public sounds for item spawning and item grabbing, and a private sound for spawning.
+ * 		- Set survivor FF to 100%
+ * 		- Disabled flow tanks.
+ * 		- Set max distance score for all maps to 0.
+ * 		- Bots are kicked on connect.
+ * 		- Game does not end when there are no players.
+ * 		- Game does not end by survivor wipe.
+ * 		- Disabled versus markers.
+ * 0.2:
+ * 		- Powerups:
+ * 			- pills now have the same green glow as medkits instead of light green
+ * 			- adrenaline now has the same teal glow as defibs, instead of light teal
+ * 			- incendiary now has an orange glow instead of pink
+ * 			- respawn times:
+ * 				- medkits are now in the 60 second group
+ * 				- adrenaline is now in the 20 second group
+ * 			- pills health amount decreased to 25 from 30
+ * 			- added adrenaline damage immunity:
+ * 				- if a player reaches 0 health while under the effects of adrenaline, he will lose the speed buff and become immune to damage for 2 seconds
+ * 		- Classes
+ * 			- Juggernaut
+ * 				- Pump shotgun
+ * 					- Increased range modifier to 0.75
+ * 					- Decreased pellets to 12 (from 15)
+ * 					- Increased damage to 3 (from 2)
+ * 			- Ninja
+ * 				- Chrome shotgun
+ * 					- Increased range modifier to 0.75
+ * 					- Increased damage to 6 (from 4)
+ * 			- Sharpshooter
+ * 				- AWP:
+ * 					- Range modifier decreased to 0.8
+ * 					- Damage decreased to 20
+ * 			- Jockey
+ * 				- Jockeys now damage themselves while riding for 9 damage per second
+ * 				- Increased jockey control min/max to 0.9, decreased variance to 0.1
+ * 				- Death jockeys are now tracked as kills
+ * 			- Smoker
+ * 				- Scratch damage increased to 4
+ * 			- Boomer
+ * 				- Scratch damage increased to 11.5
+ * 			- Spitter 
+ * 				- Spitter response time to special ability command is now shorter, and spit begins to visually spread more quickly
+ * 				- Spitter spit interval reduced to 3 seconds
+ * 			- Charger
+ * 				- Death charges by carry are now tracked as kills
+ * 			- Tank
+ * 				- Increased fist radius from 15 to 25
+ * 				- Disabled tank props fading, just in case.
+ * 		- Added hint messages on powerup grab to explain their effects.
+ * 0.3:
+ * 		- Classes
+ * 			- Changed the way m2 delay works so that it is used for all classes now as well, including SI.
+ * 				- Set attack speed of all SI to 1.0. Tank is set to 3.5 for testing.
+ * 			- Ninja
+ * 				- Fixed a typo that caused ninjas to use juggernauts' m2 delay
+ * 				- Reduced m2 delay to 4 seconds from 7 (for a total 6 after initial m2, allowing for up to 3 extra m2's during the first 2 seconds)
+ * 			- Spitter 
+ * 				- fixed spitter damage multiplier being applied from spit damage rather than scratch
+ * 				- increased said multiplier to 1.2 from 1.1
+ * 				- decreased spit cooldown to 2.5 from 3.0
+ * 			- Tank
+ * 				- fixed tank getting m2d while throwing a rock to cause the rock to disappear without the animation ending (and being replaced by stagger)
+ * 		- Enabled team changes while players are alive, delayed until next death like with class change.
+ * 		- Added support for multiple arenas on a single map.
+ */
+
+
+ //maybe hook settransmit and use IsClientVisible or whatever to remvoe glows!
+ 
 /* To-do:
- * - Make it so tank stops rock sequence when shoved since the rock disappears.
- * - Do something similar about smoker movement after firing tongue, since it was choppy. Or maybe that as just my insane lag.
- * - Make jockey damage itself while riding.
- * - Make adrenaline give its already planned death protection.
- * - Make spitter initial hit do damage.
- * - Make spitter not be slowed down by spitting.
- * - Use spitter spit cvars to reduce delay between clicking on mouse button and actually spitting.
- * - Maybe make spitter spit more often.
- * - Add the already planned ability for spitter scratches to increase damage taken.
- * - Remove all natural SI and survivor slowdown (if it's actually still there, not sure).
- * - See if it's possible to make classes attack faster:
- * 	- boomer!
- *  - maybe spitter?
- *  - maybe jockey?
- *  - why not all of them?
- * - Increase jockey control a tiny bit beyond regular confogl.
- * - See if it's possible to reduce delay between mouse click and punch on tank.
- * - Make sure si being able to respawn is fixed.
- * - Make incendiary glow orange instead of pink.
- * - Make adrenaline glow the same color as defib.
- * - Make pills glow the same color as medkit.
+ * x Implement ninja special ability
+ * x Remove regular glows from survivors so no one can see anyone through walls. 
+ * x Make it so players can change team while alive like with class, but it only goes through after they die.
+ * x Add tracking of death jockeys and death charges (already taken care of death impact charges, missing the carried survivor)
+ * x Fix adrenaline death protection always firing
+ * x Add the already planned ability for spitter scratches to increase damage taken.
+ * x See if custom SI attack speeds work
+ * x Fix double respawn from team change. 
+ * 	- might have been accidentally fixed by allowing living players to change team?
+ * x Increase tank punch range, maybe also increase interval while increasing damage
+ *  - Test tank_swing_range (default 56)
+ * x Decrease rate at which boomer vomit fades on survivors
+ *  - Test cvars
+ * x Make it so tank stops rock sequence when shoved since the rock disappears.
+ *  - Could also optionally make tank immune to shoves while throwing a rock. Maybe
+ * - Do something similar about smoker movement after firing tongue, since it was choppy. Or maybe that was just my insane lag.
+ * x See if it's possible to reduce delay between mouse click and punch on tank.
+ *  - test tank_swing_duration default 0.2, probably like m2 duration but see how it goes
+ *  - also try setting punch sequence ahead of its value, see if it skips part of it and punches sooner
+ * - Cap maximum number of hit ray hits per strike on melees
+ * ? Make spitter initial hit do damage.
+ * 	- Low damage at close range because of quick spits to cover the entire area, but higher damage at long range to make spitter a viable sniper.
+ * ? Make spitter not be slowed down by spitting.
+ * - Fix si being able to respawn
  * - Add glows to players who have picked up powerups:
  *  - Orange for incendiary.
  * 	- Red for explosive.
@@ -36,25 +230,38 @@
  *  - Violet for red + blue.
  *  - Pink for orange + blue.
  *  - Teal for adrenaline with nothing else.
- * - Remove regular glows from survivors so no one can see anyone through walls.
+ * 		- maybe make it so that when the timer is running low the glow starts flashing, like during the last 3 seconds
  * - Make smoker tongue damage increase with distance.
  * - Do the planned tank rock damage changes.
  * - See if point_proximity_sensor could be used to replace touchentities for powerups
- * 
+ * 	- If so, maybe make it so that powerups go invisible when grabbed and then visible again on spawn
+ * - Remove survivor speech sounds (instanced_scripted_scene entities)
+ * - Use info_director entity for cool stuff! check fgd, not the valve dev community
+ * - Make FF count hitgroup. Might have to use trace attack
+ * - SetHUDVisibility from player entity, see if it can be used to hide scoreboard when people press tab
  * - https://developer.valvesoftware.com/wiki/Player use this for health of players
  * - Add props to cemetery.
+ *  - Maybe reduce defibs to 1 and put it on the north corner.
+ *  - Maybe move explosive ammo to southern incendiary ammo spawn.
+ * 		- Maybe make it so that the hill slows players down as they climb it, with a point_playermoveconstraint
  * - See if you can add strafe jumping for a tiny little boost of speed (further increased by actual bhopping).
  * - Fix some powerups being unusable at random times for random amounts of time before becoming usable again.
- * - Test new survivor weapon damages.
  * - Look at survivor MVP plugin to fix and improve scoring system.
- * - Add tracking of death jockeys and death charges (already taken care of death impact charges, missing the carried survivor)
  * - Add glitch fixes from promod to the config.
+ * - Maybe increase model scale size of powerups (only a bit)
  * 
+ * - Work on a way to make the whole game structure more competitive, with a match mode that makes everyone get their first spawn at the same time, with powerups starting on their respective spawn timers instead of pre-spawned
+ * - Create a new arena that's more suited for 1v1/2v2 in another map.
+ * - Make sure team changes with players alive don't bug out if the player doesnt select a class.
+ * - See if it's possible to show spawn timers to survivors the way infected usually see theirs (probably not). If it is show spawn timers.
+ *  - Otherwise show players how long they have to wait before their next spawn in hint text or something similar.
  * - Think more about what to do with charger.
  * - Add 4 survivor classes. Use these weapons:
  * 	- HR, smg or silenced smg, desert rifle, +1
  * 	- machete, dual pistols, +2
- * - Maybe give tank control of what kind of rock he throws. Maybe make rock throws be faster if it's possible.
+ * - Maybe give tank control of what kind of rock he throws. Maybe make rock throws have a shorter duration if it's possible.
+ * 
+ * - Make FFA and varied teams of survivor and infected, or more than 2 teams, a viable option
  * 
  * - for apocalypse: test SetHUDVisibility from player entity
  * - for apocalypse: DisableFlashlight and EnableFlashlight from player entity to make flashlights have batteries
@@ -75,6 +282,12 @@
 #define WEP_JOCKEY_LUNGE	49
 #define WEP_SMOKER_PULL		50
 #define WEP_TANK_ROCK		52
+//sequences
+#define SEQ_TANK_ROCK_OVERHEAD	51
+#define SEQ_TANK_ROCK_OVERHAND	49
+#define SEQ_TANK_ROCK_UNDERHAND	50
+#define SEQ_TANK_STAGGER		?
+#define SEQ_TANK_IDLE			?
 //ammo offsets
 #define OFFSET_ASSAULT_RIFLE_IAMMO		12
 #define OFFSET_SMG_IAMMO				20
@@ -84,6 +297,7 @@
 #define OFFSET_MILITARY_SNIPER_IAMMO	40
 #define OFFSET_GRENADE_LAUNCHER_IAMMO	68
 //teams
+#define TEAM_NONE		0
 #define TEAM_SPECTATOR	1
 #define TEAM_SURVIVOR	2
 #define TEAM_INFECTED	3
@@ -102,6 +316,8 @@
 #define DOOR_OPENING            1
 #define DOOR_OPEN               2
 #define DOOR_CLOSING            3
+//sound volume
+#define SNDVOL_MAX	1.0
 /* Arena constants */
 //directory of keyvalues file
 #define DIR_KV	"cfg/l4d2arena_kv.txt"
@@ -138,29 +354,26 @@
 #define DAMAGE_SPECIAL_JOCKEY		3.0		//dmg to victim
 #define DAMAGE_SPECIAL_JOCKEY_SELF	9.0		//dmg on the jockey while riding
 #define DURATION_SPECIAL_JOCKEY		1.0		//time between damage ticks
-#define DAMAGE_SCRATCH_SMOKER	2.0
+#define DAMAGE_SCRATCH_SMOKER	4.0
 #define DAMAGE_SPECIAL_SMOKER	18.0	//damage on tongue hit
 #define RANGE_SPECIAL_SMOKER	2048.0	//range of smoker tongue
 #define SPEED_SPECIAL_SMOKER	750.0	//velocity of smoker tongue
 #define COOLDOWN_SPECIAL_SMOKER	2.0	
 #define DURATION_SPECIAL_SMOKER	10.0	//duration of debuff
-#define DAMAGE_SCRATCH_BOOMER	8.0
+#define DAMAGE_SCRATCH_BOOMER	11.5
 #define DURATION_SPECIAL_BOOMER	
 #define DAMAGE_SCRATCH_SPITTER		4.0
-#define DAMAGE_SPECIAL_SPITTER		25.0	//damage on spit direct hit
+#define DAMAGE_DIRECT_SPITTER		10.0	//damage on spit direct hit
+#define DAMAGE_SPECIAL_SPITTER_MULT	1.2
+#define DURATION_DEBUFF_SPITTER		6.0		//how long it takes after a scratch for the variable to decrement
 #define SPEED_SPECIAL_SPITTER		2000.0
-#define COOLDOWN_SPECIAL_SPITTER	4.0
-#define DAMAGE_SCRATCH_TANK				10.0
-#define DAMAGE_SPECIAL_TANK_MIN			10.0 //rock min damage
-#define DAMAGE_SPECIAL_TANK_MAX			25.0 //rock max damage
+#define COOLDOWN_SPECIAL_SPITTER	2.5
+#define DAMAGE_TANK						10.0
+#define DAMAGE_TANK_ROCK_MAX			25.0 //rock max damage
 #define DAMAGE_SPECIAL_TANK_MINRANGE	256.0	//range at which rock damage increase starts 
 #define DAMAGE_SPECIAL_TANK_MAXRANGE	1536.0	//range at which max rock damage is reached
 //survivor m2 delays
-#define DURATION_M2_SHARPSHOOTER		6.0
-#define DURATION_M2_JUGGERNAUT			4.0
-#define DURATION_M2_NINJA				7.0
-#define DURATION_M2_NINJA_BEFOREDELAY	2.0		//if the ninja does less than SPECIAL_M2_NINJA shoves in this interval, he does not need get the delay
-#define SPECIAL_M2_NINJA				3		//amount of shoves ninja can do before delay
+#define SPECIAL_M2_NINJA_BURST_TIME		2.0		//duration for which ninja can m2 before delay kicks in
 #define SPECIAL_M2_JUGGERNAUT_DIVISOR	4		//how much juggernaut's health is divided by before applying it as damage
 //important models
 #define MODEL_PILLS			"models/w_models/weapons/w_eq_painpills.mdl"
@@ -173,7 +386,7 @@
 #define MODEL_GNOME			"models/props_junk/gnome.mdl"
 //time-related powerup constants
 #define DURATION_ADRENALINE				20.0
-#define DURATION_ADRENALINE_SPECIAL		3.0
+#define DURATION_ADRENALINE_SPECIAL		2.0
 #define DURATION_INCENDIARY				30.0
 #define DURATION_EXPLOSIVE				20.0
 #define DURATION_SHIELD					60.0
@@ -183,27 +396,30 @@
 #define PERCENTG_EXPLOSIVE_BONUS_DAMAGE		1.0
 #define PERCENTG_SHIELD_BONUS_PROTECTION	0.25
 //absolute bonuses
-#define ABSOLUTE_PILLS_BONUS_HEALTH		30
+#define ABSOLUTE_PILLS_BONUS_HEALTH		25
 #define ABSOLUTE_MEDKIT_BONUS_HEALTH	60
 //powerup respawn tiers
 #define DURATION_RESPAWN_POWERUP_QUICK	20.0
 #define DURATION_RESPAWN_POWERUP_MID	60.0
 #define DURATION_RESPAWN_POWERUP_LONG	150.0
 //colors
-#define COLOR_BLUE			"0 0 255"
-#define COLOR_TEAL			"0 255 255"
-#define COLOR_TEAL_LIGHT	"0 255 128"
-#define COLOR_GREEN			"0 255 0"
-#define COLOR_GREEN_LIGHT	"80 255 80"
-#define COLOR_ORANGE		"255 80 80"
-#define COLOR_RED			"255 0 0"
-#define COLOR_WHITE			"255 255 255"
+#define COLOR_BLACK		"0 0 0" //are there actually black glows?
+#define COLOR_GREEN		"0 255 0"
+#define COLOR_TEAL		"0 255 255"
+#define COLOR_BLUE		"0 0 255"
+#define COLOR_VIOLET	"143 0 255"
+#define COLOR_PURPLE	"128 0 128"
+#define COLOR_RED		"255 0 0"
+#define COLOR_ORANGE	"255 127 0"
+#define COLOR_YELLOW	"255 255 0"
+#define COLOR_PINK		"255 192 203"
+#define COLOR_WHITE		"255 255 255"
 //causes of death
 #define	COD_PWNT		0	//killed by an enemy
 #define COD_FF			1	//killed by an ally
 #define COD_KAMIKAZE	2	//hunter special ability, death charges, etc
 #define COD_WORLD		3	//other kills
-
+//sounds
 #define SOUND_ITEMSPAWN "/items/suitchargeok1.wav"
 #define SOUND_ITEMGRAB	"/items/itempickup.wav"
 
@@ -216,12 +432,12 @@ static const String:g_sArSIBlockedSounds[][PLATFORM_MAX_PATH] =
 //	"player/boomer/voice/warn/male_boomer_warning_13.wav",		"player/boomer/voice/warn/male_boomer_warning_14.wav",		"player/boomer/voice/warn/male_boomer_warning_15.wav",
 //	"player/boomer/voice/warn/male_boomer_warning_16.wav",		"player/boomer/voice/warn/male_boomer_warning_17.wav",
 	//alert
-	"player/boomer/voice/alert/female_boomer_warning_04.wav",	"player/boomer/voice/alert/female_boomer_warning_05.wav",	"player/boomer/voice/alert/female_boomer_warning_07.wav",
-	"player/boomer/voice/alert/female_boomer_warning_10.wav",	"player/boomer/voice/alert/female_boomer_warning_11.wav",	"player/boomer/voice/alert/female_boomer_warning_12.wav",
-	"player/boomer/voice/alert/female_boomer_warning_13.wav",	"player/boomer/voice/alert/female_boomer_warning_14.wav",	"player/boomer/voice/alert/female_boomer_warning_15.wav",
-	"player/boomer/voice/alert/male_boomer_warning_04.wav",		"player/boomer/voice/alert/male_boomer_warning_05.wav",		"player/boomer/voice/alert/male_boomer_warning_07.wav",
-	"player/boomer/voice/alert/male_boomer_warning_10.wav",		"player/boomer/voice/alert/male_boomer_warning_11.wav",		"player/boomer/voice/alert/male_boomer_warning_12.wav",
-	"player/boomer/voice/alert/male_boomer_warning_13.wav",		"player/boomer/voice/alert/male_boomer_warning_14.wav",		"player/boomer/voice/alert/male_boomer_warning_15.wav"	,
+	"player/boomer/voice/alert/female_boomer_alert_04.wav",		"player/boomer/voice/alert/female_boomer_alert_05.wav",		"player/boomer/voice/alert/female_boomer_alert_07.wav",
+	"player/boomer/voice/alert/female_boomer_alert_10.wav",		"player/boomer/voice/alert/female_boomer_alert_11.wav",		"player/boomer/voice/alert/female_boomer_alert_12.wav",
+	"player/boomer/voice/alert/female_boomer_alert_13.wav",		"player/boomer/voice/alert/female_boomer_alert_14.wav",		"player/boomer/voice/alert/female_boomer_alert_15.wav",
+	"player/boomer/voice/alert/male_boomer_alert_04.wav",		"player/boomer/voice/alert/male_boomer_alert_05.wav",		"player/boomer/voice/alert/male_boomer_alert_07.wav",
+	"player/boomer/voice/alert/male_boomer_alert_10.wav",		"player/boomer/voice/alert/male_boomer_alert_11.wav",		"player/boomer/voice/alert/male_boomer_alert_12.wav",
+	"player/boomer/voice/alert/male_boomer_alert_13.wav",		"player/boomer/voice/alert/male_boomer_alert_14.wav",		"player/boomer/voice/alert/male_boomer_alert_15.wav"	,
 	//idle
 	"player/Boomer/voice/idle/female_boomer_Lurk_01.wav",		"player/Boomer/voice/idle/female_boomer_Lurk_02.wav",		"player/Boomer/voice/idle/female_boomer_Lurk_03.wav",
 	"player/Boomer/voice/idle/female_boomer_Lurk_04.wav",		"player/Boomer/voice/idle/female_boomer_Lurk_05.wav",		"player/Boomer/voice/idle/female_boomer_Lurk_06.wav",
@@ -236,9 +452,9 @@ static const String:g_sArSIBlockedSounds[][PLATFORM_MAX_PATH] =
 	"player/Boomer/voice/idle/indigestion_loop.wav",
 	/* CHARGER */
 	//warning
-	"player/charger/voice/warn/charger_warn1.wav",				"player/charger/voice/warn/charger_warn2.wav",				"player/charger/voice/warn/charger_warn3.wav",
+//	"player/charger/voice/warn/charger_warn1.wav",				"player/charger/voice/warn/charger_warn2.wav",				"player/charger/voice/warn/charger_warn3.wav",
 	//alert
-	"player/charger/voice/alert/charger_alert_01.wav",			"player/charger/voice/alert/charger_alert_01.wav",	
+	"player/charger/voice/alert/Charger_alert_01.wav",			"player/charger/voice/alert/Charger_alert_02.wav",	
 	//idle
 	"player/charger/voice/idle/charger_spotprey_01.wav",		"player/charger/voice/idle/charger_spotprey_02.wav",		"player/charger/voice/idle/charger_spotprey_03.wav",
 	"player/charger/voice/idle/Charger_lurk_01.wav",			"player/charger/voice/idle/Charger_lurk_02.wav",			"player/charger/voice/idle/Charger_lurk_03.wav",
@@ -258,8 +474,8 @@ static const String:g_sArSIBlockedSounds[][PLATFORM_MAX_PATH] =
 	/* hunter idle sounds are the ones played while cruoching: keep them in to encourage wall kicking*/
 	/* JOCKEY */
 	//warning
-	"player/jockey/voice/warn/jockey_06.wav",					"player/jockey/voice/warn/jockey_08.wav",	
-	//alert
+//	"player/jockey/voice/warn/jockey_06.wav",					"player/jockey/voice/warn/jockey_08.wav",	
+	//alert - played on spawn
 	"player/jockey/voice/alert/jockey_02.wav",					"player/jockey/voice/alert/jockey_04.wav",
 	//idle
 	"player/jockey/voice/idle/jockey_spotprey_01.wav",			"player/jockey/voice/warn/jockey_spotprey_02.wav",
@@ -275,6 +491,8 @@ static const String:g_sArSIBlockedSounds[][PLATFORM_MAX_PATH] =
 	/* SMOKER */
 	//warning
 	//alert
+	"player/smoker/voice/alert/smoker_alert_01.wav",			"player/smoker/voice/alert/smoker_alert_02.wav",			"player/smoker/voice/alert/smoker_alert_03.wav",
+	"player/smoker/voice/alert/smoker_alert_04.wav",			"player/smoker/voice/alert/smoker_alert_05.wav",			"player/smoker/voice/alert/smoker_alert_06.wav",
 	//idle
 	"player/smoker/voice/idle/Smoker_Lurk_01.wav",				"player/smoker/voice/idle/Smoker_Lurk_03.wav",				"player/smoker/voice/idle/Smoker_Lurk_04.wav",
 	"player/smoker/voice/idle/Smoker_Lurk_06.wav",				"player/smoker/voice/idle/Smoker_Lurk_08.wav",				"player/smoker/voice/idle/Smoker_Lurk_09.wav",
@@ -283,6 +501,7 @@ static const String:g_sArSIBlockedSounds[][PLATFORM_MAX_PATH] =
 	/* SPITTER */
 	//warning
 	//alert
+	"player/spitter/voice/alert/Spitter_Alert_01.wav",			"player/spitter/voice/alert/Spitter_Alert_02.wav",
 	//idle
 	"player/spitter/voice/idle/Spitter_Lurk_01.wav",			"player/spitter/voice/idle/Spitter_Lurk_02.wav",			"player/spitter/voice/idle/Spitter_Lurk_03.wav",
 	"player/spitter/voice/idle/Spitter_Lurk_04.wav",			"player/spitter/voice/idle/Spitter_Lurk_05.wav",			"player/spitter/voice/idle/Spitter_Lurk_06.wav",
@@ -292,8 +511,6 @@ static const String:g_sArSIBlockedSounds[][PLATFORM_MAX_PATH] =
 	"player/spitter/voice/idle/Spitter_Lurk_17.wav",			"player/spitter/voice/idle/Spitter_Lurk_18.wav",			"player/spitter/voice/idle/Spitter_Lurk_19.wav",
 	"player/spitter/voice/idle/Spitter_Lurk_20.wav",
 	/* TANK */
-	//warning
-	//alert
 	//idle
 	"player/tank/voice/idle/Tank_Breathe_01.wav",				"player/tank/voice/idle/Tank_Breathe_02.wav",				"player/tank/voice/idle/Tank_Breathe_03.wav",
 	"player/tank/voice/idle/Tank_Breathe_04.wav",				"player/tank/voice/idle/Tank_Breathe_05.wav",				"player/tank/voice/idle/Tank_Breathe_06.wav",
@@ -304,44 +521,59 @@ static const String:g_sArSIBlockedSounds[][PLATFORM_MAX_PATH] =
 };
 
 static const g_iArMaxHealthOfClass[CLASS_COUNT] = 
-{	//none		//hunter	//charger	//jockey	
-	0,			100,		200,		100,
-	//smoker	//tank		//boomer	//spitter
-	100,		80,			80,			100,
-	
-	//shrpshter	//jugg		//ninja
-	100,		150,		80
+{	//none	//hun	//cha	//joc
+	0,		100,	200,	100,
+	//smo	//tan	//boo	//spi
+	100,	80,		80,		100,
+	//sha	//jug	//nin
+	100,	150,	80
 };
 static const Float:g_fArMaxSpeedOfClass[CLASS_COUNT] =
-{	//none		//hunter	//charger	//jockey	
-	0.0,		312.0,		252.0,		300.0,	
-	//smoker	//tank		//boomer	//spitter
-	276.0,		312.0,		350.0,		300.0,
-							/*336.0 boomer original*/
-	//shrpshter	//jugg		//ninja
-	276.0,		300.0,		324.0
+{	//none	//hun	//cha	//joc
+	0.0,	312.5,	270.0,	300.0,
+	//smo	//tan	//boo	//spi
+	275.0,	312.5,	350.0,	300.0,
+	//sha	//jug	//nin
+	275.0,	300.0,	325.0
 };
-
+static const Float:g_fArM2IntervalOfClass[CLASS_COUNT] =
+{	//none	//hun	//cha	//joc
+	0.0,	1.0,	1.0,	1.0,
+	//smo	//tan	//boo	//spi
+	1.0,	3.5,	1.0,	1.0,
+	//sha	//jug	//nin
+	6.0,	4.0,	4.0
+};
+//gamedata things
 new 		g_iOffsetAbility;
 new Handle:	g_hConfigFile = INVALID_HANDLE;
 new Handle:	g_hSDKCallRespawn = INVALID_HANDLE;
 new Handle:	g_hSDKCallSetClass = INVALID_HANDLE;
 new Handle: g_hSDKCallCreateAbility = INVALID_HANDLE;
-
+//dynamic structures
 new Handle:	g_hArrayPowerupEntities = INVALID_HANDLE;
 new Handle:	g_hArrayPowerupTouchEntities = INVALID_HANDLE;
 new Handle:	g_hTriePowerupModels = INVALID_HANDLE;
 new Handle: g_hTrieMeleeWeaponDamages = INVALID_HANDLE;
 new Handle: g_hTrieMeleeWeaponHitRayLimits = INVALID_HANDLE;
 new Handle:	g_hTrieSoundsBlocked = INVALID_HANDLE;
-
-new			g_iArScoreOf[MAXPLAYERS + 1];	//control this by steam id later, to set it to normal when a player reconnects instead of setting to 0 on put in server
-new 		g_iArClassOf[MAXPLAYERS + 1];
+//general world-related
+new	String:	g_sCurrentArena[64];
+//general player-related
+new			g_iArScore[MAXPLAYERS + 1];	//control this by steam id later, to set it to normal when a player reconnects instead of setting to 0 on put in server
+new 		g_iArClass[MAXPLAYERS + 1];
 new 		g_iArClassToChangeToOnDeath[MAXPLAYERS + 1];
+new 		g_iArTeam[MAXPLAYERS + 1]; //important for survivor-survivor fighting
+new 		g_iArTeamToChangeToOnDeath[MAXPLAYERS + 1];
 new			g_iArCauseOfDeath[MAXPLAYERS + 1];
-new			g_iArWorldDeathCauserOf[MAXPLAYERS + 1];
-
+new			g_iArWorldDeathCauser[MAXPLAYERS + 1];
+new			g_iArJockeyedBy[MAXPLAYERS + 1];
+new			g_iArCarriedBy[MAXPLAYERS + 1];
+//classes
+new			g_iArTimesScratchedBySpitter[MAXPLAYERS + 1];
+new Float:	g_fArTimeSinceLastDamaged[MAXPLAYERS + 1];		//currently only used by ninjas, but might be used for other things later
 new Float:	g_fArTimeSmokerSlowdownEndsAt[MAXPLAYERS + 1];
+//powerups
 new Float:	g_fArTimeAdrenalineEndsAt[MAXPLAYERS + 1];
 new Float:	g_fArTimeIncendiaryAmmoEndsAt[MAXPLAYERS + 1];
 new Float:	g_fArTimeExplosiveAmmoEndsAt[MAXPLAYERS + 1];
@@ -349,7 +581,6 @@ new Float:	g_fArTimeShieldEndsAt[MAXPLAYERS + 1];
 new 		g_iArDefibCount[MAXPLAYERS + 1];
 
 /*
-iTimesScratchedBySpitter[MAXPLAYERS + 1];	//will affect damage received, ticks down via timers
 fTimeSinceLaserSightsUsed[MAXPLAYERS + 1];
 */
 
@@ -365,7 +596,7 @@ public Plugin:myinfo =
 	name = "Left 4 Dead 2 Arena",
 	author = "Stabby",
 	description = "Has all the features of L4D2A: respawning, classes, scoring, etc.",
-	version = "0.1",
+	version = "0.3",
 	url = "none"
 }
 
@@ -388,29 +619,29 @@ public OnPluginStart()
 
 public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon)
 {
-	if (buttons & IN_ATTACK2 && GetClientTeam(client) == TEAM_SURVIVOR && L4D2Direct_GetNextShoveTime(client) <= GetGameTime())
+	if (buttons & IN_ATTACK2 && L4D2Direct_GetNextShoveTime(client) <= GetGameTime())
 	{
-		switch (g_iArClassOf[client])
+		switch (g_iArClass[client])
 		{
-			case CLASS_JUGGERNAUT:
-			{
-				L4D2Direct_SetNextShoveTime(client, GetGameTime() + DURATION_M2_JUGGERNAUT);
-			}
-			case CLASS_SHARPSHOOTER:
-			{
-				L4D2Direct_SetNextShoveTime(client, GetGameTime() + DURATION_M2_SHARPSHOOTER);
-			}
 			case CLASS_NINJA:
 			{
-				CreateTimer(DURATION_M2_NINJA_BEFOREDELAY, Timed_DelayNinjaM2, client);
+				CreateTimer(SPECIAL_M2_NINJA_BURST_TIME, Timed_DelayedM2Delay, client);
 			}
+			default:
+			{
+				L4D2Direct_SetNextShoveTime(client, GetGameTime() + g_fArM2IntervalOfClass[g_iArClass[client]]);
+			}			
+/*			case CLASS_TANK:
+			{
+				//do nothing
+			}*/
 		}
 	}
 }
 
-public Action:Timed_DelayNinjaM2(Handle:timer, any:client)
+public Action:Timed_DelayedM2Delay(Handle:timer, any:client)
 {
-	L4D2Direct_SetNextShoveTime(client, GetGameTime() + DURATION_M2_SHARPSHOOTER);
+	L4D2Direct_SetNextShoveTime(client, GetGameTime() + g_fArM2IntervalOfClass[g_iArClass[client]]);
 }
 
 stock PostSpawnGearPlayerByClass(client)
@@ -429,7 +660,7 @@ stock PostSpawnGearPlayerByClass(client)
 				}
 			}
 			
-			switch (g_iArClassOf[client])
+			switch (g_iArClass[client])
 			{
 				case CLASS_JUGGERNAUT:
 				{
@@ -448,7 +679,7 @@ stock PostSpawnGearPlayerByClass(client)
 				}
 			}
 			
-			SetEntityHealth(client, g_iArMaxHealthOfClass[g_iArClassOf[client]]);
+			SetEntityHealth(client, g_iArMaxHealthOfClass[g_iArClass[client]]);
 		}
 		case TEAM_INFECTED:
 		{
@@ -459,12 +690,12 @@ stock PostSpawnGearPlayerByClass(client)
 				RemoveEdict(WeaponIndex);
 			}
 			
-			switch (g_iArClassOf[client])
+			switch (g_iArClass[client])
 			{
 				case CLASS_BOOMER:
 				{
 					SDKCall(g_hSDKCallSetClass, client, ZC_BOOMER);
-				}
+				} 
 				case CLASS_CHARGER:
 				{
 					SDKCall(g_hSDKCallSetClass, client, ZC_CHARGER);			
@@ -533,13 +764,17 @@ stock GiveItem(client, const String:weaponname[], const String:meleename[] = "fr
 
 public Action:ChooseTeam(client, args)
 {
-	if (IsPlayerAlive(client))
+	if (args < 1)
 	{
-		PrintToChat(client, "Can't change team while alive.");
+		ShowTeamMenu(client);
 	}
 	else
 	{
-		ShowTeamMenu(client);
+		decl String:team[32];
+		GetCmdArg(1, team, 32);
+		
+		SetNextTeam(client, team);
+		ShowClassMenu(client);
 	}
 }
 
@@ -554,13 +789,47 @@ public Action:ChooseClass(client, args)
 		decl String:class[32];
 		GetCmdArg(1, class, 32);
 		
-		SetClass(client, class);
+		SetNextClass(client, class);
 	}
 }
 
-stock SetClass(client, const String:class[])
+stock SetNextTeam(client, const String:team[])
 {
-	switch (GetClientTeam(client))
+	if (StrEqual(team, "survivor", false) || StrEqual(team, "2", false))
+	{
+		if (IsPlayerAlive(client))
+		{
+			g_iArTeamToChangeToOnDeath[client] = TEAM_SURVIVOR;
+		}
+		else
+		{
+			g_iArTeam[client] = TEAM_SURVIVOR;
+			ChangeClientTeam(client, TEAM_SURVIVOR);
+			
+			decl Float:pos[3], Float:ang[3], Float:vec[3];
+			GetClientAbsOrigin(client, pos);
+			GetClientEyeAngles(client, ang);
+			GetEntPropVector(client, Prop_Data, "m_vecVelocity", vec);
+			TeleportEntity(client, pos, ang, vec);
+		}
+	}
+	else if (StrEqual(team, "infected", false) || StrEqual(team, "3", false))
+	{
+		if (IsPlayerAlive(client))
+		{
+			g_iArTeamToChangeToOnDeath[client] = TEAM_INFECTED;
+		}
+		else
+		{
+			g_iArTeam[client] = TEAM_INFECTED;
+			ChangeClientTeam(client, TEAM_INFECTED);
+		}
+	}	
+}
+
+stock SetNextClass(client, const String:class[])
+{
+	switch (g_iArTeamToChangeToOnDeath[client] == TEAM_NONE ? GetClientTeam(client) : g_iArTeamToChangeToOnDeath[client])
 	{
 		case TEAM_INFECTED:
 		{
@@ -572,11 +841,11 @@ stock SetClass(client, const String:class[])
 				}
 				else
 				{
-					if (g_iArClassOf[client] == CLASS_NONE)
+					if (g_iArClass[client] == CLASS_NONE)
 					{
 						StartSpawnTimer(DURATION_RESPAWN, client);
 					}
-					g_iArClassOf[client] = CLASS_BOOMER;
+					g_iArClass[client] = CLASS_BOOMER;
 				}
 			}
 			else if (StrEqual(class, "charger", false))
@@ -587,11 +856,11 @@ stock SetClass(client, const String:class[])
 				}
 				else
 				{
-					if (g_iArClassOf[client] == CLASS_NONE)
+					if (g_iArClass[client] == CLASS_NONE)
 					{
 						StartSpawnTimer(DURATION_RESPAWN, client);
 					}
-					g_iArClassOf[client] = CLASS_CHARGER;
+					g_iArClass[client] = CLASS_CHARGER;
 				}
 			}
 			else if (StrEqual(class, "hunter", false))
@@ -602,11 +871,11 @@ stock SetClass(client, const String:class[])
 				}
 				else
 				{
-					if (g_iArClassOf[client] == CLASS_NONE)
+					if (g_iArClass[client] == CLASS_NONE)
 					{
 						StartSpawnTimer(DURATION_RESPAWN, client);
 					}
-					g_iArClassOf[client] = CLASS_HUNTER;
+					g_iArClass[client] = CLASS_HUNTER;
 				}
 			}
 			else if (StrEqual(class, "jockey", false))
@@ -617,11 +886,11 @@ stock SetClass(client, const String:class[])
 				}
 				else
 				{
-					if (g_iArClassOf[client] == CLASS_NONE)
+					if (g_iArClass[client] == CLASS_NONE)
 					{
 						StartSpawnTimer(DURATION_RESPAWN, client);
 					}
-					g_iArClassOf[client] = CLASS_JOCKEY;
+					g_iArClass[client] = CLASS_JOCKEY;
 				}
 			}
 			else if (StrEqual(class, "smoker", false))
@@ -632,11 +901,11 @@ stock SetClass(client, const String:class[])
 				}
 				else
 				{
-					if (g_iArClassOf[client] == CLASS_NONE)
+					if (g_iArClass[client] == CLASS_NONE)
 					{
 						StartSpawnTimer(DURATION_RESPAWN, client);
 					}
-					g_iArClassOf[client] = CLASS_SMOKER;
+					g_iArClass[client] = CLASS_SMOKER;
 				}
 			}
 			else if (StrEqual(class, "spitter", false))
@@ -647,11 +916,11 @@ stock SetClass(client, const String:class[])
 				}
 				else
 				{
-					if (g_iArClassOf[client] == CLASS_NONE)
+					if (g_iArClass[client] == CLASS_NONE)
 					{
 						StartSpawnTimer(DURATION_RESPAWN, client);
 					}
-					g_iArClassOf[client] = CLASS_SPITTER;
+					g_iArClass[client] = CLASS_SPITTER;
 				}
 			}
 			else if (StrEqual(class, "tank", false))
@@ -662,11 +931,11 @@ stock SetClass(client, const String:class[])
 				}
 				else
 				{
-					if (g_iArClassOf[client] == CLASS_NONE)
+					if (g_iArClass[client] == CLASS_NONE)
 					{
 						StartSpawnTimer(DURATION_RESPAWN, client);
 					}
-					g_iArClassOf[client] = CLASS_TANK;
+					g_iArClass[client] = CLASS_TANK;
 				}
 			}
 			else
@@ -684,11 +953,11 @@ stock SetClass(client, const String:class[])
 				}
 				else
 				{
-					if (g_iArClassOf[client] == 0)
+					if (g_iArClass[client] == 0)
 					{
 						StartSpawnTimer(DURATION_RESPAWN, client);
 					}
-					g_iArClassOf[client] = CLASS_JUGGERNAUT;
+					g_iArClass[client] = CLASS_JUGGERNAUT;
 				}
 			}
 			else if (StrEqual(class, "ninja", false))
@@ -699,11 +968,11 @@ stock SetClass(client, const String:class[])
 				}
 				else
 				{
-					if (g_iArClassOf[client] == 0)
+					if (g_iArClass[client] == 0)
 					{
 						StartSpawnTimer(DURATION_RESPAWN, client);
 					}
-					g_iArClassOf[client] = CLASS_NINJA;
+					g_iArClass[client] = CLASS_NINJA;
 				}
 			}
 			else if (StrEqual(class, "sharpshooter", false))
@@ -714,11 +983,11 @@ stock SetClass(client, const String:class[])
 				}
 				else
 				{
-					if (g_iArClassOf[client] == 0)
+					if (g_iArClass[client] == 0)
 					{
 						StartSpawnTimer(DURATION_RESPAWN, client);
 					}
-					g_iArClassOf[client] = CLASS_SHARPSHOOTER;
+					g_iArClass[client] = CLASS_SHARPSHOOTER;
 				}
 			}
 			else
@@ -736,8 +1005,8 @@ public OnClientPutInServer(client)
 		KickClient(client);
 	}
 	
-	g_iArClassOf[client] = CLASS_NONE;
-	g_iArScoreOf[client] = 0;
+	g_iArClass[client] = CLASS_NONE;
+	g_iArScore[client] = 0;
 	
 	SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamage);
 	SDKHook(client, SDKHook_TraceAttack, TraceAttack);
@@ -747,7 +1016,6 @@ public OnClientPutInServer(client)
 	FileToKeyValues(kv, DIR_KV);
 	
 	decl Float:position[3];
-	
 	
 	decl String:mapname[64];
 	GetCurrentMap(mapname, 64);
@@ -761,11 +1029,17 @@ public OnClientPutInServer(client)
 	TeleportEntity(client, position, NULL_VECTOR, NULL_VECTOR);
 
 	ChangeClientTeam(client, TEAM_SPECTATOR);
+	g_iArTeam[client] = TEAM_SPECTATOR;
 	CreateTimer(2.0, Timed_ShowTeamMenuOnConnect, client);
 }
 
 public Action:Timed_ShowTeamMenuOnConnect(Handle:timer, any:client)
 {
+	if (client <= 0 || client > MaxClients || !IsClientInGame(client))
+	{
+		return;
+	}
+	
 	ShowTeamMenu(client);
 }
 
@@ -781,44 +1055,14 @@ stock ShowTeamMenu(client)
 }
 
 public Menu_TeamSelection(Handle:menu, MenuAction:action, param1, param2)
-{
-	if (param1 <= 0 || param1 > MaxClients)
-	{
-		return;
-	}
-	if (!IsClientInGame(param1))
-	{
-		return;
-	}
-	
+{	
 	if (action == MenuAction_Select)
 	{
 		decl String:info[32];
 		if (GetMenuItem(menu, param2, info, sizeof(info)))
 		{
-			if (IsPlayerAlive(param1))
-			{
-				PrintToChat(param1, "Can't change team while alive.");
-			}
-			else
-			{
-				new team = StringToInt(info);
-				
-				decl Float:pos[3], Float:ang[3], Float:vec[3];
-				GetClientAbsOrigin(param1, pos);
-				GetClientEyeAngles(param1, ang);
-				GetEntPropVector(param1, Prop_Data, "m_vecVelocity", vec); 
-				
-				ChangeClientTeam(param1, team);
-				g_iArClassOf[param1] = CLASS_NONE;
-				
-				if (team == TEAM_SURVIVOR)	//stop from warping to saferoom
-				{
-					TeleportEntity(param1, pos, ang, vec);
-				}
-				
-				ShowClassMenu(param1);
-			}
+			SetNextTeam(param1, info);
+			ShowClassMenu(param1);			
 		}
 	}
 	else if (action == MenuAction_Cancel)
@@ -840,7 +1084,7 @@ stock ShowClassMenu(client)
 	
 	new Handle:menu = CreateMenu(Menu_ClassSelection);
 	SetMenuTitle(menu, "Select your class:");
-	switch (GetClientTeam(client))
+	switch (g_iArTeamToChangeToOnDeath[client] == TEAM_NONE ? GetClientTeam(client) : g_iArTeamToChangeToOnDeath[client])
 	{
 		case TEAM_INFECTED:
 		{
@@ -871,7 +1115,7 @@ public Menu_ClassSelection(Handle:menu, MenuAction:action, param1, param2)
 		decl String:info[32];
 		if (GetMenuItem(menu, param2, info, sizeof(info)))
 		{
-			SetClass(param1, info);
+			SetNextClass(param1, info);
 		}
 	}
 	else if (action == MenuAction_Cancel)
@@ -917,9 +1161,25 @@ public PostReload(weapon, bool:bSuccessful)
 
 public OnEntityCreated(entity, const String:classname[])
 {
-	if (StrEqual(classname, "witch"))
+	PrintToChatAll("%s",classname);
+	
+	if (StrEqual(classname, "spitter_projectile"))
+	{
+//		SDKHook(entity, SDKHook_StartTouch, OnSpitDirectHit);
+//		SetEntPropFloat(GetEntPropEnt(entity, Prop_Send, "m_hThrower"), Prop_Send, "m_flVelocityModifier", 1.0);
+	}
+	else if (StrEqual(classname, "witch"))
 	{
 		AcceptEntityInput(entity, "Kill");
+	}
+}
+
+public Action:OnSpitDirectHit(projectile, target)
+{
+	if (target > 0 && target <= MaxClients)
+	{
+		new spitter = GetEntPropEnt(projectile, Prop_Data, "m_hThrower");
+		SDKHooks_TakeDamage(target, spitter, spitter, GetDamageAfterPowerups(spitter, target, DAMAGE_DIRECT_SPITTER));
 	}
 }
 
@@ -948,20 +1208,48 @@ public Action:OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damage
 	{
 		damage = GetDamageAfterPowerups(attacker, victim, damage);
 		
-		if (g_iArClassOf[attacker] == CLASS_SHARPSHOOTER)
+		if (g_iArClass[attacker] == CLASS_SHARPSHOOTER)
 		{
 			new buttons = GetClientButtons(attacker);
 			if (buttons & IN_DUCK)
 			{
-				PrintToChatAll("sharpshooter crouched, increasing damage by 10%");
 				damage *= 1.10;
 			}
-			if (buttons & IN_ZOOM)
+			if (buttons & IN_ZOOM) // this doesnt work like this! stupid! have to track people switching between zoomed and not zoomed! also, make it so the bonus is given when players are NOT zoomed
 			{
 				PrintToChatAll("sharpshooter zoomed, increasing damage by 10%");
 				damage *= 1.10;
 			}
 		}
+		else if (g_iArClass[attacker] == CLASS_SPITTER && damagetype != 265216)
+		{
+			g_iArTimesScratchedBySpitter[victim]++;
+			CreateTimer(DURATION_DEBUFF_SPITTER, Timed_TickDownSpitterDebuff, victim);
+		}
+		else if (g_iArClass[attacker] == CLASS_NINJA)
+		{
+			new Float:buffer = g_fArTimeSinceLastDamaged[attacker]/100.0;
+			if (buffer > 0.15)
+			{
+				buffer = 0.15;
+			}
+			damage *= 1.0 + buffer;
+			PrintToChatAll("ninja damage increased by %.2f", buffer);
+		}
+		
+		damage *= Pow(DAMAGE_SPECIAL_SPITTER_MULT, float(g_iArTimesScratchedBySpitter[victim]));
+		
+		if (GetClientHealth(victim) - RoundToNearest(damage) < 1 && GetGameTime() < g_fArTimeAdrenalineEndsAt[victim])	//if player is under the effects of adrenaline and was about to die
+		{
+			g_fArTimeAdrenalineEndsAt[victim] = GetGameTime();	//remove adrenaline speed buff
+			SetEntityHealth(victim, 1);
+		}
+		if (GetGameTime() < g_fArTimeAdrenalineEndsAt[victim] + DURATION_ADRENALINE_SPECIAL)	//and make him immortal for a tiny amount of time
+		{
+			return Plugin_Handled;
+		}
+		
+		g_fArTimeSinceLastDamaged[victim] = GetGameTime();
 		
 		return Plugin_Changed;
 	}	
@@ -969,24 +1257,27 @@ public Action:OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damage
 	return Plugin_Continue;
 }
 
+public Action:Timed_TickDownSpitterDebuff(Handle:timer, any:victim)
+{
+	g_iArTimesScratchedBySpitter[victim]--;
+}
+
 public Action:TraceAttack(victim, &attacker, &inflictor, &Float:damage, &damagetype, &ammotype, hitbox, hitgroup)
 {
-	if (!IsValidEntity(inflictor))
+	if (IsValidEntity(inflictor))
 	{
-		return Plugin_Continue;
-	}
-	
-	decl String:classname[48];
-	GetEntityClassname(inflictor, classname, 48);
-	
-	if (StrEqual(classname, "weapon_melee"))
-	{
-		decl String:modelname[64];
-		GetEntPropString(inflictor, Prop_Data, "m_ModelName", modelname, 64);
+		decl String:classname[48];
+		GetEntityClassname(inflictor, classname, 48);
 		
-		if (GetTrieValue(g_hTrieMeleeWeaponDamages, modelname, damage))
+		if (StrEqual(classname, "weapon_melee"))
 		{
-			return Plugin_Changed;
+			decl String:modelname[64];
+			GetEntPropString(inflictor, Prop_Data, "m_ModelName", modelname, 64);
+			
+			if (GetTrieValue(g_hTrieMeleeWeaponDamages, modelname, damage))
+			{
+				return Plugin_Changed;
+			}
 		}
 	}
 	return Plugin_Continue;
@@ -994,16 +1285,17 @@ public Action:TraceAttack(victim, &attacker, &inflictor, &Float:damage, &damaget
 
 public Action:Scores(client, args)
 {
-	decl topEight[8], String:playerNames[8][64];
+	decl topEight[8];
 	GetTopEight(topEight);
 
+	decl String:playername[64];
 	for (new n = 0; n < 8; n++)
 	{
-		GetClientName(topEight[n], playerNames[n], 64);
-		PrintToConsole(client, "#%d - %s with %d kills (%s).", n + 1, playerNames[topEight[n]], g_iArScoreOf[topEight[n]], GetClientTeam(topEight[n]) == TEAM_SURVIVOR ? "SURVIVOR" : GetClientTeam(topEight[n]) == TEAM_INFECTED ? "INFECTED" : "NOT IN A TEAM");
+		GetClientName(topEight[n], playername, 64);
+		PrintToConsole(client, "#%d - %s with %d kills (%s).", n + 1, playername, g_iArScore[topEight[n]], GetClientTeam(topEight[n]) == TEAM_SURVIVOR ? "SURVIVOR" : GetClientTeam(topEight[n]) == TEAM_INFECTED ? "INFECTED" : "NOT IN A TEAM");
 		if (n < 3 || topEight[n] == client)
 		{
-			PrintToChat(client, "#%d - %s with %d kills (%s).", n + 1, playerNames[topEight[n]], g_iArScoreOf[topEight[n]], GetClientTeam(topEight[n]) == TEAM_SURVIVOR ? "SURVIVOR" : GetClientTeam(topEight[n]) == TEAM_INFECTED ? "INFECTED" : "NOT IN A TEAM");
+			PrintToChat(client, "#%d - %s with %d kills (%s).", n + 1, playername, g_iArScore[topEight[n]], GetClientTeam(topEight[n]) == TEAM_SURVIVOR ? "SURVIVOR" : GetClientTeam(topEight[n]) == TEAM_INFECTED ? "INFECTED" : "NOT IN A TEAM");
 		}
 	}
 }
@@ -1011,12 +1303,12 @@ public Action:Scores(client, args)
 stock GetTopEight(topEight[8])
 {
 	topEight[0] = 0;
-	g_iArScoreOf[0] = -100;
+	g_iArScore[0] = -100;
 	for (new n = 1; n <= MaxClients; n++)
 	{
 		if (IsClientInGame(n))
 		{
-			if (g_iArScoreOf[n] > g_iArScoreOf[topEight[0]])
+			if (g_iArScore[n] > g_iArScore[topEight[0]])
 			{
 				topEight[7] = topEight[6];
 				topEight[6] = topEight[5];
@@ -1027,7 +1319,7 @@ stock GetTopEight(topEight[8])
 				topEight[1] = topEight[0];
 				topEight[0] = n;
 			}
-			else if (g_iArScoreOf[n] > g_iArScoreOf[topEight[1]])
+			else if (g_iArScore[n] > g_iArScore[topEight[1]])
 			{
 				topEight[7] = topEight[6];
 				topEight[6] = topEight[5];
@@ -1037,7 +1329,7 @@ stock GetTopEight(topEight[8])
 				topEight[2] = topEight[1];
 				topEight[1] = n;
 			}
-			else if (g_iArScoreOf[n] > g_iArScoreOf[topEight[2]])
+			else if (g_iArScore[n] > g_iArScore[topEight[2]])
 			{
 				topEight[7] = topEight[6];
 				topEight[6] = topEight[5];
@@ -1046,7 +1338,7 @@ stock GetTopEight(topEight[8])
 				topEight[3] = topEight[2];
 				topEight[2] = n;
 			}
-			else if (g_iArScoreOf[n] > g_iArScoreOf[topEight[3]])
+			else if (g_iArScore[n] > g_iArScore[topEight[3]])
 			{
 				topEight[7] = topEight[6];
 				topEight[6] = topEight[5];
@@ -1054,25 +1346,25 @@ stock GetTopEight(topEight[8])
 				topEight[4] = topEight[3];
 				topEight[3] = n;
 			}
-			else if (g_iArScoreOf[n] > g_iArScoreOf[topEight[4]])
+			else if (g_iArScore[n] > g_iArScore[topEight[4]])
 			{
 				topEight[7] = topEight[6];
 				topEight[6] = topEight[5];
 				topEight[5] = topEight[4];
 				topEight[4] = n;
 			}
-			else if (g_iArScoreOf[n] > g_iArScoreOf[topEight[5]])
+			else if (g_iArScore[n] > g_iArScore[topEight[5]])
 			{
 				topEight[7] = topEight[6];
 				topEight[6] = topEight[5];
 				topEight[5] = n;
 			}
-			else if (g_iArScoreOf[n] > g_iArScoreOf[topEight[6]])
+			else if (g_iArScore[n] > g_iArScore[topEight[6]])
 			{
 				topEight[7] = topEight[6];
 				topEight[6] = n;
 			}
-			else if (g_iArScoreOf[n] > g_iArScoreOf[topEight[7]])
+			else if (g_iArScore[n] > g_iArScore[topEight[7]])
 			{
 				topEight[7] = n;
 			}
@@ -1080,12 +1372,42 @@ stock GetTopEight(topEight[8])
 	}
 }
 
+public Event_JockeyRide(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	PrintToChatAll("%s", name);
+	
+	new jockey = GetClientOfUserId(GetEventInt(event, "userid"));
+	new victim = GetClientOfUserId(GetEventInt(event, "victim"));
+	g_iArJockeyedBy[victim] = jockey;
+	CreateTimer(DURATION_SPECIAL_JOCKEY, Timed_JockeySelfDamage, victim, TIMER_REPEAT);
+}
+
+public Action:Timed_JockeySelfDamage(Handle:timer, any:victim)
+{
+	if (g_iArJockeyedBy[victim] == 0 || !IsPlayerAlive(victim) || !IsPlayerAlive(g_iArJockeyedBy[victim]))
+	{
+		return Plugin_Stop;
+	}
+	
+	PrintToChatAll("jockey self-damaging");
+	SDKHooks_TakeDamage(g_iArJockeyedBy[victim], g_iArJockeyedBy[victim], g_iArJockeyedBy[victim], GetDamageAfterPowerups(g_iArJockeyedBy[victim], g_iArJockeyedBy[victim], DAMAGE_SPECIAL_JOCKEY_SELF));
+	return Plugin_Continue;
+}
+
+public Event_JockeyRideEnd(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	PrintToChatAll("%s", name);
+	
+	new victim = GetClientOfUserId(GetEventInt(event, "victim"));
+	g_iArJockeyedBy[victim] = 0;
+}
+
 public Event_ChargerImpact(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new attacker = GetClientOfUserId(GetEventInt(event, "userid"));
 	new victim = GetClientOfUserId(GetEventInt(event, "victim"));
 	
-	g_iArWorldDeathCauserOf[victim] = attacker;
+	g_iArWorldDeathCauser[victim] = attacker;
 }
 	
 public Event_TongueGrab(Handle:event, const String:name[], bool:dontBroadcast)
@@ -1113,16 +1435,16 @@ public Event_PounceLanded(Handle:event, const String:name[], bool:dontBroadcast)
 public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	
-	if (client == 0)	//for some reason worldspawn dies sometimes
+	if (client == 0)
 	{
 		return;
 	}
 	
+	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	if (attacker == client)
 	{
-//		PrintToChatAll("Kamikaze Kill");
+		PrintToChatAll("Kamikaze Kill");
 		g_iArCauseOfDeath[client] = COD_KAMIKAZE;
 	}
 	else
@@ -1131,44 +1453,57 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 		{
 			if (GetClientTeam(client) == GetClientTeam(attacker))
 			{
-//				PrintToChatAll("FF Kill");
+				PrintToChatAll("FF Kill");
 				g_iArCauseOfDeath[client] = COD_FF;
 			}
 			else
 			{
-//				PrintToChatAll("Normal Kill");
+				PrintToChatAll("Normal Kill");
 				g_iArCauseOfDeath[client] = COD_PWNT;
 			}
 		}
 		else
 		{	//gonna have to enforce COD_KAMIKAZE for death charges and shit
-			if (g_iArWorldDeathCauserOf[client] != 0)
+			if (g_iArWorldDeathCauser[client] != 0)
 			{
-//				PrintToChatAll("Normal Kill (forced world death)");
+				PrintToChatAll("Normal Kill (forced world death)");
 				g_iArCauseOfDeath[client] = COD_PWNT;
-				g_iArWorldDeathCauserOf[client] = 0;
+				attacker = g_iArWorldDeathCauser[client];
+			}
+			else if (g_iArJockeyedBy[client] != 0)
+			{
+				PrintToChatAll("Normal Kill (death jockey)");				
+				g_iArCauseOfDeath[client] = COD_PWNT;
+				attacker = g_iArJockeyedBy[client];
+			}
+			else if (g_iArCarriedBy[client] != 0)
+			{
+				PrintToChatAll("Normal Kill (death charge)");
+				g_iArCauseOfDeath[client] = COD_PWNT;
+				attacker = g_iArCarriedBy[client];
 			}
 			else
 			{
-//				PrintToChatAll("World Kill (accidental/suicide)");
+				PrintToChatAll("World Kill (accidental/suicide)");
 				g_iArCauseOfDeath[client] = COD_WORLD;
 			}			
 		}
 	}
+	g_iArWorldDeathCauser[client] = 0;
 	
 	switch (g_iArCauseOfDeath[client])
 	{
 		case COD_FF:
 		{
-			g_iArScoreOf[attacker]--;
+			g_iArScore[attacker]--;
 		}
 		case COD_PWNT:
 		{
-			g_iArScoreOf[attacker]++;
+			g_iArScore[attacker]++;
 		}
 		case COD_WORLD:
 		{
-			g_iArScoreOf[client]--;
+			g_iArScore[client]--;
 		}
 	}
 	
@@ -1186,9 +1521,30 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 		StartSpawnTimer(DURATION_RESPAWN, client);
 	}
 	
+	if (g_iArTeamToChangeToOnDeath[client] != TEAM_NONE)
+	{
+		new bool:isSurvivorTeam = (g_iArTeamToChangeToOnDeath[client] == TEAM_SURVIVOR);
+		
+		decl Float:pos[3], Float:ang[3], Float:vec[3];
+		if (isSurvivorTeam)
+		{
+			GetClientAbsOrigin(client, pos);
+			GetClientEyeAngles(client, ang);
+			GetEntPropVector(client, Prop_Data, "m_vecVelocity", vec);
+		}
+		
+		ChangeClientTeam(client, g_iArTeamToChangeToOnDeath[client]);
+		g_iArTeam[client] = g_iArTeamToChangeToOnDeath[client];
+		g_iArTeamToChangeToOnDeath[client] = TEAM_NONE;
+		
+		if (isSurvivorTeam)
+		{
+			TeleportEntity(client, pos, ang, vec);	//fix camera view getting weird on team change
+		}
+	}
 	if (g_iArClassToChangeToOnDeath[client] != CLASS_NONE)
 	{
-		g_iArClassOf[client] = g_iArClassToChangeToOnDeath[client];
+		g_iArClass[client] = g_iArClassToChangeToOnDeath[client];
 		g_iArClassToChangeToOnDeath[client] = CLASS_NONE;
 	}
 }
@@ -1200,7 +1556,7 @@ stock StartSpawnTimer(Float:duration, client)
 
 public Action:Timed_Respawn(Handle:timer, any:client)
 {
-	if (IsClientInGame(client) && GetClientTeam(client) != TEAM_SPECTATOR && g_iArClassOf[client] != 0)
+	if (IsClientInGame(client) && GetClientTeam(client) != TEAM_SPECTATOR && g_iArClass[client] != 0)
 	{
 		Respawn(client);
 	}
@@ -1280,6 +1636,11 @@ stock Respawn(respawnee)
 	//time to spawn and teleport!
 	SDKCall(g_hSDKCallRespawn, respawnee);
 	PostSpawnGearPlayerByClass(respawnee);
+	DispatchKeyValue(respawnee, "glowrange", "1");
+	DispatchKeyValue(respawnee, "glowrangemin", "128");
+	SetEntProp(respawnee, Prop_Send, "m_iGlowType", 2);
+	SetEntProp(respawnee, Prop_Send, "m_bFlashing", false);
+	AcceptEntityInput(respawnee, "StopGlowing");
 	TeleportEntity(respawnee, fArSpawnPosition, fArSpawnAngles, NULL_VECTOR);
 	EmitSoundToClient(respawnee, "/ui/pickup_scifi37.wav"); //louder for SI than survivors for some reason
 //	EmitSoundToClient(respawnee, "/ui/pickup_guitarriff10.wav");	//can't be precached for some reason
@@ -1288,6 +1649,59 @@ stock Respawn(respawnee)
 	CloseHandle(kv);
 	CloseHandle(hEnemyPositionArray);
 	CloseHandle(hSpawnIndexArray);	
+}
+
+public Action:CreateArena(client, args)
+{
+	if (args >= 1)
+	{
+		new Handle:kv = CreateKeyValues("L4D2Arena");
+		FileToKeyValues(kv, DIR_KV);
+		
+		decl String:mapname[64];
+		GetCurrentMap(mapname, 64);
+
+		decl String:arenaname[64];
+		GetCmdArg(1, arenaname, 64);
+		
+		KvJumpToKey(kv, mapname, true);
+		KvJumpToKey(kv, arenaname, true);
+		
+		KvRewind(kv);
+		KeyValuesToFile(kv, DIR_KV);
+		CloseHandle(kv);
+	}
+	return Plugin_Handled;		
+}
+
+public Action:ChooseArena(client, args)
+{
+	if (args >= 1)
+	{
+		new Handle:kv = CreateKeyValues("L4D2Arena");
+		FileToKeyValues(kv, DIR_KV);
+		
+		decl String:mapname[64];
+		GetCurrentMap(mapname, 64);
+		
+		decl String:arenaname[64];
+		GetCmdArg(1, arenaname, 64);
+		
+		KvJumpToKey(kv, mapname, true);
+		if (KvJumpToKey(kv, arenaname, false))
+		{
+			g_sCurrentArena = arenaname;
+		}
+		else
+		{
+			PrintToChat(client, "Invalid arena name: %s", arenaname);
+		}
+		
+		KvRewind(kv);
+		KeyValuesToFile(kv, DIR_KV);
+		CloseHandle(kv);
+	}
+	return Plugin_Handled;
 }
 
 public Action:SaveArenaCenter(client, args)
@@ -1302,6 +1716,10 @@ public Action:SaveArenaCenter(client, args)
 	GetCurrentMap(mapname, 64);
 	
 	KvJumpToKey(kv, mapname, true);		//go to map props -> if first time on this map, it'll be created
+	if (!KvJumpToKey(kv, g_sCurrentArena, false))
+	{
+		PrintToChat(client, "Invalid arena name: %s", g_sCurrentArena);
+	}
 	KvSetVector(kv, "center", position);
 	
 	KvRewind(kv);
@@ -1325,6 +1743,10 @@ public Action:SavePlayerSpawn(client, args)
 	GetCurrentMap(mapname, 64);
 	
 	KvJumpToKey(kv, mapname, true);		//go to map props -> if first time on this map, it'll be created
+	if (!KvJumpToKey(kv, g_sCurrentArena, false))
+	{
+		PrintToChat(client, "Invalid arena name: %s", g_sCurrentArena);
+	}	
 	KvJumpToKey(kv, "spawns", true);	//... create the spawns subkey	
 	if (KvGetNum(kv, "count", -1) == -1)
 	{
@@ -1377,6 +1799,10 @@ public Action:SavePowerupSpawn(client, args)
 	GetCurrentMap(mapname, 64);
 	
 	KvJumpToKey(kv, mapname, true);		//go to map props -> if first time on this map, it'll be created
+	if (!KvJumpToKey(kv, g_sCurrentArena, false))
+	{
+		PrintToChat(client, "Invalid arena name: %s", g_sCurrentArena);
+	}
 	KvJumpToKey(kv, "powerups", true);	//create powerups or go to it if it exists
 	if (KvGetNum(kv, "count", -1) == -1)
 	{
@@ -1410,7 +1836,7 @@ public Action:SavePowerupSpawn(client, args)
 
 public Action:L4D_OnGetRunTopSpeed(client, &Float:retVal)
 {	//max speed depends on class
-	retVal = g_fArMaxSpeedOfClass[g_iArClassOf[client]];
+	retVal = g_fArMaxSpeedOfClass[g_iArClass[client]];
 	
 	//but then can be affected by the smoker's ability
 	new Float:buffer = g_fArTimeSmokerSlowdownEndsAt[client] - GetGameTime();
@@ -1433,14 +1859,20 @@ public Event_PlayerShoved(Handle:event, const String:name[], bool:dontBroadcast)
 	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
 	
-	if (g_iArClassOf[victim] == CLASS_TANK) //make tanks m2able
+	if (g_iArClass[victim] == CLASS_TANK) //make tanks m2able
 	{
+		new seq = GetEntProp(victim, Prop_Send, "m_nSequence");
+		if (seq == SEQ_TANK_ROCK_OVERHAND || seq == SEQ_TANK_ROCK_OVERHEAD || seq == SEQ_TANK_ROCK_UNDERHAND)
+		{
+			SetEntPropFloat(victim, Prop_Send, "m_flCycle", 5.0);	//end rock sequence if m2d
+		}
+		
 		L4D_StaggerPlayer(victim, attacker, NULL_VECTOR);
 	}
 
-	if (g_iArClassOf[attacker] == CLASS_JUGGERNAUT)	//special juggernaut abilities
+	if (g_iArClass[attacker] == CLASS_JUGGERNAUT)	//special juggernaut abilities
 	{
-		if (g_iArClassOf[victim] == CLASS_CHARGER)	//can m2 chargers
+		if (g_iArClass[victim] == CLASS_CHARGER)	//can m2 chargers
 		{
 			L4D_StaggerPlayer(victim, attacker, NULL_VECTOR);
 		}
@@ -1575,12 +2007,12 @@ stock SpawnPowerup(powerupIndex)
 	else if (StrEqual(sBuffer, "pills"))
 	{
 	 	fArSpawnAngles[0] = -30.0;
-		color = COLOR_GREEN_LIGHT;
+		color = COLOR_GREEN;
 	}
 	else if (StrEqual(sBuffer, "adrenaline"))
 	{
 		fArSpawnAngles[2] = 60.0;
-		color = COLOR_TEAL_LIGHT;
+		color = COLOR_TEAL;
 	}
 	else if (StrEqual(sBuffer, "incendiary"))
 	{
@@ -1644,7 +2076,7 @@ stock SpawnPowerup(powerupIndex)
 	SetArrayCell(g_hArrayPowerupTouchEntities, powerupIndex, touchEntity);
 	SDKHook(touchEntity, SDKHook_StartTouch, OnStartTouch);
 	
-	EmitSoundToAll(SOUND_ITEMSPAWN, entity, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, 10.0);
+	EmitSoundToAll(SOUND_ITEMSPAWN, entity, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_MAX);
 }
 
 public Action:OnStartTouch(touchEntity, player)
@@ -1662,14 +2094,14 @@ public Action:OnStartTouch(touchEntity, player)
 			if (StrEqual(modelname, MODEL_MEDKIT, false))
 			{
 				HealPlayer(player, ABSOLUTE_MEDKIT_BONUS_HEALTH);
-				CreateTimer(DURATION_RESPAWN_POWERUP_QUICK, Timed_RespawnPowerup, index);
+				CreateTimer(DURATION_RESPAWN_POWERUP_MID, Timed_RespawnPowerup, index);
 				PrintHintText(player, "You picked up a first aid kit: +%d health.", ABSOLUTE_MEDKIT_BONUS_HEALTH);
 			}
 			else if (StrEqual(modelname, MODEL_DEFIB, false))
 			{
 				g_iArDefibCount[player]++;
 				CreateTimer(DURATION_RESPAWN_POWERUP_MID, Timed_RespawnPowerup, index);
-				PrintHintText(player, "You picked up a defibrillator: +1 instant respawn.".);
+				PrintHintText(player, "You picked up a defibrillator: +1 instant respawn.");
 			}
 			else if (StrEqual(modelname, MODEL_PILLS, false))
 			{
@@ -1680,30 +2112,30 @@ public Action:OnStartTouch(touchEntity, player)
 			else if (StrEqual(modelname, MODEL_ADRENALINE, false))
 			{
 				g_fArTimeAdrenalineEndsAt[player] = GetGameTime() + DURATION_ADRENALINE;
-				CreateTimer(DURATION_RESPAWN_POWERUP_MID, Timed_RespawnPowerup, index);
-				PrintHintText(player, "You picked up a shot of adrenaline: +%d%% speed for %d seconds.", PERCENTG_ADRENALINE_BONUS_SPEED, DURATION_ADRENALINE);
+				CreateTimer(DURATION_RESPAWN_POWERUP_QUICK, Timed_RespawnPowerup, index);
+				PrintHintText(player, "You picked up a shot of adrenaline: +%.0f% speed for %.0f seconds.", PERCENTG_ADRENALINE_BONUS_SPEED*100, DURATION_ADRENALINE);
 			}
 			else if (StrEqual(modelname, MODEL_INCENDIARY, false))
 			{
 				g_fArTimeIncendiaryAmmoEndsAt[player] = GetGameTime() + DURATION_INCENDIARY;
 				CreateTimer(DURATION_RESPAWN_POWERUP_MID, Timed_RespawnPowerup, index);
-				PrintHintText(player, "You picked up an incendiary ammo pack: +%d%% damage for %d%% seconds.");
+				PrintHintText(player, "You picked up an incendiary ammo pack: +%.0f% damage for %.0f seconds.", PERCENTG_INCENDIARY_BONUS_DAMAGE*100, DURATION_INCENDIARY);
 			}
 			else if (StrEqual(modelname, MODEL_EXPLOSIVE, false))
 			{
 				g_fArTimeExplosiveAmmoEndsAt[player] = GetGameTime() + DURATION_EXPLOSIVE;
 				CreateTimer(DURATION_RESPAWN_POWERUP_LONG, Timed_RespawnPowerup, index);
-				PrintHintText(player, "You picked up an explosive ammo pack: +%d%% damage for %d%% seconds.");
+				PrintHintText(player, "You picked up an explosive ammo pack: +%.0f% damage for %.0f seconds.", PERCENTG_EXPLOSIVE_BONUS_DAMAGE*100, DURATION_EXPLOSIVE);
 			}
 			else if (StrEqual(modelname, MODEL_SHIELD, false))
 			{
 				g_fArTimeShieldEndsAt[player] = GetGameTime() + DURATION_SHIELD;
 				CreateTimer(DURATION_RESPAWN_POWERUP_MID, Timed_RespawnPowerup, index);
-				PrintHintText(player, "You picked up a riot shield: +%d%% damage protection for %d%% seconds.");
+				PrintHintText(player, "You picked up a riot shield: +%.0f% damage protection for %.0f seconds.", PERCENTG_SHIELD_BONUS_PROTECTION*100, DURATION_SHIELD);
 			}
 			
 			RemovePowerup(index);
-			EmitSoundToAll(SOUND_ITEMGRAB, entity, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, 10.0);
+			EmitSoundToAll(SOUND_ITEMGRAB, entity, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_MAX);
 		}
 	}
 }
@@ -1711,9 +2143,9 @@ public Action:OnStartTouch(touchEntity, player)
 stock HealPlayer(client, amount)
 {
 	new currentHealth = GetClientHealth(client);
-	if (currentHealth + amount > g_iArMaxHealthOfClass[g_iArClassOf[client]])
+	if (currentHealth + amount > g_iArMaxHealthOfClass[g_iArClass[client]])
 	{
-		SetEntityHealth(client, g_iArMaxHealthOfClass[g_iArClassOf[client]]);
+		SetEntityHealth(client, g_iArMaxHealthOfClass[g_iArClass[client]]);
 	}
 	else
 	{
@@ -1755,6 +2187,9 @@ public Action:Sound_Normal(clients[64], &numClients, String:sample[PLATFORM_MAX_
 
 stock HookThings()
 {
+	HookEvent("jockey_ride", Event_JockeyRide);
+	HookEvent("jockey_ride_end", Event_JockeyRideEnd);
+	HookEvent("jockey_killed", Event_JockeyRideEnd);
 	HookEvent("player_shoved", Event_PlayerShoved);
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("lunge_pounce", Event_PounceLanded);
@@ -1772,7 +2207,7 @@ stock SetCvars()
 	SetConVarFloat(FindConVar("jockey_pz_claw_dmg"), DAMAGE_SCRATCH_JOCKEY);
 	SetConVarFloat(FindConVar("smoker_pz_claw_dmg"), DAMAGE_SCRATCH_SMOKER);
 	//no cvar for charger damage, but default is good for now
-	SetConVarFloat(FindConVar("vs_tank_damage"), DAMAGE_SCRATCH_TANK);
+	SetConVarFloat(FindConVar("vs_tank_damage"), DAMAGE_TANK);
 	SetConVarInt(FindConVar("z_spitter_health"), g_iArMaxHealthOfClass[CLASS_SPITTER]);
 	SetConVarInt(FindConVar("z_hunter_health"), g_iArMaxHealthOfClass[CLASS_HUNTER]);
 	SetConVarInt(FindConVar("z_exploding_health"), g_iArMaxHealthOfClass[CLASS_BOOMER]);
@@ -1788,6 +2223,9 @@ stock SetCvars()
 	
 	SetConVarFloat(FindConVar("z_jockey_ride_damage"), DAMAGE_SPECIAL_JOCKEY);
 	SetConVarFloat(FindConVar("z_jockey_ride_damage_interval"), DURATION_SPECIAL_JOCKEY);
+	SetConVarFloat(FindConVar("z_jockey_control_variance"), 0.1);
+	SetConVarFloat(FindConVar("z_jockey_control_max"), 0.9);
+	SetConVarFloat(FindConVar("z_jockey_control_min"), 0.9);
 	SetConVarFloat(FindConVar("z_hunter_max_pounce_bonus_damage"), DAMAGE_SPECIAL_HUNTER_EXTRA);
 	SetConVarFloat(FindConVar("z_charger_pound_dmg"), DAMAGE_SPECIAL_CHARGER);
 	SetConVarFloat(FindConVar("z_charge_max_damage"), DAMAGE_SPECIAL_CHARGER_SECOND);
@@ -1801,6 +2239,8 @@ stock SetCvars()
 	SetConVarFloat(FindConVar("tongue_miss_delay"), COOLDOWN_SPECIAL_SMOKER);
 	SetConVarFloat(FindConVar("z_spit_interval"), COOLDOWN_SPECIAL_SPITTER);
 	SetConVarFloat(FindConVar("z_spit_velocity"), SPEED_SPECIAL_SPITTER);
+	SetConVarFloat(FindConVar("z_spit_latency"),  0.1);
+	SetConVarFloat(FindConVar("z_spit_spread_delay"), 0.1);
 	//dont forget cvar to make spitter not get slowed down after spitting
 	
 	SetConVarInt(FindConVar("survivor_max_incapacitated_count"), 0);
@@ -1814,7 +2254,7 @@ stock SetCvars()
 	SetConVarInt(FindConVar("versus_witch_chance_finale"), 0);
 	SetConVarInt(FindConVar("versus_witch_chance_intro"), 0);
 	SetConVarInt(FindConVar("versus_marker_num"), 0);
-	SetConVarFloat(FindConVar("survivor_friendly_fire_factor_normal"), 1.0);
+	SetConVarFloat(FindConVar("survivor_friendly_fire_factor_normal"), 3.0);
 	SetConVarFloat(FindConVar("z_gun_swing_vs_amt_penalty"), 0.0);
 	SetConVarFloat(FindConVar("z_gun_swing_vs_cooldown"), 0.0);
 	SetConVarInt(FindConVar("z_gun_swing_vs_max_penalty"), 50);
@@ -1822,7 +2262,10 @@ stock SetCvars()
 	SetConVarFloat(FindConVar("z_gun_swing_vs_restore_time"), 10.0);
 	SetConVarInt(FindConVar("z_respawn_distance"), 20000);
 	SetConVarInt(FindConVar("z_respawn_interval"), 20000);
+	SetConVarInt(FindConVar("tank_fist_radius"), 25);
 	
+	SetConVarFlags(FindConVar("sv_tankpropfade"), GetConVarFlags(FindConVar("sv_tankpropfade")) & ~FCVAR_CHEAT);
+	SetConVarInt(FindConVar("sv_tankpropfade"), 0);	
 	SetConVarFlags(FindConVar("sb_all_bot_game"), GetConVarFlags(FindConVar("sb_all_bot_game")) & ~FCVAR_CHEAT);
 	SetConVarInt(FindConVar("sb_all_bot_game"), 1);
 	SetConVarFlags(FindConVar("director_no_specials"), GetConVarFlags(FindConVar("director_no_specials")) & ~FCVAR_CHEAT);
@@ -1855,6 +2298,9 @@ stock ResetCvars()
 	
 	SetConVarFloat(FindConVar("z_jockey_ride_damage"), 4.0);
 	SetConVarFloat(FindConVar("z_jockey_ride_damage_interval"), 1.0);
+	SetConVarFloat(FindConVar("z_jockey_control_variance"), 0.7);
+	SetConVarFloat(FindConVar("z_jockey_control_max"), 0.8);
+	SetConVarFloat(FindConVar("z_jockey_control_min"), 0.8);
 	SetConVarFloat(FindConVar("z_hunter_max_pounce_bonus_damage"), 24.0);
 	SetConVarFloat(FindConVar("z_charger_pound_dmg"), 15.0);
 	SetConVarFloat(FindConVar("z_charge_max_damage"), 10.0);
@@ -1868,6 +2314,8 @@ stock ResetCvars()
 	SetConVarFloat(FindConVar("tongue_miss_delay"), 15.0);
 	SetConVarFloat(FindConVar("z_spit_interval"), 20.0);
 	SetConVarFloat(FindConVar("z_spit_velocity"), 900.0);
+	SetConVarFloat(FindConVar("z_spit_latency"),  0.3);
+	SetConVarFloat(FindConVar("z_spit_spread_delay"), 0.2);
 	//dont forget cvar to make spitter not get slowed down after spitting
 	
 	SetConVarInt(FindConVar("survivor_max_incapacitated_count"), 2);
@@ -1889,7 +2337,10 @@ stock ResetCvars()
 	SetConVarFloat(FindConVar("z_gun_swing_vs_restore_time"), 4.0);
 	SetConVarInt(FindConVar("z_respawn_distance"), 100);
 	SetConVarInt(FindConVar("z_respawn_interval"), 10);
+	SetConVarInt(FindConVar("tank_fist_radius"), 15);
 	
+	SetConVarFlags(FindConVar("sv_tankpropfade"), GetConVarFlags(FindConVar("sv_tankpropfade")) & FCVAR_CHEAT);
+	SetConVarInt(FindConVar("sv_tankpropfade"), 1);
 	SetConVarFlags(FindConVar("sb_all_bot_game"), GetConVarFlags(FindConVar("sb_all_bot_game")) & FCVAR_CHEAT);
 	SetConVarInt(FindConVar("sb_all_bot_game"), 0);
 	SetConVarFlags(FindConVar("director_no_specials"), GetConVarFlags(FindConVar("director_no_specials")) & FCVAR_CHEAT);
@@ -2079,6 +2530,8 @@ stock PrecacheThings()
 
 stock RegisterCommands()
 {
+	RegConsoleCmd("sm_arena", ChooseArena);
+	RegConsoleCmd("sm_createarena", CreateArena);
 	RegConsoleCmd("sm_savearenacenter", SaveArenaCenter);
 	RegConsoleCmd("sm_saveplayerspawn", SavePlayerSpawn);
 	RegConsoleCmd("sm_savepowerupspawn", SavePowerupSpawn);
@@ -2128,13 +2581,12 @@ stock RegisterCommands()
 			 scratch 4.00 dmg , force != 0,0,0, type 128
 			 spit    0.00-6.00, force == 0,0,0, type 265216		<- 0.00 to 6.00 on bots
 	
-		z_spit_latency		<- time before spit comes out of spitter's mouth after being fired
-		z_spit_spread_delay	<- time before VISUAL spread begins. people take damage anyway
+	
 
 
 		  */
 
-		  
+	//	  
 		  
 		  
 		  
