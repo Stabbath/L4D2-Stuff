@@ -44,7 +44,6 @@ public Plugin:myinfo =
 
 //index always refers to jockey, rather than his victim
 new bool:	bIsRiding	[MAXPLAYERS + 1]	;
-new bool:	bCanRide	[MAXPLAYERS + 1]	;
 new Float:	fVictimPos	[MAXPLAYERS + 1][3]	;
 new 		iVictim		[MAXPLAYERS + 1]	;
 
@@ -165,8 +164,9 @@ public Action:L4D_OnShovedBySurvivor(attacker, client, const Float:vector[3])
 			return Plugin_Handled;
 		}
 		
-		//if the jockey is on the ground (and not riding) just block instantly
-		if (!(GetEntityFlags(client) & FL_ONGROUND))
+		new ability = MakeCompatEntRef(GetEntProp(client, Prop_Send, "m_customAbility"));
+		//if the jockey is on the ground (and not riding) just block instantly; also block teleporting when ability is on cooldown
+		if (!(GetEntityFlags(client) & FL_ONGROUND) && GetEntPropFloat(ability, Prop_Send, "m_timestamp") + GetEntPropFloat(ability, Prop_Send, "m_duration") < GetGameTime())
 		{
 			if (bIsRiding[client] == true)	//fix self-clears
 			{
@@ -181,7 +181,7 @@ public Action:L4D_OnShovedBySurvivor(attacker, client, const Float:vector[3])
 				}
 				else
 				{
-				//	iVictim[client] = attacker;
+					iVictim[client] = attacker;
 					return Plugin_Handled;
 				}
 				
