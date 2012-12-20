@@ -37,6 +37,7 @@ To-do:
 	- make sure spawn sack order is working, need to spectate a game and write everything down and shit
 	- more balance/difficulty testing
 	- map distances good?
-	
+	- make sure players know that they are getting early ghosts: make sure they still have a timer (might have to add one and show via hint messages), or at least have a hint message telling them what's happening or something
+	- make sure tank attack control is working
 	//
 	
