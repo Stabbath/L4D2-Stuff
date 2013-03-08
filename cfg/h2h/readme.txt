@@ -5,21 +5,29 @@ Main features:
 -	No witch.
 -	No SI bots, not even when you get tank.
 -	No AI tanks. They will instantly die if the tank goes AI, unless it was because of the player disconnecting.
--	Tank only gets LOS rage within 1300 game units of survivors. To put it in visual terms, on dark carni 1, it’s approx. the distance from the fence behind the survivor spawn to the hood of the first cab.
--	Tank gets 35 seconds of grace before frustration loss, followed by 2 bars of 15 seconds.
 -	Tank can select which type of rock to throw (thanks to vintik for his plugin):
 	-	Shove: Two-handed overhead
 	-	Shove+Reload: Overhand
 	-	Shove+Use: Underhand
 -	Spawn timers are set to 8 seconds.
--	Pickups take 3.5 seconds instead of 5.
--	Uses damage scoring.
--	Custom map distances to hopefully reflect the difficulty of maps with a lot less commons.
+-	When the tank spawns and for the whole tank fight, spawn timers will be set to 17 seconds. When the tank dies they'll be set back to 8.
+-	Pickups take 3 seconds instead of 5.
+-	Players start with 1 medkit each.
+-	Medkits take 3 seconds instead of 5.
 -	The duration of boomer vomits is reduced to 75%.
 -	The cooldown on the boomer’s vomit is reduced to 50%.
+-	The size of boomer mobs is reduced to 75%.
+-	Uses damage scoring.
+-	Custom map distances to hopefully reflect the difficulty of maps with a lot less commons.
+
+Things that are broken:
 -	Spawn sack order is 100% reliable.
--	SI get their ghosts a couple of seconds earlier.
--	Minimum time between common infected hits registering lowered to 0.25 from 0.33.
+
+To-do:
+ 	- change standardised_spawns since i forgot there always has to be at least 1 boomer/spitter which affects spawns
+	- more balance/difficulty testing
+	- map distances good?
+	- tank rock selection bugged?
 
 Everything else is standard promod.
 
@@ -33,11 +41,16 @@ Version History:
 	- spawn time reduced to 8 seconds from 11
 	- z_frustration_spawn_delay increased to 50 from 35
 	- z_frustration_lifetime increased to 18 from 15
-To-do:
-	- make sure spawn sack order is working, need to spectate a game and write everything down and shit
-	- more balance/difficulty testing
-	- map distances good?
-	- make sure players know that they are getting early ghosts: make sure they still have a timer (might have to add one and show via hint messages), or at least have a hint message telling them what's happening or something
-	- make sure tank attack control is working
-	//
+1.0.2:
+	- removed pre-spawn ghosts
+	- added tank fight spawn timer toggling: made tank fights normal (promod) again, with normal spawn timers and normal LOS range and frustration
+	- spawn timers revert back to 8 seconds when tank dies
+	- los range still capped, but at 2500 now instead of 1300
+	- boomer_mobs_amount_mult set to 0.75 from 0.9
+	- set z_throttle_hit_interval_normal back to 0.33 (default) from 0.25
+1.0.3:
+	- disabled tank los range
+	- added giving of 1 medkit per player on leaving saferoom
+	- first_aid_kit_use_duration set to 3 seconds from 5 (default)
+	- survivor pickup time reduced to 3 seconds from 3.5 
 	
