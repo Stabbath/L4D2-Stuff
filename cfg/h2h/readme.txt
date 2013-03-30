@@ -28,6 +28,10 @@ To-do:
 	- more balance/difficulty testing
 	- map distances good?
 	- tank rock selection bugged?
+	
+	- add melee_control with default damage settings
+	- use controlled rage gains on extended tank control when that's been coded
+
 
 Everything else is standard promod.
 
