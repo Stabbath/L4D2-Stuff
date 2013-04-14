@@ -17,11 +17,13 @@ Main features:
 -	The duration of boomer vomits is reduced to 75%.
 -	The cooldown on the boomer’s vomit is reduced to 50%.
 -	The size of boomer mobs is reduced to 75%.
+-	Literally everything happens 12% faster than normal.
 -	Uses damage scoring.
 -	Custom map distances to hopefully reflect the difficulty of maps with a lot less commons.
 
 Things that are broken:
--	Spawn sack order is 100% reliable.
+-	Spawn sack order is 100% reliable. (ie it currently isn't because it's broken)
+-	Tank spawn timer toggling is broken!
 
 To-do:
  	- change standardised_spawns since i forgot there always has to be at least 1 boomer/spitter which affects spawns
@@ -57,4 +59,5 @@ Version History:
 	- added giving of 1 medkit per player on leaving saferoom
 	- first_aid_kit_use_duration set to 3 seconds from 5 (default)
 	- survivor pickup time reduced to 3 seconds from 3.5 
+	- set host_timescale to 1.12
 	
