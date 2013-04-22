@@ -21,9 +21,12 @@
 #define SI_FLAG_JOCKEY 1
 #define SI_FLAG_CHARGER 1
 
+#define FF_TIME_THRESHOLD 1.0
+
 //cvars
 new Handle: hHittable = INVALID_HANDLE;
 new Handle: hWitch = INVALID_HANDLE;
+new Handle: hFF = INVALID_HANDLE;
 new Handle: hSpit = INVALID_HANDLE;
 new Handle: hCommon = INVALID_HANDLE;
 new Handle: hHunter = INVALID_HANDLE;
@@ -39,10 +42,10 @@ new iLastSI [MAXPLAYERS + 1];
 
 public Plugin:myinfo =
 {
-name = "L4D2 Godframes Control (starring Austin Powers, Baby Yeah!)",
-author = "Stabby, CircleSquared",
-version = "0.2.3.1",
-description = "Allows for control of what gets godframed and what doesnt."
+	name = "L4D2 Godframes Control (starring Austin Powers, Baby Yeah!)",
+	author = "Stabby, CircleSquared",
+	version = "0.2.3.2",
+	description = "Allows for control of what gets godframed and what doesnt."
 };
 
 public OnPluginStart()
@@ -53,6 +56,9 @@ public OnPluginStart()
 	hWitch = CreateConVar( 		"gfc_witch_override", "0",
 									"Allow witches to always ignore godframes.",
 									FCVAR_PLUGIN, true, 0.0, true, 1.0 );
+	hFF = CreateConVar( 		"gfc_ff_extra_time", "0.0",
+									"Additional godframe time before FF damage is allowed.",
+									FCVAR_PLUGIN, true, 0.0, true, 3.0 );
 	hSpit = CreateConVar( 		"gfc_spit_extra_time", "0.0",
 									"Additional godframe time before spit damage is allowed.",
 									FCVAR_PLUGIN, true, 0.0, true, 3.0 );
@@ -133,7 +139,7 @@ public OnClientPutInServer(client)
 
 public Action:OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damagetype, &weapon, Float:damageForce[3], Float:damagePosition[3])
 {
-	if (GetClientTeam(victim) != 2 || !IsValidEdict(victim) || !IsValidEdict(attacker) || !IsValidEdict(inflictor)) { return Plugin_Continue; }
+	if (GetClientTeam(victim) != 2 || !IsValidEdict(victim) || !IsValidEdict(attacker) || !IsValidEdict(inflictor) || !IsClientAndInGame(victim)) { return Plugin_Continue; }
 
 	new CountdownTimer:cTimerGod = L4D2Direct_GetInvulnerabilityTimer(victim);
 	if (cTimerGod != CTimer_Null) { CTimer_Invalidate(cTimerGod); }
@@ -150,6 +156,12 @@ public Action:OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damage
 	if (StrEqual(sClassname, "insect_swarm") && (iLastSI[victim] & GetConVarInt(hSpitFlags))) //spit
 	{
 		fTimeLeft += GetConVarFloat(hSpit);
+	}
+	if (IsClientAndInGame(attacker) && GetClientTeam(victim) == GetClientTeam(attacker)) //friendly fire
+	{
+		if (fTimeLeft < GetConVarFloat(hFF)) {
+			fTimeLeft = GetConVarFloat(hFF);
+		}
 	}
 
 	if (fTimeLeft > 0) //means fake god frames are in effect
