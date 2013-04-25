@@ -63,7 +63,7 @@ public Action:TraceAttack(victim, &attacker, &inflictor, &Float:damage, &damaget
 				default: { damage = GetConVarFloat(hBaseMeleeDamageToOthers); }
 			}
 			fTimeUntilNextAllowedMeleeDamage[attacker][victim] = GetEngineTime() + 0.4;
-			SDKHooks_TakeDamage(victim, inflictor, attacker, damage, damageType);
+			SDKHooks_TakeDamage(victim, inflictor, attacker, damage, damagetype);
 			return Plugin_Handled;
 		}
 	}
