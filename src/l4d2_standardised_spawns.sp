@@ -2,6 +2,7 @@
 
 #include <sourcemod>
 #include <sdktools>
+#include <l4d2util_rounds>
 
 #define TEAM_INFECTED 3
 
@@ -16,8 +17,7 @@
 
 /*
  * To-do:
- * - Calamity special sack system.
- * - maybe make it so that the initial X spawns are the same (X = sum of limits for all si), rather than it just being the first 4. Or does the game already do that?
+ * - Tenacity special sack system.
  */
 
 public Plugin:myinfo = 
@@ -25,14 +25,14 @@ public Plugin:myinfo =
 	name = "Left 4 Dead 2 Standardised Spawns",
 	author = "Stabby",
 	description = "Makes it so sack order always does what you expect/want it to.",
-	version = "0.1",
+	version = "0.2",
 	url = "none"
 }
 
-new Handle:	hArrayZombieClasses = INVALID_HANDLE;
-new Handle: hSDKCallSetClass = INVALID_HANDLE;
-new Handle: hArCvar[ARRAY_SIZE] = INVALID_HANDLE;
-new			iArSavedSpawns[ARRAY_SIZE] = 0;
+new Handle:	hListZCs = INVALID_HANDLE;	//FIFO list implemented via adt_array or whatever
+new Handle:	hSDKCallSetClass = INVALID_HANDLE;		//sdkcall for changing si class
+new Handle:	hArCvar[ARRAY_SIZE] = INVALID_HANDLE;	//cvar array for z_versus_<class>_limit's
+new Handle:	hCrossroundBuffer = INVALID_HANDLE;	//FIFO list to which the starting spawn attributions are loaded, to keep them the same for both teams
 
 public OnPluginStart()
 {
@@ -43,44 +43,23 @@ public OnPluginStart()
 	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 	hSDKCallSetClass = EndPrepSDKCall();
 	
-	hArrayZombieClasses = CreateArray();
-}
-
-public L4D_OnEnterGhostState(client)
-{
-	new curZc = GetEntProp(client, Prop_Send, "m_zombieClass");	
+	hListZCs = CreateArray();
 	
-	if (iArSavedSpawns[curZc] < GetConVarInt(hArCvar[curZc]))	//UNSAVED? - if the count for this zc hasnt reached the max yet
-	{
-		PushArrayCell(hArrayZombieClasses, curZc);	//SAVE! - add the zc to the array and let him keep it
-		iArSavedSpawns[curZc]++;	//keep track of how many spawns of this zc are stored
-		iArSavedSpawns[SI_COUNT]++;	//and how many spawns total
-	}
-	else
-	{
-		if (GetSumOfZLimits() == iArSavedSpawns[SI_COUNT])	//ALL SAVED? - if all spawns have been added to array already
-		{
-			new newZc = GetArrayCell(hArrayZombieClasses, 0);	//SET SAVED! - fetch the next class from the array
-			SDKCall(hSDKCallSetClass, client, newZc);	
-			RemoveFromArray(hArrayZombieClasses, 0);	//remove it from array since it's being used
-			iArSavedSpawns[newZc]--;	//and keep track of the removal
-			iArSavedSpawns[SI_COUNT]--;	//
-		}
-		else
-		{
-			for (new n = 1; n <= ZC_CHARGER; n++)	//SET UNSAVED! - set to a class that hasnt been saved yet
-			{
-				if (iArSavedSpawns[n] < GetConVarInt(hArCvar[n]))
-				{
-					SDKCall(hSDKCallSetClass, client, n);
-					break;
-				}
-			}
-		}
-	}
+	hArCvar[ZC_BOOMER] = FindConVar("z_versus_boomer_limit");
+	hArCvar[ZC_SMOKER] = FindConVar("z_versus_smoker_limit");
+	hArCvar[ZC_CHARGER] = FindConVar("z_versus_charger_limit");
+	hArCvar[ZC_SPITTER] = FindConVar("z_versus_spitter_limit");
+	hArCvar[ZC_HUNTER] = FindConVar("z_versus_hunter_limit");
+	hArCvar[ZC_JOCKEY] = FindConVar("z_versus_jockey_limit");
 }
 
-public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
+public L4D_OnEnterGhostState(client)	//replaces class of player with the bottom of the list, and removes it from the list
+{
+	SDKCall(hSDKCallSetClass, client, GetArrayCell(hListZCs, 0));
+	RemoveFromArray(hListZCs, 0);
+}
+
+public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)	//pushes the zc of the dying player
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
@@ -88,15 +67,46 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 	{
 		if (GetClientTeam(client) == TEAM_INFECTED)
 		{
-			new curZc = GetEntProp(client, Prop_Send, "m_zombieClass");	//add his zc to the array
-			PushArrayCell(hArrayZombieClasses, curZc);
-			iArSavedSpawns[curZc]++;	//increment the count of spawns of curZc that are stored
-			iArSavedSpawns[SI_COUNT]++;	//and total amount of spawns
+			PushArrayCell(hListZCs, GetEntProp(client, Prop_Send, "m_zombieClass"));
 		}
 	}
 }
 
-GetSumOfZLimits()
+public OnRoundStart() {
+	ClearArray(hListZCs);
+	new size = GetArraySize(hCrossroundBuffer);
+	for (new i = 0; i < size; i++) {
+		PushArrayCell(hListZCs, hCrossroundBuffer[i]);
+	}
+}
+
+public OnMapStart() {	//pushes all instances of all classes to the list in a random order
+	new Handle:hArray = CreateArray();	//copy of hArCvar
+	new i;
+	
+	for (i = 1; i < ARRAYSIZE; i++) {
+		if (GetConVarInt(hArCvar[i]) > 0) PushArrayCell(hArray, hArCvar[i]);
+	}
+	
+	new Handle:hZCIndexes = CreateArray();
+	for (i = 0; i < ARRAYSIZE; i++) PushArrayCell(hZCIndexes, i);
+	
+	new spawnsAdded[ARRAYSIZE];
+	new size;
+	while ((size = GetArraySize(hArray)) > 0) {
+		i = GetRandomInt(0, size - 1);
+		if (spawnsAdded[i] < GetConVarInt(hArCvar[i])) {
+			PushArrayCell(hCrossroundBuffer, hZCIndexes[i]);
+			spawnsAdded[i]++;
+		} else {
+			new index = FindValueInArray(hArray, hArCvar[i]);
+			RemoveFromArray(hArray, index);
+			RemoveFromArray(hZCIndexes, index);
+		}
+	}
+}
+
+stock GetSumOfZLimits()
 {
 	new count = 0;
 	for (new zc = 1; zc <= ZC_CHARGER; zc++)
@@ -105,5 +115,3 @@ GetSumOfZLimits()
 	}
 	return count;
 }
-
-//
