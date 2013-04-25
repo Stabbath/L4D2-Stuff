@@ -38,7 +38,6 @@ public OnPluginStart()
 public OnClientPutInServer(client)
 {
 	SDKHook(client, SDKHook_TraceAttack, TraceAttack);
-	SDKHOok(client, SDKHook_OnTakeDamage, OnTakeDamage);
 }
 
 //interestingly, you could use this to make it so that a melee attack does damage according to the hitgroup with the highest multiplier that was hit
