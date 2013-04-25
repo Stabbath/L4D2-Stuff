@@ -38,6 +38,7 @@ public OnPluginStart()
 public OnClientPutInServer(client)
 {
 	SDKHook(client, SDKHook_TraceAttack, TraceAttack);
+	SDKHOok(client, SDKHook_OnTakeDamage, OnTakeDamage);
 }
 
 //interestingly, you could use this to make it so that a melee attack does damage according to the hitgroup with the highest multiplier that was hit
@@ -49,8 +50,8 @@ public Action:TraceAttack(victim, &attacker, &inflictor, &Float:damage, &damaget
 	
 	if (StrEqual(classname, "weapon_melee"))
 	{
-		if (fTimeUntilNextAllowedMeleeDamage[attacker][victim] > GetEngineTime()) { return Plugin_Handled; }
-				
+		if (fTimeUntilNextAllowedMeleeDamage[attacker][victim] > GetEngineTime()) return Plugin_Continue;
+		
 		if (GetClientTeam(victim) == 3)
 		{
 			new zombieClass = GetEntProp(victim, Prop_Send, "m_zombieClass");
@@ -63,10 +64,9 @@ public Action:TraceAttack(victim, &attacker, &inflictor, &Float:damage, &damaget
 				default: { damage = GetConVarFloat(hBaseMeleeDamageToOthers); }
 			}
 			fTimeUntilNextAllowedMeleeDamage[attacker][victim] = GetEngineTime() + 0.4;
-			return Plugin_Changed;
-		}		
+			SDKHooks_TakeDamage(victim, inflictor, attacker, damage, damageType);
+			return Plugin_Handled;
+		}
 	}
 	return Plugin_Continue;
 }
-
-
