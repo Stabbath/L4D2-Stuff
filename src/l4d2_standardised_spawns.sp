@@ -15,6 +15,17 @@
 #define ZC_CHARGER	6
 #define	ARRAY_SIZE	7
 
+stock String:getzcname(int z) {
+	switch (z): {
+		case 1:	return "smoker";
+		case 2:	return "boomer";
+		case 3:	return "hunter";
+		case 4:	return "spitter";
+		case 5:	return "jockey;
+		case 6:	return "charger";
+	}
+}
+
 /*
  * To-do:
  * - Tenacity special sack system.
@@ -55,6 +66,7 @@ public OnPluginStart()
 
 public L4D_OnEnterGhostState(client)	//replaces class of player with the bottom of the list, and removes it from the list
 {
+	PrintToChatAll("player entered ghost state: forcing him into a %s", getzcname(GetArrayCell(hListZCs, 0)));
 	SDKCall(hSDKCallSetClass, client, GetArrayCell(hListZCs, 0));
 	RemoveFromArray(hListZCs, 0);
 }
