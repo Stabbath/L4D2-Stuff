@@ -62,7 +62,7 @@ public ConVarChange_LOSDelay(Handle:cvar, const String:oldVal[], const String:ne
 public PostTankSpawn(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new tank = GetClientOfUserId(GetEventInt(event, "userid"));
-	if (!IsFakeClient(tank) && GetConVarBool(g_hLOSRangeEnable) || GetConVarBool(g_hTankCvars))
+	if (!IsFakeClient(tank) && (GetConVarBool(g_hLOSRangeEnable) || GetConVarBool(g_hTankCvars)))
 	{
 		if (GetConVarBool(g_hTankCvars)) {
 			SetConVarInt(FindConVar("z_ghost_delay_min"), 17);
@@ -99,11 +99,11 @@ public Action:Timed_CheckRange(Handle:unused, any:newTank)
 			}
 			return Plugin_Continue;
 		}
+		if (GetConVarBool(g_hTankCvars)) {
+			SetConVarInt(FindConVar("z_ghost_delay_min"), 8);
+			SetConVarInt(FindConVar("z_ghost_delay_max"), 8);
+		}
 	}
 
-	if (GetConVarBool(g_hTankCvars)) {
-		SetConVarInt(FindConVar("z_ghost_delay_min"), 8);
-		SetConVarInt(FindConVar("z_ghost_delay_max"), 8);
-	}
 	return Plugin_Stop;
 }
