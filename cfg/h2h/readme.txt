@@ -26,13 +26,15 @@ Things that are broken:
 -	Tank spawn timer toggling is broken!
 
 To-do:
- 	- change standardised_spawns since i forgot there always has to be at least 1 boomer/spitter which affects spawns
 	- more balance/difficulty testing
 	- map distances good?
 	- tank rock selection bugged?
 	
+	- increase the rate at which boomer bile screen effect fades, so it transitions more smoothly (maybe)
+	- test standardised spawns (should currently allow quad-caps, but that can be tweaked later)
 	- add melee_control with default damage settings
 	- use controlled rage gains on extended tank control when that's been coded
+	- write plugin to reduce getup time for hunters and chargers to 1.0 and 1.5 seconds. Reduce godframes to 0.5 seconds for both
 
 
 Everything else is standard promod.
@@ -60,4 +62,6 @@ Version History:
 	- first_aid_kit_use_duration set to 3 seconds from 5 (default)
 	- survivor pickup time reduced to 3 seconds from 3.5 
 	- set host_timescale to 1.12
-	
+1.0.4a:
+	- added test version of l4d2_standardised_spawns
+	- added melee_control
