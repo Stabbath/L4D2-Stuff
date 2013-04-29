@@ -3,8 +3,6 @@
 /*
  * To-do:
  * Add flag cvar to control damage from different SI separately.
- * Add cvar to control tank rocks separately.
- * Add cvar to control whether or not frustration from godframed hits should be restored.
  * Add cvar to control whether tanks should reset frustration with hittable hits. Maybe.
  */
 
@@ -16,14 +14,9 @@
 
 #define CLASSNAME_LENGTH 64
 
-#define SI_FLAG_HUNTER 1
-#define SI_FLAG_SMOKER 1
-#define SI_FLAG_JOCKEY 1
-#define SI_FLAG_CHARGER 1
-
-#define FF_TIME_THRESHOLD 1.0
-
 //cvars
+new Handle: hRageRock = INVALID_HANDLE;
+new Handle: hRageHittables = INVALID_HANDLE;
 new Handle: hHittable = INVALID_HANDLE;
 new Handle: hWitch = INVALID_HANDLE;
 new Handle: hFF = INVALID_HANDLE;
@@ -38,18 +31,27 @@ new Handle: hCommonFlags = INVALID_HANDLE;
 
 //fake godframes
 new Float: fFakeGodframeEnd[MAXPLAYERS + 1];
-new iLastSI [MAXPLAYERS + 1];
+new iLastSI[MAXPLAYERS + 1];
+
+//frustration
+new frustrationOffset[MAXPLAYERS + 1];
 
 public Plugin:myinfo =
 {
 	name = "L4D2 Godframes Control (starring Austin Powers, Baby Yeah!)",
 	author = "Stabby, CircleSquared",
-	version = "0.2.3.2",
+	version = "0.2.4",
 	description = "Allows for control of what gets godframed and what doesnt."
 };
 
 public OnPluginStart()
 {
+	hRageHittables = CreateConVar("gfc_hittable_rage_override", "0",
+									"Allow tank to gain rage from hittable hits. 0 blocks rage gain.",
+									FCVAR_PLUGIN, true, 0.0, true, 1.0 );
+	hRageRock = CreateConVar(	"gfc_rock_rage_override", "1",
+									"Allow tank to gain rage from godframed hits. 0 blocks rage gain.",
+									FCVAR_PLUGIN, true, 0.0, true, 1.0 );
 	hHittable = CreateConVar(	"gfc_hittable_override", "0",
 									"Allow hittables to always ignore godframes.",
 									FCVAR_PLUGIN, true, 0.0, true, 1.0 );
@@ -57,7 +59,7 @@ public OnPluginStart()
 									"Allow witches to always ignore godframes.",
 									FCVAR_PLUGIN, true, 0.0, true, 1.0 );
 	hFF = CreateConVar( 		"gfc_ff_extra_time", "0.0",
-									"Additional godframe time before FF damage is allowed.",
+									"Minimum time before FF damage is allowed.",
 									FCVAR_PLUGIN, true, 0.0, true, 3.0 );
 	hSpit = CreateConVar( 		"gfc_spit_extra_time", "0.0",
 									"Additional godframe time before spit damage is allowed.",
@@ -137,6 +139,19 @@ public OnClientPutInServer(client)
 	SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamage);
 }
 
+public Action:Timed_SetFrustration(Handle:timer, any:client) {
+	if (IsClientConnected(client) && IsPlayerAlive(client) && GetClientTeam(client) == 3 && GetEntProp(client, Prop_Send, "m_zombieClass") == 8) {
+		new frust = GetEntProp(client, Prop_Send, "m_frustration");
+		frust += frustrationOffset[client];
+		
+		if (frust > 100) frust = 100;
+		else if (frust < 0) frust = 0;
+		
+		SetEntProp(client, Prop_Send, "m_frustration", frust);
+		frustrationOffset[client] = 0;
+	}
+}
+
 public Action:OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damagetype, &weapon, Float:damageForce[3], Float:damagePosition[3])
 {
 	if (GetClientTeam(victim) != 2 || !IsValidEdict(victim) || !IsValidEdict(attacker) || !IsValidEdict(inflictor) || !IsClientAndInGame(victim)) { return Plugin_Continue; }
@@ -161,6 +176,27 @@ public Action:OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damage
 	{
 		if (fTimeLeft < GetConVarFloat(hFF)) {
 			fTimeLeft = GetConVarFloat(hFF);
+		}
+	}
+
+	if (IsClientAndInGame(attacker) && GetClientTeam(attacker) == 3 && GetEntProp(attacker, Prop_Send, "m_zombieClass") == 8) {
+		if (StrEqual(sClassname, "prop_physics")) {
+			if (GetConVarBool(hRageHittables)) {
+				frustrationOffset[attacker] = -100;
+			} else {
+				frustrationOffset[attacker] = 0;
+			}
+			CreateTimer(0.1, Timed_SetFrustration, attacker);
+		} else
+		if (weapon == 52) {	//tank rock
+			if (GetConVarBool(hRageRock)) {
+				frustrationOffset[attacker] = -100;
+			} else {
+				frustrationOffset[attacker] = 0;
+			}
+			CreateTimer(0.1, Timed_SetFrustration, attacker);
+		} else {
+		
 		}
 	}
 
