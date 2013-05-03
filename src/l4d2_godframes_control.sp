@@ -150,6 +150,7 @@ public PostSurvivorRelease(Handle:event, const String:name[], bool:dontBroadcast
 
 public OnClientPutInServer(client)
 {
+	bIsBoomed[client] = false;
 	SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamage);
 }
 
@@ -250,7 +251,7 @@ public Action:Timed_ResetGlow(Handle:timer, any:client) {
 }
 
 ResetGlow(client) {
-	if (IsClientAndInGame(client) && IsPlayerAlive(client)) {
+	if (IsClientAndInGame(client)) {
 		SetEntProp(client, Prop_Send, "m_bFlashing", false);
 		
 		if (IsPlayerBoomed(client)) {
@@ -262,7 +263,7 @@ ResetGlow(client) {
 }
 
 SetGodframedGlow(client) {	//there might be issues with realism
-	if (IsClientAndInGame(client) && IsPlayerAlive(client)) {
+	if (IsClientAndInGame(client) && IsPlayerAlive(client) && GetClientTeam(client) == 2) {
 		SetEntProp(client, Prop_Send, "m_bFlashing", true);
 		
 		if (IsPlayerBoomed(client)) {
@@ -287,4 +288,11 @@ public PlayerIt(Handle:event, const String:name[], bool:dontBroadcast) {
 public PlayerNotIt(Handle:event, const String:name[], bool:dontBroadcast) {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	bIsBoomed[client] = false;	
+}
+
+public OnMapStart() {
+	for (new i = 0; i <= MaxClients; i++) {
+		ResetGlow(i);
+		bIsBoomed[i] = false;
+	}
 }
