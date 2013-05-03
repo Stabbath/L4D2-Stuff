@@ -100,6 +100,8 @@ public OnPluginStart()
 	HookEvent("pounce_end", PostSurvivorRelease);
 	HookEvent("jockey_ride_end", PostSurvivorRelease);
 	HookEvent("charger_pummel_end", PostSurvivorRelease);
+	HookEvent("player_now_it", PlayerIt);
+	HookEvent("player_no_longer_it", PlayerNotIt);
 }
 
 public OnRoundStart()
@@ -249,8 +251,8 @@ public Action:Timed_ResetGlow(Handle:timer, any:client) {
 
 ResetGlow(client) {
 	if (IsClientAndInGame(client) && IsPlayerAlive(client)) {
-		SetEntProp(entity, Prop_Send, "m_bFlashing", false);
-	
+		SetEntProp(client, Prop_Send, "m_bFlashing", false);
+		
 		if (IsPlayerBoomed(client)) {
 			SetEntProp(client, Prop_Send, "m_glowColorOverride", COLOR_PUKED);
 		} else {
@@ -262,11 +264,27 @@ ResetGlow(client) {
 SetGodframedGlow(client) {	//there might be issues with realism
 	if (IsClientAndInGame(client) && IsPlayerAlive(client)) {
 		SetEntProp(client, Prop_Send, "m_bFlashing", true);
-	
+		
 		if (IsPlayerBoomed(client)) {
 			SetEntProp(client, Prop_Send, "m_glowColorOverride", COLOR_GODFRAMED_PUKED);
 		} else {
 			SetEntProp(client, Prop_Send, "m_glowColorOverride", COLOR_GODFRAMED);
 		}
 	}
+}
+
+new bIsBoomed[MAXPLAYERS + 1];
+
+IsPlayerBoomed(client) {
+	return bIsBoomed[client];
+}
+
+public PlayerIt(Handle:event, const String:name[], bool:dontBroadcast) {
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	bIsBoomed[client] = true;
+}
+
+public PlayerNotIt(Handle:event, const String:name[], bool:dontBroadcast) {
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	bIsBoomed[client] = false;	
 }
