@@ -34,6 +34,7 @@ new Handle: hGodframeGlows = INVALID_HANDLE;
 //fake godframes
 new Float: fFakeGodframeEnd[MAXPLAYERS + 1];
 new iLastSI[MAXPLAYERS + 1];
+new bIsBoomed[MAXPLAYERS + 1];
 
 //frustration
 new frustrationOffset[MAXPLAYERS + 1];
@@ -255,9 +256,9 @@ ResetGlow(client) {
 		SetEntProp(client, Prop_Send, "m_bFlashing", false);
 		
 		if (IsPlayerBoomed(client)) {
-			SetEntProp(client, Prop_Send, "m_glowColorOverride", COLOR_PUKED);
+			SetEntPropString(client, Prop_Send, "m_glowColorOverride", COLOR_PUKED);
 		} else {
-			SetEntProp(client, Prop_Send, "m_glowColorOverride", COLOR_NORMAL);
+			SetEntPropString(client, Prop_Send, "m_glowColorOverride", COLOR_NORMAL);
 		}
 	}
 }
@@ -267,14 +268,12 @@ SetGodframedGlow(client) {	//there might be issues with realism
 		SetEntProp(client, Prop_Send, "m_bFlashing", true);
 		
 		if (IsPlayerBoomed(client)) {
-			SetEntProp(client, Prop_Send, "m_glowColorOverride", COLOR_GODFRAMED_PUKED);
+			SetEntPropString(client, Prop_Send, "m_glowColorOverride", COLOR_GODFRAMED_PUKED);
 		} else {
-			SetEntProp(client, Prop_Send, "m_glowColorOverride", COLOR_GODFRAMED);
+			SetEntPropString(client, Prop_Send, "m_glowColorOverride", COLOR_GODFRAMED);
 		}
 	}
 }
-
-new bIsBoomed[MAXPLAYERS + 1];
 
 IsPlayerBoomed(client) {
 	return bIsBoomed[client];
