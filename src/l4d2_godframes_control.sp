@@ -53,7 +53,7 @@ public Plugin:myinfo =
 {
 	name = "L4D2 Godframes Control (starring Austin Powers, Baby Yeah!)",
 	author = "Stabby, CircleSquared",
-	version = "0.3",
+	version = "0.3.1",
 	description = "Allows for control of what gets godframed and what doesnt."
 };
 
