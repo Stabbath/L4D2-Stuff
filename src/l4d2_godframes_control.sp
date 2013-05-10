@@ -15,6 +15,16 @@
 
 #define CLASSNAME_LENGTH 64
 
+#define RGB_RED(x)		(x << 16)
+#define RGB_GRN(x)		(x << 8)
+#define RGB_BLU(x)		(x << 0)
+#define RGB(x, y, z)	RGB_RED(x)+RGB_GRN(y)+RGB_BLU(z)
+
+#define COLOR_GODFRAMED       RGB(255, 255, 255)
+#define COLOR_GODFRAMED_PUKED RGB(160, 20,  255)
+#define COLOR_NORMAL          RGB(0,   0,   0  )	//iirc 0,0,0 resets to default, rather than setting to black
+#define COLOR_PUKED           COLOR_NORMAL	//might have a different color when boomed, needs testing
+
 //cvars
 new Handle: hRageRock = INVALID_HANDLE;
 new Handle: hRageHittables = INVALID_HANDLE;
@@ -38,11 +48,6 @@ new bIsBoomed[MAXPLAYERS + 1];
 
 //frustration
 new frustrationOffset[MAXPLAYERS + 1];
-
-#define COLOR_GODFRAMED       "255, 255, 255"
-#define COLOR_GODFRAMED_PUKED "160, 20,  255"
-#define COLOR_NORMAL          "0,   0,   0"	//iirc 0,0,0 resets to default, rather than setting to black
-#define COLOR_PUKED           COLOR_NORMAL	//might have a different color when boomed, needs testing
 
 public Plugin:myinfo =
 {
@@ -256,9 +261,9 @@ ResetGlow(client) {
 		SetEntProp(client, Prop_Send, "m_bFlashing", false);
 		
 		if (IsPlayerBoomed(client)) {
-			SetEntPropString(client, Prop_Send, "m_glowColorOverride", COLOR_PUKED);
+			SetEntProp(client, Prop_Send, "m_glowColorOverride", COLOR_PUKED);
 		} else {
-			SetEntPropString(client, Prop_Send, "m_glowColorOverride", COLOR_NORMAL);
+			SetEntProp(client, Prop_Send, "m_glowColorOverride", COLOR_NORMAL);
 		}
 	}
 }
@@ -268,9 +273,9 @@ SetGodframedGlow(client) {	//there might be issues with realism
 		SetEntProp(client, Prop_Send, "m_bFlashing", true);
 		
 		if (IsPlayerBoomed(client)) {
-			SetEntPropString(client, Prop_Send, "m_glowColorOverride", COLOR_GODFRAMED_PUKED);
+			SetEntProp(client, Prop_Send, "m_glowColorOverride", COLOR_GODFRAMED_PUKED);
 		} else {
-			SetEntPropString(client, Prop_Send, "m_glowColorOverride", COLOR_GODFRAMED);
+			SetEntProp(client, Prop_Send, "m_glowColorOverride", COLOR_GODFRAMED);
 		}
 	}
 }
