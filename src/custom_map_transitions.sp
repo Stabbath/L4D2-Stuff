@@ -254,6 +254,9 @@ public L4D2_OnRealRoundEnd(roundNumber) {
     if (roundNumber) {
 		g_iMapsPlayed++;
 		
+		//force-end the game since only finales would usually really end it
+		if (g_iMapsPlayed == GetArraySize(g_hArrayMapPools)) ServerCommand("sm_resetmatch");
+		
 		GotoNextMap();
     }
 }
