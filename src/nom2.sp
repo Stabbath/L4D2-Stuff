@@ -2,10 +2,8 @@
 
 /*
  * Probably some things that are redundant or pointless, but I got tired of looking at this plugin and didnt bother looking it over a final time.
- * A simpler way to do all this, keeping it the same for every class, would be to shorten the duration of the m2. At low values (but not too low), the trace lines are incompletely drawn and result in a fairly significant inability to m2.
+ * A simpler way to do all this, for every class, would be to shorten the duration of the m2. At low values (but not too low), the trace lines are incompletely drawn and result in a fairly significant inability to m2.
  * While still being able to shove things that are standing, deadstopping becomes close to impossible, if not truly impossible.
- * 
- * Issue: Jockeys will be teleported if their ability is on cooldown, when they wont be able to attach.
  */
 
 #include <sourcemod>
@@ -134,6 +132,9 @@ public Action:L4D_OnShovedBySurvivor(attacker, client, const Float:vector[3])
 	if (!IsClientAndInGame(client) || !IsClientAndInGame(attacker))	{ return Plugin_Continue; }
 	if (GetClientTeam(client) != TEAM_INFECTED)						{ return Plugin_Continue; }
 	
+	PrintToChat(attacker, "You landed a m2!");
+	PrintToChat(client, "You got m2'd!");
+	
 	//start hunter
 	if (GetEntProp(client, Prop_Send, "m_zombieClass") == ZC_HUNTER
 	&& (GetConVarInt(hZCBlockShove) & FL_HUNTER))
@@ -168,6 +169,10 @@ public Action:L4D_OnShovedBySurvivor(attacker, client, const Float:vector[3])
 		//if the jockey is on the ground (and not riding) just block instantly; also block teleporting when ability is on cooldown
 		if (!(GetEntityFlags(client) & FL_ONGROUND) && GetEntPropFloat(ability, Prop_Send, "m_timestamp") + GetEntPropFloat(ability, Prop_Send, "m_duration") < GetGameTime())
 		{
+			PrintToChat(attacker, "M2 on the jockey was blocked!");
+			PrintToChat(client, "You got m2'd but it was blocked!");
+
+
 			if (bIsRiding[client] == true)	//fix self-clears
 			{
 				decl Float:fJockeyPos[3];
@@ -292,5 +297,3 @@ stock bool:IsClientAndInGame(index)
     }
     return false;
 }
-
-
