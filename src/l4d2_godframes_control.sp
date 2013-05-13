@@ -15,10 +15,10 @@
 
 #define CLASSNAME_LENGTH 64
 
-#define RGB_RED(x)		(x << 16)
-#define RGB_GRN(x)		(x << 8)
-#define RGB_BLU(x)		(x << 0)
-#define RGB(x, y, z)	RGB_RED(x)+RGB_GRN(y)+RGB_BLU(z)
+#define RGB_RED(%0)		(%0 << 16)
+#define RGB_GRN(%0)		(%0 << 8)
+#define RGB_BLU(%0)		(%0 << 0)
+#define RGB(%0, %1, %2)	(RGB_RED(%0)+RGB_GRN(%1)+RGB_BLU(%2))
 
 #define COLOR_GODFRAMED       RGB(255, 255, 255)
 #define COLOR_GODFRAMED_PUKED RGB(160, 20,  255)
