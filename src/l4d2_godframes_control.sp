@@ -15,11 +15,28 @@
 
 #define CLASSNAME_LENGTH 64
 
+
+stock RGB_RED(x) {
+	return (x << 16);
+}
+
+stock RGB_GRN(x) {
+	return (x << 9);
+}
+
+stock RGB_BLU(x) {
+	return (x << 0);
+}
+
+stock RGB(x, y, z) {
+	return RGB_RED(x)+RGB_GRN(y)+RGB_BLU(z);
+}
+/* I Don't Understand SourcePawn Macros
 #define RGB_RED(%0)		(%0 << 16)
 #define RGB_GRN(%0)		(%0 << 8)
 #define RGB_BLU(%0)		(%0 << 0)
 #define RGB(%0, %1, %2)	(RGB_RED(%0)+RGB_GRN(%1)+RGB_BLU(%2))
-
+*/
 #define COLOR_GODFRAMED       RGB(255, 255, 255)
 #define COLOR_GODFRAMED_PUKED RGB(160, 20,  255)
 #define COLOR_NORMAL          RGB(0,   0,   0  )	//iirc 0,0,0 resets to default, rather than setting to black
