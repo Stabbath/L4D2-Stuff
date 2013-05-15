@@ -120,7 +120,7 @@ public Action:MapSet(args) {
 	decl String:group[BUF_SZ];
 	GetCmdArg(1, group, BUF_SZ);
 	
-	ServerCommand("exec DIR_CFGS%s", group);
+	ServerCommand("exec DIR_CFGS%s.cfg", group);
 	g_bMapsetInitialized = true;
 	CreateTimer(1.0, Timed_PostMapsetLoad, group);
 }
@@ -294,16 +294,14 @@ public Action:TagRank(args) {
 
 public Action:AddMap(args) {
 	if (args < 3) {
-		ReplyToCommand("Syntax: sm_addmap <groupname> <mapname> <tag1> <tag2> <...>");
-		ReplyToCommand("Adds <mapname> to <groupname> and tags it with every mentioned tag.");
+		ReplyToCommand("Syntax: sm_addmap <mapname> <tag1> <tag2> <...>");
+		ReplyToCommand("Adds <mapname> to the map selection and tags it with every mentioned tag.");
 	} else {
-		decl String:group[BUF_SZ];
-		GetCmdArg(1, group, BUF_SZ);
 		decl String:map[BUF_SZ];
-		GetCmdArg(2, map, BUF_SZ);
+		GetCmdArg(1, map, BUF_SZ);
 		
 		//add all tags to the trie, and push the mapname onto each corresponding array
-		for (new i = 3; i <= args; i++) {
+		for (new i = 2; i <= args; i++) {
 			GetCmdArg(i, tag, TAG_SZ);
 			new Handle:hArrayMaps;
 			if (!GetTrieValue(g_hTrieTags, tag, &hArrayMaps)) SetTrieValue(g_hTrieTags, tag, hArrayMaps);
