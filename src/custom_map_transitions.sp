@@ -42,19 +42,18 @@ new Handle:	g_hCvarPoolsize;
 new Handle:	g_hCvarMinPoolsize;
 new Handle:	g_hCvarVetoCount;
 
-new Handle:	g_hTrieGroups;	//handle to a trie that stores a (dyn. array of tries) by name of map group
+new Handle:	g_hTrieTags;
 new Handle:	g_hArrayGroupPlayOrder;
 new Handle:	g_hArrayMapPools;
 new			g_iPoolBeingVetoed;
 new			g_iVetoesUsed[2];
 new			g_bMaplistFinalized;
 new			g_iMapsPlayed;
+new bool:	g_bMapsetInitialized;
 
 public OnPluginStart() {
 	ResetScores();
-    SetRandomSeed(seed:GetEngineTime());
-
-	hTrieGroups = CreateTrie();
+	SetRandomSeed(seed:GetEngineTime());
 
 	//Pre-match commands
 	RegServerCmd(	"sm_addmap",	AddMap,
@@ -65,10 +64,10 @@ public OnPluginStart() {
 	RegServerCmd(	"sm_mapset",	MapSet,
 					"Loads the mapset for the specified group. Use without params for syntax.");
 	//Match commands
-    RegConsoleCmd(	"sm_maplist",	Maplist,
-    				"Shows a player cmt's selected map list.");
-    RegConsoleCmd(	"sm_veto",		Veto,
-    				"Lets players veto a map. Uses per team per game cvar'd.");
+	RegConsoleCmd(	"sm_maplist",	Maplist,
+					"Shows a player cmt's selected map list.");
+	RegConsoleCmd(	"sm_veto",		Veto,
+					"Lets players veto a map. Uses per team per game cvar'd.");
 	
 	
 	
@@ -86,8 +85,7 @@ public OnPluginStart() {
 										"How many times can a map be chosen (for different pools).",
 										FCVAR_PLUGIN, true, 1.0, false);*/
 
-
-	g_hTrieGroups = CreateTrie();
+	g_hTrieTags = CreateTrie();
 	g_hArrayGroupPlayOrder = CreateArray();
 	g_hArrayMapPools = CreateArray();
 }
@@ -95,7 +93,7 @@ public OnPluginStart() {
 stock Handle:GetMapPool(String:tag[], poolsize) {
 	new Handle:hArraySelectedMaps;
 	new Handle:hArrayAvailableMaps;
-	if (!GetTrieValue(g_hTrieTags, tag, &hArrayMaps)) return 0;
+	if (!GetTrieValue(g_hArrayMapPools, tag, &hArrayMaps)) return 0;
 	
 	if (GetArraySize(hArrayMaps) <= poolsize) {	//if there's no room for randomness, just get straight to it
 		return hArrayAvailableMaps;
@@ -113,31 +111,34 @@ stock Handle:GetMapPool(String:tag[], poolsize) {
 	}
 }
 
-public Action:MapSet(client, args) {
+public Action:MapSet(args) {
 	if (args < 1) {
 		ReplyToCommand("Syntax: sm_mapset <groupname>");
 		ReplyToCommand("Prepares the map pools for the specified group.");
+	}
+
+	if (GetArraySize(g_hArrayGroupPlayOrder) > 0) {
+		ReplyToCommand("Sorry, a map preset is already loaded. To select a different one,");
 	}
 	
 	decl String:group[BUF_SZ];
 	GetCmdArg(1, group, BUF_SZ);
 	
 	ServerCommand("exec DIR_CFGS%s", group);
-	
-	CreateTimer(2.0, Timed_PostMapsetLoad, group);
+	g_bMapsetInitialized = true;
+	CreateTimer(1.0, Timed_PostMapsetLoad, group);
 }
 
 public Action:Timed_PostMapsetLoad(Handle:timer, any:group) {
-	new Handle:hTrieTags;
-	if (!GetTrieValue(g_hTrieGroups, group, &hTrieTags)) return Plugin_Stop;	//this will only happen if there is no such config
-	
 	new poolsize = GetConVarInt(g_hCvarPoolsize);
 	new mapnum = GetArraySize(g_hArrayGroupPlayOrder);
 	
+	if (mapnum == 0) g_bMapsetInitialized = false;	//failed to load it on the exec
+		
 	decl String:tag[TAG_SZ];
 	for (new i = 0; i < mapnum; i++) {
 		GetArrayString(g_hArrayGroupPlayOrder, i, tag, TAG_SZ);
-		PushArrayCell(g_hArrayMapPools, GetMapPool(hTrieTags, tag, poolsize));
+		PushArrayCell(g_hArrayMapPools, GetMapPool(tag, poolsize));
 	}
 }
 
@@ -168,7 +169,7 @@ public Action:Veto(client, args) {
 	}
 	
 	if (g_bMaplistFinalized) {
-		ReplyToCommand(client, "This is not the time to be vetoing!");
+		ReplyToCommand(client, "The time for vetoes is already over!");
 		return Plugin_Handled;
 	}
 	
@@ -238,12 +239,13 @@ public Action:Timed_TickTock(Handle:timer) {
 	
 	ResetScores();
 	GotoNextMap();
+	return Plugin_Stop;
 }
 
 public Action:Maplist(client, args) {
 	PrintToChat(client, "Maplist: ");
 	decl String:buffer[MAXLENGTH];
-	for (new i = 0; i <= GetArraySize(hArrayMaps); i++) {
+	for (new i = 0; i <= GetArraySize(g_hArrayMapPools); i++) {
 		GetArrayString(GetArrayCell(g_hArrayMapPools, i), 0, buffer, BUF_SZ);
 		PrintToChat(client, "\t%d - %s", i + 1, RefineMapName(buffer));
 	}
@@ -304,15 +306,11 @@ public Action:AddMap(args) {
 		decl String:map[BUF_SZ];
 		GetCmdArg(2, map, BUF_SZ);
 		
-		//get the trie of all tags for this group from the trie of all groups
-		new Handle:hTrieTags;
-		if (!GetTrieValue(g_hTrieGroups, group, &hTrieTags)) SetTrieValue(g_hTrieGroups, group, hTrieTags); 
-		
 		//add all tags to the trie, and push the mapname onto each corresponding array
 		for (new i = 3; i <= args; i++) {
 			GetCmdArg(i, tag, TAG_SZ);
 			new Handle:hArrayMaps;
-			if (!GetTrieValue(hTrieTags, tag, &hArrayMaps)) SetTrieValue(h_TrieTags, tag, hArrayMaps);
+			if (!GetTrieValue(g_hTrieTags, tag, &hArrayMaps)) SetTrieValue(g_hTrieTags, tag, hArrayMaps);
 			PushArrayString(hArrayMaps, map);
 		}
 	}
