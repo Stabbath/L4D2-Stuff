@@ -14,9 +14,6 @@ public Plugin:myinfo =
 };
 
 /* To-do:
- * Add difficulty rating to maps based on crox's logger data gathering
- * Add control over the minimum/maximum difficulty of maps as well as the entire match
- *			or rather, create a few presets: "easy", "normal" "hard" that have maps of corresponding difficulty
  * Maybe show scores in already played maps with maplist cause why the hell not?
  */
 
