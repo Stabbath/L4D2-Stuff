@@ -13,8 +13,8 @@ public Plugin:myinfo =
 	url = "no url"
 };
 
-/* To-do:
- * Maybe show scores in already played maps with maplist cause why the hell not?
+/* TODO:
+ * - Maybe show scores in already played maps with maplist cause why the hell not?
  */
 
 /*
@@ -57,7 +57,6 @@ public OnPluginStart() {
 					"Adds a map to a map group under the specified tags. Use without params for syntax.");
 	RegServerCmd(	"sm_tagrank",	TagRank,
 					"Sets a tag's rank in the group. Use without params for syntax.");
-	//Match start commands
 	RegServerCmd(	"sm_mapset",	MapSet,
 					"Loads the mapset for the specified group. Use without params for syntax.");
 	//Match commands
