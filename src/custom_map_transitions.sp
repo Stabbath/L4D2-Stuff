@@ -43,7 +43,6 @@ new Handle:	g_hCvarVetoCount;
 new Handle:	g_hTrieTags;
 new Handle:	g_hArrayGroupPlayOrder;
 new Handle:	g_hArrayMapPools;
-new			g_iPoolBeingVetoed;
 new			g_iVetoesUsed[2];
 new			g_bMaplistFinalized;
 new			g_iMapsPlayed;
@@ -109,13 +108,13 @@ public OnPluginStart() {
 }
 
 stock Handle:GetMapPool(String:tag[], poolsize) {
-	new Handle:hArraySelectedMaps;
-	new Handle:hArrayAvailableMaps;
-	if (!GetTrieValue(g_hTrieTags, tag, &hArrayAvailableMaps)) return 0;
+	decl Handle:hArrayAvailableMaps;
+	if (!GetTrieValue(g_hTrieTags, tag, hArrayAvailableMaps)) return INVALID_HANDLE;
 	
-	if (GetArraySize(hArrayMaps) <= poolsize) {	//if there's no room for randomness, just get straight to it
+	if (GetArraySize(hArrayAvailableMaps) <= poolsize) {	//if there's no room for randomness, just get straight to it
 		return hArrayAvailableMaps;
 	} else { //otherwise, get random maps
+		new Handle:hArraySelectedMaps = CreateArray();
 		decl String:map[BUF_SZ];
 		for (new i = 0; i < poolsize; i++) {
 			GetArrayString(hArrayAvailableMaps, GetRandomInt(0, GetArraySize(hArrayAvailableMaps)), map, BUF_SZ);
@@ -133,12 +132,12 @@ stock Handle:GetMapPool(String:tag[], poolsize) {
 //server cmd: loads a cmt cfg
 public Action:MapSet(args) {
 	if (args < 1) {
-		ReplyToCommand("Syntax: sm_mapset <groupname>");
-		ReplyToCommand("Prepares the map pools for the specified group.");
+		ReplyToCommand(0, "Syntax: sm_mapset <groupname>");
+		ReplyToCommand(0, "Prepares the map pools for the specified group.");
 	}
 
 	if (g_bMapsetInitialized) {
-		ReplyToCommand("Sorry, a map preset is already loaded. To select a different one you have to resetmatch and then load the config again before selecting a different mapset.");
+		ReplyToCommand(0, "Sorry, a map preset is already loaded. To select a different one you have to resetmatch and then load the config again before selecting a different mapset.");
 	}
 	
 	decl String:group[BUF_SZ];
@@ -146,11 +145,16 @@ public Action:MapSet(args) {
 	
 	ServerCommand("exec DIR_CFGS%s.cfg", group);
 	g_bMapsetInitialized = true;
-	CreateTimer(1.0, Timed_PostMapsetLoad, group);
+	new Handle:tmpstack = CreateStack(BUF_SZ);
+	PushStackString(tmpstack, group);
+	CreateTimer(1.0, Timed_PostMapsetLoad, tmpstack);
 }
 
 //creates the initial map list after a map set has been loaded
-public Action:Timed_PostMapsetLoad(Handle:timer, any:group) {
+public Action:Timed_PostMapsetLoad(Handle:timer, any:tmpstack) {
+	decl String:group[BUF_SZ];
+	PopStackString(tmpstack, group, BUF_SZ);
+		
 	new poolsize = GetConVarInt(g_hCvarPoolsize);
 	new mapnum = GetArraySize(g_hArrayGroupPlayOrder);
 	
@@ -171,7 +175,7 @@ public Action:Timed_PostMapsetLoad(Handle:timer, any:group) {
 //returns a handle to the first array which is found to contain the specified mapname
 stock Handle:GetPoolThatContainsMap(String:map[]) {
 	for (new i = 0; i < GetArraySize(g_hArrayMapPools); i++) {
-		new hArrayPool = GetArrayCell(g_hArrayMapPools, i);
+		new Handle:hArrayPool = GetArrayCell(g_hArrayMapPools, i);
 		if (FindStringInArray(hArrayPool, map) > 0) {
 			return hArrayPool;
 		}
@@ -183,10 +187,10 @@ stock Handle:GetPoolThatContainsMap(String:map[]) {
 stock bool:HasMapBeenSelected(String:map[]) {	//could use a trie instead, but meh
 	for (new i = 0; i < GetArraySize(g_hArrayMapPools); i++) {
 		if (FindStringInArray(GetArrayCell(g_hArrayMapPools, i), map) > 0) {
-			return 1;
+			return true;
 		}
 	}
-	return 0;
+	return false;
 }
 
 //client cmd: vetoes a map off the list
@@ -217,17 +221,18 @@ public Action:Veto(client, args) {
 	
 	new Handle:hArrayPool = GetPoolThatContainsMap(map);
 	if (hArrayPool == INVALID_HANDLE) {
-		ReplyToCommand(client, "Invalid map.");
+		ReplyToCommand(client, "Invalid map, no pool contains it.");
 		return Plugin_Handled;
 	}
 
 	if (GetArraySize(hArrayPool) <= GetConVarInt(g_hCvarMinPoolsize)) {
 		ReplyToCommand(client, "Sorry! There are too few maps in the pool the specified map belongs to: no more can be removed.");
-	} else {
-		RemoveFromArray(hArrayPool, index);
-		PrintToChatAll("Map %s has been removed from its pool.", map);
-		++g_iVetoesUsed[team];
+		return Plugin_Handled;
 	}
+	
+	RemoveFromArray(hArrayPool, FindStringInArray(hArrayPool, map));
+	PrintToChatAll("Map %s has been removed from its pool.", map);
+	++g_iVetoesUsed[team];
 	
 	if (g_iVetoesUsed[0] == GetConVarInt(g_hCvarVetoCount) && g_iVetoesUsed[1] == GetConVarInt(g_hCvarVetoCount)) {
 		VetoingIsOver();
@@ -254,7 +259,7 @@ stock VetoingIsOver() {
 	//Show final maplist to everyone
 	PrintToChatAll("Map list has been settled!");
 	for (i = 1; i <= MaxClients; i++) {
-		Maplist(client);
+		FakeClientCommand(i, "sm_maplist");
 	}
 
 	CreateTimer(3.0, Timed_TickTock, TIMER_REPEAT);
@@ -278,7 +283,7 @@ public Action:Timed_TickTock(Handle:timer) {
 //client cmd: displays map list
 public Action:Maplist(client, args) {
 	PrintToChat(client, "Maplist: ");
-	decl String:buffer[MAXLENGTH];
+	decl String:buffer[BUF_SZ];
 	decl Handle:hArrayMaps;
 	for (new i = 0; i < GetArraySize(g_hArrayMapPools); i++) {
 		hArrayMaps = GetArrayCell(g_hArrayMapPools, i);
@@ -318,9 +323,9 @@ stock ResetScores() {
 //server cmd: specifies a rank for a given tag
 public Action:TagRank(args) {
 	if (args < 2) {
-		ReplyToCommand("Syntax: sm_tagrank <tag> <map number>");
-		ReplyToCommand("Sets tag <tag> as the tag to be used to fetch maps for map <map number> in the map list.");
-		ReplyToCommand("Rank 0 is map 1, rank 1 is map 2, etc.");
+		ReplyToCommand(0, "Syntax: sm_tagrank <tag> <map number>");
+		ReplyToCommand(0, "Sets tag <tag> as the tag to be used to fetch maps for map <map number> in the map list.");
+		ReplyToCommand(0, "Rank 0 is map 1, rank 1 is map 2, etc.");
 	} else {
 		decl String:buffer[TAG_SZ];
 		GetCmdArg(2, buffer, TAG_SZ);
@@ -341,17 +346,19 @@ public Action:TagRank(args) {
 //server cmd: adds a map to the maplist under specified tags
 public Action:AddMap(args) {
 	if (args < 3) {
-		ReplyToCommand("Syntax: sm_addmap <mapname> <tag1> <tag2> <...>");
-		ReplyToCommand("Adds <mapname> to the map selection and tags it with every mentioned tag.");
+		ReplyToCommand(0, "Syntax: sm_addmap <mapname> <tag1> <tag2> <...>");
+		ReplyToCommand(0, "Adds <mapname> to the map selection and tags it with every mentioned tag.");
 	} else {
 		decl String:map[BUF_SZ];
 		GetCmdArg(1, map, BUF_SZ);
+		
+		decl String:tag[TAG_SZ];
 		
 		//add all tags to the trie, and push the mapname onto each corresponding array
 		for (new i = 2; i <= args; i++) {
 			GetCmdArg(i, tag, TAG_SZ);
 			new Handle:hArrayMaps;
-			if (!GetTrieValue(g_hTrieTags, tag, &hArrayMaps)) SetTrieValue(g_hTrieTags, tag, (hArrayMaps = CreateArray()));
+			if (!GetTrieValue(g_hTrieTags, tag, hArrayMaps)) SetTrieValue(g_hTrieTags, tag, (hArrayMaps = CreateArray()));
 			PushArrayString(hArrayMaps, map);
 		}
 	}
