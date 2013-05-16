@@ -34,7 +34,6 @@ don't forget about this: map pool has 5 maps, each team vetoes 1, which leaves 3
 
 #define DIR_CFGS "cmt/"
 #define BUF_SZ	64
-#define TAG_SZ	32
 
 new Handle:	g_hCvarPoolsize;
 new Handle:	g_hCvarMinPoolsize;
@@ -165,11 +164,12 @@ public Action:Timed_PostMapsetLoad(Handle:timer, any:tmpstack) {
 	if (mapnum == 0 || GetArraySize(g_hArrayMapPools) == 0) {
 		g_bMapsetInitialized = false;	//failed to load it on the exec
 		PrintToChatAll("Failed to load preset.");
+		return Plugin_Handled;
 	}
 	
-	decl String:tag[TAG_SZ];
+	decl String:tag[BUF_SZ];
 	for (new i = 0; i < mapnum; i++) {
-		GetArrayString(g_hArrayGroupPlayOrder, i, tag, TAG_SZ);
+		GetArrayString(g_hArrayGroupPlayOrder, i, tag, BUF_SZ);
 		PushArrayCell(g_hArrayMapPools, GetMapPool(tag, poolsize));
 		PrintToChatAll("Map tag for map %d is \"%s\".", i, tag);
 	}
@@ -340,11 +340,11 @@ public Action:TagRank(args) {
 		ReplyToCommand(0, "Sets tag <tag> as the tag to be used to fetch maps for map <map number> in the map list.");
 		ReplyToCommand(0, "Rank 0 is map 1, rank 1 is map 2, etc.");
 	} else {
-		decl String:buffer[TAG_SZ];
-		GetCmdArg(2, buffer, TAG_SZ);
+		decl String:buffer[BUF_SZ];
+		GetCmdArg(2, buffer, BUF_SZ);
 		new index = StringToInt(buffer);
 		
-		GetCmdArg(1, buffer, TAG_SZ);
+		GetCmdArg(1, buffer, BUF_SZ);
 		
 		if (index >= GetArraySize(g_hArrayGroupPlayOrder)) {
 			ResizeArray(g_hArrayGroupPlayOrder, index + 1);
@@ -365,11 +365,14 @@ public Action:AddMap(args) {
 		decl String:map[BUF_SZ];
 		GetCmdArg(1, map, BUF_SZ);
 		
-		decl String:tag[TAG_SZ];
+		decl String:tag[BUF_SZ];
 		
 		//add all tags to the trie, and push the mapname onto each corresponding array
 		for (new i = 2; i <= args; i++) {
-			GetCmdArg(i, tag, TAG_SZ);
+			GetCmdArg(i, tag, BUF_SZ);
+
+			PrintToChatAll("added map %s under tag %s", map, tag);
+
 			new Handle:hArrayMaps;
 			if (!GetTrieValue(g_hTrieTags, tag, hArrayMaps)) SetTrieValue(g_hTrieTags, tag, (hArrayMaps = CreateArray()));
 			PushArrayString(hArrayMaps, map);
