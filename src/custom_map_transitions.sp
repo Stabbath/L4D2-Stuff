@@ -102,8 +102,8 @@ public OnPluginStart() {
 										FCVAR_PLUGIN, true, 1.0, false);*/
 
 	g_hTrieTags = CreateTrie();
-	g_hArrayGroupPlayOrder = CreateArray();
-	g_hArrayMapPools = CreateArray();
+	g_hArrayGroupPlayOrder = CreateArray(BUF_SZ);
+	g_hArrayMapPools = CreateArray(BUF_SZ);
 }
 
 stock Handle:GetMapPool(String:tag[], poolsize) {
