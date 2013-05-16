@@ -345,6 +345,8 @@ public Action:TagRank(args) {
 		new index = StringToInt(buffer);
 		
 		GetCmdArg(1, buffer, BUF_SZ);
+		PrintToChatAll("added tag %s as map%d", tag, index + 1);
+
 		
 		if (index >= GetArraySize(g_hArrayGroupPlayOrder)) {
 			ResizeArray(g_hArrayGroupPlayOrder, index + 1);
