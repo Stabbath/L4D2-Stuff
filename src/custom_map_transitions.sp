@@ -345,7 +345,7 @@ public Action:TagRank(args) {
 
 //server cmd: adds a map to the maplist under specified tags
 public Action:AddMap(args) {
-	if (args < 3) {
+	if (args < 2) {
 		ReplyToCommand(0, "Syntax: sm_addmap <mapname> <tag1> <tag2> <...>");
 		ReplyToCommand(0, "Adds <mapname> to the map selection and tags it with every mentioned tag.");
 	} else {
