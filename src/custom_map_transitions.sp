@@ -351,8 +351,6 @@ public Action:TagRank(args) {
 		}
 		
 		SetArrayString(g_hArrayGroupPlayOrder, index, buffer);
-		
-		PrintToChatAll("Added tag %d
 	}
 	
 	return Plugin_Handled;
