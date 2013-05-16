@@ -49,6 +49,27 @@ new			g_bMaplistFinalized;
 new			g_iMapsPlayed;
 new bool:	g_bMapsetInitialized;
 
+/*
+	logic:
+	- maps are added with sm_addmap
+		maps are added to an array that is stored by tag name in g_hTrieTags
+	- maps are ranked with sm_tagrank
+		tags are added in order of rank to g_hArrayGroupPlayOrder
+	
+	a map pool of up to cmt_poolsize is selected for each rank by removing maps from the
+	arrays in g_hTrieTags until there's only cmt_poolsize left
+	
+	players are allowed to veto maps until their team has used all their vetoes, with vetoing
+	removing the vetoed map from its pool.
+	
+	after all vetoes are done, remaining maps for each pool are removed until there's only 
+	1 per pool, and that will be the final map list
+*/
+
+
+
+
+
 public OnPluginStart() {
 	ResetScores();
 	SetRandomSeed(seed:GetEngineTime());
@@ -90,7 +111,7 @@ public OnPluginStart() {
 stock Handle:GetMapPool(String:tag[], poolsize) {
 	new Handle:hArraySelectedMaps;
 	new Handle:hArrayAvailableMaps;
-	if (!GetTrieValue(g_hArrayMapPools, tag, &hArrayAvailableMaps)) return 0;
+	if (!GetTrieValue(g_hTrieTags, tag, &hArrayAvailableMaps)) return 0;
 	
 	if (GetArraySize(hArrayMaps) <= poolsize) {	//if there's no room for randomness, just get straight to it
 		return hArrayAvailableMaps;
