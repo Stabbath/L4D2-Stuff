@@ -32,7 +32,7 @@ cmt_veto_time:
 don't forget about this: map pool has 5 maps, each team vetoes 1, which leaves 3, whether the map gets announced right away or only when it's about to be played is cvar'd
 */
 
-#define DIR_CFGS "cfg/cmt/"
+#define DIR_CFGS "cmt/"
 #define BUF_SZ	64
 #define TAG_SZ	32
 
@@ -162,7 +162,7 @@ public Action:Timed_PostMapsetLoad(Handle:timer, any:tmpstack) {
 	new poolsize = GetConVarInt(g_hCvarPoolsize);
 	new mapnum = GetArraySize(g_hArrayGroupPlayOrder);
 	
-	if (mapnum == 0) {
+	if (mapnum == 0 || GetArraySize(g_hArrayMapPools) == 0) {
 		g_bMapsetInitialized = false;	//failed to load it on the exec
 		PrintToChatAll("Failed to load preset.");
 	}
@@ -275,7 +275,7 @@ stock VetoingIsOver() {
 			FakeClientCommand(i, "sm_maplist");
 	}
 
-	CreateTimer(3.0, Timed_TickTock, TIMER_REPEAT);
+	CreateTimer(2.0, Timed_TickTock, TIMER_REPEAT);
 }
 
 //called after vetoing is over
@@ -283,8 +283,8 @@ public Action:Timed_TickTock(Handle:timer) {
 	static Float:fTimeRemaining = 5.0;
 	
 	if (fTimeRemaining > 0.0) {
+		PrintToChatAll("Game will start in %0f seconds.", fTimeRemaining);
 		fTimeRemaining -= 1.0;
-		PrintToChatAll("Game will start in %f seconds.", fTimeRemaining);
 		return Plugin_Continue;
 	}
 	
@@ -351,6 +351,8 @@ public Action:TagRank(args) {
 		}
 		
 		SetArrayString(g_hArrayGroupPlayOrder, index, buffer);
+		
+		PrintToChatAll("Added tag %d
 	}
 	
 	return Plugin_Handled;
