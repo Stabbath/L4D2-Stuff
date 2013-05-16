@@ -143,12 +143,15 @@ public Action:MapSet(args) {
 	decl String:group[BUF_SZ];
 	GetCmdArg(1, group, BUF_SZ);
 	
-	ServerCommand("exec DIR_CFGS%s.cfg", group);
+	ServerCommand("exec %s%s.cfg", DIR_CFGS, group);
 	ReplyToCommand(0, "Loading %s preset...", group);
 	g_bMapsetInitialized = true;
+
 	new Handle:tmpstack = CreateStack(BUF_SZ);
 	PushStackString(tmpstack, group);
 	CreateTimer(1.0, Timed_PostMapsetLoad, tmpstack);
+
+	return Plugin_Handled;
 }
 
 //creates the initial map list after a map set has been loaded
