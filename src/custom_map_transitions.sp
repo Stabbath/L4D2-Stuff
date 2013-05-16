@@ -283,7 +283,7 @@ public Action:Timed_TickTock(Handle:timer) {
 	static Float:fTimeRemaining = 5.0;
 	
 	if (fTimeRemaining > 0.0) {
-		PrintToChatAll("Game will start in %0f seconds.", fTimeRemaining);
+		PrintToChatAll("Game will start in %.0f seconds.", fTimeRemaining);
 		fTimeRemaining -= 1.0;
 		return Plugin_Continue;
 	}
