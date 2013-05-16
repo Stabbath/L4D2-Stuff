@@ -144,6 +144,7 @@ public Action:MapSet(args) {
 	GetCmdArg(1, group, BUF_SZ);
 	
 	ServerCommand("exec DIR_CFGS%s.cfg", group);
+	ReplyToCommand(0, "Loading %s preset...", group);
 	g_bMapsetInitialized = true;
 	new Handle:tmpstack = CreateStack(BUF_SZ);
 	PushStackString(tmpstack, group);
@@ -154,21 +155,29 @@ public Action:MapSet(args) {
 public Action:Timed_PostMapsetLoad(Handle:timer, any:tmpstack) {
 	decl String:group[BUF_SZ];
 	PopStackString(tmpstack, group, BUF_SZ);
-		
+	
 	new poolsize = GetConVarInt(g_hCvarPoolsize);
 	new mapnum = GetArraySize(g_hArrayGroupPlayOrder);
 	
-	if (mapnum == 0) g_bMapsetInitialized = false;	//failed to load it on the exec
-		
+	if (mapnum == 0) {
+		g_bMapsetInitialized = false;	//failed to load it on the exec
+		PrintToChatAll("Failed to load preset.");
+	}
+	
 	decl String:tag[TAG_SZ];
 	for (new i = 0; i < mapnum; i++) {
 		GetArrayString(g_hArrayGroupPlayOrder, i, tag, TAG_SZ);
 		PushArrayCell(g_hArrayMapPools, GetMapPool(tag, poolsize));
+		PrintToChatAll("Map tag for map %d is \"%s\".", i, tag);
 	}
+	
+	PrintToChatAll("Map set has been loaded!");
 
 	//if no vetoes are allowed, just go straight to vetoingisover
 	if (GetConVarInt(g_hCvarVetoCount) == 0) {
 		VetoingIsOver();
+	} else {
+		PrintToChatAll("You may now veto maps from the map list.");
 	}
 }
 
@@ -244,10 +253,10 @@ public Action:Veto(client, args) {
 //called after the last veto has been used
 stock VetoingIsOver() {
 	g_bMaplistFinalized = true;
-
+	
 	new i, size;
 	new Handle:hArrayPool;
-
+	
 	//Select 1 random map from each pool
 	for (i = 0; i < GetArraySize(g_hArrayMapPools); i++) {
 		hArrayPool = GetArrayCell(g_hArrayMapPools, i);
