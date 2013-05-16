@@ -271,7 +271,8 @@ stock VetoingIsOver() {
 	//Show final maplist to everyone
 	PrintToChatAll("Map list has been settled!");
 	for (i = 1; i <= MaxClients; i++) {
-		FakeClientCommand(i, "sm_maplist");
+		if (IsClientInGame(i) && !IsFakeClient(i))
+			FakeClientCommand(i, "sm_maplist");
 	}
 
 	CreateTimer(3.0, Timed_TickTock, TIMER_REPEAT);
