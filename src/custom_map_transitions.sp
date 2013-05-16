@@ -21,8 +21,9 @@ public Plugin:myinfo =
 Other possible future additions:
 
 cmt_veto_style: (in addition to enforcing ordered vetoing, rather than relying on common courtesy)
-	0: means 1-2-...-2-1 vetoing (team 1 gets 1 veto, team 2 gets 2, team 1 gets 2, ...)
+	0: means free vetoing
 	1: means 1-1-...-1-1 vetoing
+	2: means 1-2-...-2-1 vetoing (team 1 gets 1 veto, team 2 gets 2, team 1 gets 2, ...)
 cmt_veto_time:
 	0: unlimited veto time
 	>0: each team has this long for each of their vetoes. If this time elapses before they make a choice, they lose that veto.
@@ -89,14 +90,14 @@ public OnPluginStart() {
 stock Handle:GetMapPool(String:tag[], poolsize) {
 	new Handle:hArraySelectedMaps;
 	new Handle:hArrayAvailableMaps;
-	if (!GetTrieValue(g_hArrayMapPools, tag, &hArrayMaps)) return 0;
+	if (!GetTrieValue(g_hArrayMapPools, tag, &hArrayAvailableMaps)) return 0;
 	
 	if (GetArraySize(hArrayMaps) <= poolsize) {	//if there's no room for randomness, just get straight to it
 		return hArrayAvailableMaps;
 	} else { //otherwise, get random maps
 		decl String:map[BUF_SZ];
 		for (new i = 0; i < poolsize; i++) {
-			GetArrayString(hArrayAvailableMaps, GetRandomInt(0, GetArraySize(hArrayMaps)), map, BUF_SZ);
+			GetArrayString(hArrayAvailableMaps, GetRandomInt(0, GetArraySize(hArrayAvailableMaps)), map, BUF_SZ);
 
 			if (HasMapBeenSelected(map)) //no repetitions
 				i--;
@@ -107,14 +108,16 @@ stock Handle:GetMapPool(String:tag[], poolsize) {
 	}
 }
 
+
+//server cmd: loads a cmt cfg
 public Action:MapSet(args) {
 	if (args < 1) {
 		ReplyToCommand("Syntax: sm_mapset <groupname>");
 		ReplyToCommand("Prepares the map pools for the specified group.");
 	}
 
-	if (GetArraySize(g_hArrayGroupPlayOrder) > 0) {
-		ReplyToCommand("Sorry, a map preset is already loaded. To select a different one,");
+	if (g_bMapsetInitialized) {
+		ReplyToCommand("Sorry, a map preset is already loaded. To select a different one you have to resetmatch and then load the config again before selecting a different mapset.");
 	}
 	
 	decl String:group[BUF_SZ];
@@ -125,6 +128,7 @@ public Action:MapSet(args) {
 	CreateTimer(1.0, Timed_PostMapsetLoad, group);
 }
 
+//creates the initial map list after a map set has been loaded
 public Action:Timed_PostMapsetLoad(Handle:timer, any:group) {
 	new poolsize = GetConVarInt(g_hCvarPoolsize);
 	new mapnum = GetArraySize(g_hArrayGroupPlayOrder);
@@ -136,8 +140,14 @@ public Action:Timed_PostMapsetLoad(Handle:timer, any:group) {
 		GetArrayString(g_hArrayGroupPlayOrder, i, tag, TAG_SZ);
 		PushArrayCell(g_hArrayMapPools, GetMapPool(tag, poolsize));
 	}
+
+	//if no vetoes are allowed, just go straight to vetoingisover
+	if (GetConVarInt(g_hCvarVetoCount) == 0) {
+		VetoingIsOver();
+	}
 }
 
+//returns a handle to the first array which is found to contain the specified mapname
 stock Handle:GetPoolThatContainsMap(String:map[]) {
 	for (new i = 0; i < GetArraySize(g_hArrayMapPools); i++) {
 		new hArrayPool = GetArrayCell(g_hArrayMapPools, i);
@@ -148,6 +158,7 @@ stock Handle:GetPoolThatContainsMap(String:map[]) {
 	return INVALID_HANDLE;
 }
 
+//returns whether or not a map has already been selected
 stock bool:HasMapBeenSelected(String:map[]) {	//could use a trie instead, but meh
 	for (new i = 0; i < GetArraySize(g_hArrayMapPools); i++) {
 		if (FindStringInArray(GetArrayCell(g_hArrayMapPools, i), map) > 0) {
@@ -157,6 +168,7 @@ stock bool:HasMapBeenSelected(String:map[]) {	//could use a trie instead, but me
 	return 0;
 }
 
+//client cmd: vetoes a map off the list
 public Action:Veto(client, args) {
 	new team = GetClientTeam(client) - 2;
 	if (team < 0) {
@@ -198,20 +210,21 @@ public Action:Veto(client, args) {
 	
 	if (g_iVetoesUsed[0] == GetConVarInt(g_hCvarVetoCount) && g_iVetoesUsed[1] == GetConVarInt(g_hCvarVetoCount)) {
 		VetoingIsOver();
-		CreateTimer(1.0, Timed_TickTock, TIMER_REPEAT);
 	}
 	
 	return Plugin_Handled;
 }
 
+//called after the last veto has been used
 stock VetoingIsOver() {
 	g_bMaplistFinalized = true;
 
 	new i, size;
+	new Handle:hArrayPool;
 
 	//Select 1 random map from each pool
 	for (i = 0; i < GetArraySize(g_hArrayMapPools); i++) {
-		new Handle:hArrayPool = GetArrayCell(g_hArrayMapPools, i);
+		hArrayPool = GetArrayCell(g_hArrayMapPools, i);
 		while ((size = GetArraySize(hArrayPool)) > 1) {
 			RemoveFromArray(hArrayPool, GetRandomInt(0, size - 1));
 		}
@@ -222,8 +235,11 @@ stock VetoingIsOver() {
 	for (i = 1; i <= MaxClients; i++) {
 		Maplist(client);
 	}
+
+	CreateTimer(3.0, Timed_TickTock, TIMER_REPEAT);
 }
 
+//called after vetoing is over
 public Action:Timed_TickTock(Handle:timer) {
 	static Float:fTimeRemaining = 5.0;
 	
@@ -238,16 +254,22 @@ public Action:Timed_TickTock(Handle:timer) {
 	return Plugin_Stop;
 }
 
+//client cmd: displays map list
 public Action:Maplist(client, args) {
 	PrintToChat(client, "Maplist: ");
 	decl String:buffer[MAXLENGTH];
-	for (new i = 0; i <= GetArraySize(g_hArrayMapPools); i++) {
-		GetArrayString(GetArrayCell(g_hArrayMapPools, i), 0, buffer, BUF_SZ);
-		PrintToChat(client, "\t%d - %s", i + 1, RefineMapName(buffer));
+	decl Handle:hArrayMaps;
+	for (new i = 0; i < GetArraySize(g_hArrayMapPools); i++) {
+		hArrayMaps = GetArrayCell(g_hArrayMapPools, i);
+		for (new j = 0; j < GetArraySize(hArrayMaps); j++) {
+			GetArrayString(hArrayMaps, 0, buffer, BUF_SZ);
+			PrintToChat(client, "\t%d - %s", i + 1, RefineMapName(buffer));
+		}
 	}
 	return Plugin_Handled;
 }
 
+//forces map transitions
 public L4D2_OnRealRoundEnd(roundNumber) {
     if (roundNumber) {
 		g_iMapsPlayed++;
@@ -259,17 +281,20 @@ public L4D2_OnRealRoundEnd(roundNumber) {
     }
 }
 
+//changes map
 stock GotoNextMap() {
 	decl String:buffer[BUF_SZ];
 	GetArrayString(GetArrayCell(g_hArrayMapPools, g_iMapsPlayed), 0, buffer, BUF_SZ);
 	ForceChangeLevel(buffer, "Custom map transition.");
 }
 
+//sets teams' scores to 0
 stock ResetScores() {
 	GameRules_SetProp("m_iSurvivorScore", 0, _, 0); //reset scores
 	GameRules_SetProp("m_iSurvivorScore", 0, _, 1); //    
 }
 
+//server cmd: specifies a rank for a given tag
 public Action:TagRank(args) {
 	if (args < 2) {
 		ReplyToCommand("Syntax: sm_tagrank <tag> <map number>");
@@ -292,6 +317,7 @@ public Action:TagRank(args) {
 	return Plugin_Handled;
 }
 
+//server cmd: adds a map to the maplist under specified tags
 public Action:AddMap(args) {
 	if (args < 3) {
 		ReplyToCommand("Syntax: sm_addmap <mapname> <tag1> <tag2> <...>");
@@ -304,7 +330,7 @@ public Action:AddMap(args) {
 		for (new i = 2; i <= args; i++) {
 			GetCmdArg(i, tag, TAG_SZ);
 			new Handle:hArrayMaps;
-			if (!GetTrieValue(g_hTrieTags, tag, &hArrayMaps)) SetTrieValue(g_hTrieTags, tag, hArrayMaps);
+			if (!GetTrieValue(g_hTrieTags, tag, &hArrayMaps)) SetTrieValue(g_hTrieTags, tag, (hArrayMaps = CreateArray()));
 			PushArrayString(hArrayMaps, map);
 		}
 	}
@@ -312,7 +338,7 @@ public Action:AddMap(args) {
 	return Plugin_Handled;
 }
 
-//TODO-MAYBE get user-friendly names, that aren't "c10m1_blablabla"
+//returns a user-friendly name for a give map, that isn't "c10m1_blablabla" TODO 
 stock String:RefineMapName(String:map[]) {
 	return map;
 }
