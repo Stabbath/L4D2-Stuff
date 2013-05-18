@@ -6,11 +6,11 @@
 #include <left4downtown>
 
 //cvar handles
-new Handle: g_hLOSTankCvars			= INVALID_HANDLE;
 new Handle:	g_hLOSRangeEnable		= INVALID_HANDLE;
 new Handle:	g_hLOSRange				= INVALID_HANDLE;
 new Handle:	g_hLOSRangeCheckDelay	= INVALID_HANDLE;
-new Handle: g_hValveLOSCvar			= INVALID_HANDLE;
+new Handle:	g_hValveLOSCvar			= INVALID_HANDLE;
+new Handle:	g_hTankCvars			= INVALID_HANDLE;	//vague name, but this controls toggling of si spawn timer values; currently h2h-specific
 
 new Float:	g_fDefaultLOSDelay = 1.0;
 new bool:	g_bGameStarted = false;
@@ -74,7 +74,7 @@ public PostTankSpawn(Handle:event, const String:name[], bool:dontBroadcast)
 
 public Action:Timed_CheckRange(Handle:unused, any:newTank)
 {
-	if (IsClientInGame(newTank) && GetClientTeam(newTank) == 3 && GetEntProp(newTank, Prop_Send, "m_zombieClass") == 8 && IsPlayerAlive(newtank))
+	if (IsClientInGame(newTank) && GetClientTeam(newTank) == 3 && GetEntProp(newTank, Prop_Send, "m_zombieClass") == 8 && IsPlayerAlive(newTank))
 	{
 		if (GetConVarBool(g_hLOSRangeEnable)) {
 			decl Float:	survPos[3];
