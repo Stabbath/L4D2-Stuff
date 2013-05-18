@@ -16,13 +16,13 @@
 #define	ARRAY_SIZE	7
 
 stock String:getzcname(z) {
-	switch (z): {
-		case 1:	return "smoker";
-		case 2:	return "boomer";
-		case 3:	return "hunter";
-		case 4:	return "spitter";
-		case 5:	return "jockey;
-		case 6:	return "charger";
+	switch (z) {
+		case 1:	{ return "smoker"; }
+		case 2:	{ return "boomer"; }
+		case 3:	{ return "hunter"; }
+		case 4:	{ return "spitter"; }
+		case 5:	{ return "jockey"; }
+		case 6:	{ return "charger"; }
 	}
 	return "wtf";
 }
@@ -72,7 +72,7 @@ public OnPluginStart()
 
 public L4D_OnEnterGhostState(client)	//replaces class of player with the bottom of the list, and removes it from the list
 {
-	if (!GetConVarBool(hTHISISACVARLOL)) PrintToClient("You've entered ghost state: you should be a %s.", getzcname(GetArrayCell(hQueueZCs, 0)));
+	if (!GetConVarBool(hTHISISACVARLOL)) PrintToChat(client, "You've entered ghost state: you should be a %s.", getzcname(GetArrayCell(hQueueZCs, 0)));
 	SDKCall(hSDKCallSetClass, client, GetArrayCell(hQueueZCs, 0));
 	RemoveFromArray(hQueueZCs, 0);
 }
@@ -94,11 +94,14 @@ public OnRoundStart() {
 	ClearArray(hQueueZCs);
 	new size = GetArraySize(hQueueCrossroundBuffer);
 	for (new i = 0; i < size; i++) {
-		PushArrayCell(hQueueZCs, hQueueCrossroundBuffer[i]);
+		PushArrayCell(hQueueZCs, GetArrayCell(hQueueCrossroundBuffer, i));
 	}
 }
 
 public OnMapStart() {	//pushes all instances of all classes to the list in a random order
+	ClearArray(hQueueZCs);
+	ClearArray(hQueueCrossroundBuffer);
+
 	new Handle:hArray = CreateArray();	//copy of hArCvar
 	new i;
 	
