@@ -63,4 +63,10 @@ Version History:
 	- set host_timescale to 1.12
 1.0.4a:
 	- added test version of l4d2_standardised_spawns
-	- added melee_control
+	- added melee_control with default damage mods, meaning only melee headshots can guarantee an instant kill on SI
+	- base damage to chargers from melee weapons is now 150
+	- base damage to jockeys from melee weapons is now 81.25
+	- base damage to hunters, smokers, boomers and spitters is now 62.5
+	- base damage to tanks from melee weapons is now 150
+	- base damage to witches from melee weapons is still 250.
+	- CI are still instantly killed by melee weapons
