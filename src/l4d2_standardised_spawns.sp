@@ -15,7 +15,7 @@
 #define ZC_CHARGER	6
 #define	ARRAY_SIZE	7
 
-stock String:getzcname(int z) {
+stock String:getzcname(z) {
 	switch (z): {
 		case 1:	return "smoker";
 		case 2:	return "boomer";
@@ -24,6 +24,7 @@ stock String:getzcname(int z) {
 		case 5:	return "jockey;
 		case 6:	return "charger";
 	}
+	return "wtf";
 }
 
 /*
@@ -40,10 +41,12 @@ public Plugin:myinfo =
 	url = "none"
 }
 
-new Handle:	hListZCs = INVALID_HANDLE;	//FIFO list implemented via adt_array or whatever
+new Handle:	hQueueZCs = INVALID_HANDLE;	//FIFO list implemented via adt_array or whatever
+new Handle:	hQueueCrossroundBuffer = INVALID_HANDLE;	//FIFO list to which the starting spawn attributions are loaded, to keep them the same for both teams
 new Handle:	hSDKCallSetClass = INVALID_HANDLE;		//sdkcall for changing si class
-new Handle:	hArCvar[ARRAY_SIZE] = INVALID_HANDLE;	//cvar array for z_versus_<class>_limit's
-new Handle:	hCrossroundBuffer = INVALID_HANDLE;	//FIFO list to which the starting spawn attributions are loaded, to keep them the same for both teams
+new Handle:	hArCvar[ARRAY_SIZE] = INVALID_HANDLE;	//cvar array for z_versus_<class>_limit's 
+
+new Handle: hTHISISACVARLOL;
 
 public OnPluginStart()
 {
@@ -54,7 +57,10 @@ public OnPluginStart()
 	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 	hSDKCallSetClass = EndPrepSDKCall();
 	
-	hListZCs = CreateArray();
+	hQueueZCs = CreateArray();
+	hQueueCrossroundBuffer = CreateArray();
+	
+	hTHISISACVARLOL = CreateConVar("bitch_turn_off_that_debug", "0");
 	
 	hArCvar[ZC_BOOMER] = FindConVar("z_versus_boomer_limit");
 	hArCvar[ZC_SMOKER] = FindConVar("z_versus_smoker_limit");
@@ -66,9 +72,9 @@ public OnPluginStart()
 
 public L4D_OnEnterGhostState(client)	//replaces class of player with the bottom of the list, and removes it from the list
 {
-	PrintToChatAll("player entered ghost state: forcing him into a %s", getzcname(GetArrayCell(hListZCs, 0)));
-	SDKCall(hSDKCallSetClass, client, GetArrayCell(hListZCs, 0));
-	RemoveFromArray(hListZCs, 0);
+	if (!GetConVarBool(hTHISISACVARLOL)) PrintToClient("You've entered ghost state: you should be a %s.", getzcname(GetArrayCell(hQueueZCs, 0)));
+	SDKCall(hSDKCallSetClass, client, GetArrayCell(hQueueZCs, 0));
+	RemoveFromArray(hQueueZCs, 0);
 }
 
 public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)	//pushes the zc of the dying player
@@ -79,16 +85,16 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)	
 	{
 		if (GetClientTeam(client) == TEAM_INFECTED)
 		{
-			PushArrayCell(hListZCs, GetEntProp(client, Prop_Send, "m_zombieClass"));
+			PushArrayCell(hQueueZCs, GetEntProp(client, Prop_Send, "m_zombieClass"));
 		}
 	}
 }
 
 public OnRoundStart() {
-	ClearArray(hListZCs);
-	new size = GetArraySize(hCrossroundBuffer);
+	ClearArray(hQueueZCs);
+	new size = GetArraySize(hQueueCrossroundBuffer);
 	for (new i = 0; i < size; i++) {
-		PushArrayCell(hListZCs, hCrossroundBuffer[i]);
+		PushArrayCell(hQueueZCs, hQueueCrossroundBuffer[i]);
 	}
 }
 
@@ -108,7 +114,7 @@ public OnMapStart() {	//pushes all instances of all classes to the list in a ran
 	while ((size = GetArraySize(hArray)) > 0) {
 		i = GetRandomInt(0, size - 1);
 		if (spawnsAdded[i] < GetConVarInt(hArCvar[i])) {
-			PushArrayCell(hCrossroundBuffer, hZCIndexes[i]);
+			PushArrayCell(hQueueCrossroundBuffer, hZCIndexes[i]);
 			spawnsAdded[i]++;
 		} else {
 			new index = FindValueInArray(hArray, hArCvar[i]);

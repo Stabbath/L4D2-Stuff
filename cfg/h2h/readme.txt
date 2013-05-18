@@ -21,9 +21,8 @@ Main features:
 -	Uses damage scoring.
 -	Custom map distances to hopefully reflect the difficulty of maps with a lot less commons.
 
-Things that are broken:
--	Spawn sack order is 100% reliable. (ie it currently isn't because it's broken)
--	Tank spawn timer toggling is broken!
+Things that need testing:
+-	Spawn sack order is 100% reliable. (ie it currently might not because needs testing)
 
 To-do:
 	- more balance/difficulty testing
