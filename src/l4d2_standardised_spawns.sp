@@ -13,19 +13,7 @@
 #define ZC_SPITTER	4
 #define ZC_JOCKEY	5
 #define ZC_CHARGER	6
-#define	ARRAY_SIZE	7
-
-stock String:getzcname(z) {
-	switch (z) {
-		case 1:	{ return "smoker"; }
-		case 2:	{ return "boomer"; }
-		case 3:	{ return "hunter"; }
-		case 4:	{ return "spitter"; }
-		case 5:	{ return "jockey"; }
-		case 6:	{ return "charger"; }
-	}
-	return "wtf";
-}
+#define	ARRAYSIZE	7
 
 /*
  * To-do:
@@ -37,14 +25,15 @@ public Plugin:myinfo =
 	name = "Left 4 Dead 2 Standardised Spawns",
 	author = "Stabby",
 	description = "Makes it so sack order always does what you expect/want it to.",
-	version = "0.2",
+	version = "0.2.1",
 	url = "none"
 }
 
-new Handle:	hQueueZCs = INVALID_HANDLE;	//FIFO list implemented via adt_array or whatever
-new Handle:	hQueueCrossroundBuffer = INVALID_HANDLE;	//FIFO list to which the starting spawn attributions are loaded, to keep them the same for both teams
+new Handle:	hArrayZCs = INVALID_HANDLE;	//FIFO list implemented via adt_array or whatever
+new Handle:	hArrayCrossroundBuffer = INVALID_HANDLE;	//FIFO list to which the starting spawn attributions are loaded, to keep them the same for both teams
+
 new Handle:	hSDKCallSetClass = INVALID_HANDLE;		//sdkcall for changing si class
-new Handle:	hArCvar[ARRAY_SIZE] = INVALID_HANDLE;	//cvar array for z_versus_<class>_limit's 
+new Handle:	hArCvar[ARRAYSIZE] = INVALID_HANDLE;	//cvar array for z_versus_<class>_limit's 
 
 new Handle: hTHISISACVARLOL;
 
@@ -57,8 +46,8 @@ public OnPluginStart()
 	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 	hSDKCallSetClass = EndPrepSDKCall();
 	
-	hQueueZCs = CreateArray();
-	hQueueCrossroundBuffer = CreateArray();
+	hArrayZCs = CreateArray();
+	hArrayCrossroundBuffer = CreateArray();
 	
 	hTHISISACVARLOL = CreateConVar("bitch_turn_off_that_debug", "0");
 	
@@ -72,12 +61,13 @@ public OnPluginStart()
 
 public L4D_OnEnterGhostState(client)	//replaces class of player with the bottom of the list, and removes it from the list
 {
-	if (!GetConVarBool(hTHISISACVARLOL)) PrintToChat(client, "You've entered ghost state: you should be a %s.", getzcname(GetArrayCell(hQueueZCs, 0)));
-	SDKCall(hSDKCallSetClass, client, GetArrayCell(hQueueZCs, 0));
-	RemoveFromArray(hQueueZCs, 0);
+	new buf = GetArrayCell(hArrayZCs, 0);
+	if (!GetConVarBool(hTHISISACVARLOL)) PrintToChat(client, "You've entered ghost state: you should be a %s.", buf == 1 ? "smoker" : buf == 2 ? "boomer" : buf == 3 ? "hunter" : buf == 4 ? "spitter" : buf == 5 ? "jockey" : buf == 6 ? "charger" : "wtf");
+	SDKCall(hSDKCallSetClass, client, GetArrayCell(hArrayZCs, 0));
+	RemoveFromArray(hArrayZCs, 0);
 }
 
-public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)	//pushes the zc of the dying player
+public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
@@ -85,45 +75,38 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)	
 	{
 		if (GetClientTeam(client) == TEAM_INFECTED)
 		{
-			PushArrayCell(hQueueZCs, GetEntProp(client, Prop_Send, "m_zombieClass"));
+			PushArrayCell(hArrayZCs, GetEntProp(client, Prop_Send, "m_zombieClass"));
 		}
 	}
 }
 
 public OnRoundStart() {
-	ClearArray(hQueueZCs);
-	new size = GetArraySize(hQueueCrossroundBuffer);
+	ClearArray(hArrayZCs);
+	new size = GetArraySize(hArrayCrossroundBuffer);
 	for (new i = 0; i < size; i++) {
-		PushArrayCell(hQueueZCs, GetArrayCell(hQueueCrossroundBuffer, i));
+		PushArrayCell(hArrayZCs, GetArrayCell(hArrayCrossroundBuffer, i));
 	}
 }
 
-public OnMapStart() {	//pushes all instances of all classes to the list in a random order
-	ClearArray(hQueueZCs);
-	ClearArray(hQueueCrossroundBuffer);
+public OnMapStart() {
+	ClearArray(hArrayZCs);
+	ClearArray(hArrayCrossroundBuffer);
 
-	new Handle:hArray = CreateArray();	//copy of hArCvar
-	new i;
-	
-	for (i = 1; i < ARRAYSIZE; i++) {
-		if (GetConVarInt(hArCvar[i]) > 0) PushArrayCell(hArray, hArCvar[i]);
+	//add all instances of usable ZCs to this array
+	//e.g. if there's a limit of 2 to every ZC, add each ZC twice
+	new Handle:hArrayZCInstances = CreateArray();	//buffer array pre-randomisation
+	for (new i = 1; i < ARRAYSIZE; i++) {
+		for (new j = 0; j < GetConVarInt(hArCvar[i]); j++) {
+			PushArrayCell(hArrayZCInstances, i);
+		}
 	}
 	
-	new Handle:hZCIndexes = CreateArray();
-	for (i = 0; i < ARRAYSIZE; i++) PushArrayCell(hZCIndexes, i);
-	
-	new spawnsAdded[ARRAYSIZE];
-	new size;
-	while ((size = GetArraySize(hArray)) > 0) {
+	new size, i;
+	while ((size = GetArraySize(hArrayZCInstances)) > 0) {
 		i = GetRandomInt(0, size - 1);
-		if (spawnsAdded[i] < GetConVarInt(hArCvar[i])) {
-			PushArrayCell(hQueueCrossroundBuffer, hZCIndexes[i]);
-			spawnsAdded[i]++;
-		} else {
-			new index = FindValueInArray(hArray, hArCvar[i]);
-			RemoveFromArray(hArray, index);
-			RemoveFromArray(hZCIndexes, index);
-		}
+		PushArrayCell(hArrayZCs, i);
+		PushArrayCell(hArrayCrossroundBuffer, i);
+		RemoveFromArray(hArrayZCInstances, i);
 	}
 }
 
