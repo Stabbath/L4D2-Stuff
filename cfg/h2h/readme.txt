@@ -22,7 +22,7 @@ Main features:
 -	Custom map distances to hopefully reflect the difficulty of maps with a lot less commons.
 
 Things that need testing:
--	Spawn sack order is 100% reliable. (ie it currently might not because needs testing)
+-	Spawn sack order is 100% reliable. (ie it currently might not be because needs testing)
 
 To-do:
 	- more balance/difficulty testing
@@ -56,7 +56,7 @@ Version History:
 	- boomer_mobs_amount_mult set to 0.75 from 0.9
 	- set z_throttle_hit_interval_normal back to 0.33 (default) from 0.25
 1.0.3:
-	- disabled tank los range
+	- disabled tank los being range-dependant
 	- added giving of 1 medkit per player on leaving saferoom
 	- first_aid_kit_use_duration set to 3 seconds from 5 (default)
 	- survivor pickup time reduced to 3 seconds from 3.5 
@@ -68,5 +68,5 @@ Version History:
 	- base damage to jockeys from melee weapons is now 81.25
 	- base damage to hunters, smokers, boomers and spitters is now 62.5
 	- base damage to tanks from melee weapons is now 150
-	- base damage to witches from melee weapons is still 250.
-	- CI are still instantly killed by melee weapons
+	- added godframe glows
+	- added 0.333 seconds of minimum FF protection after being released by a SI
