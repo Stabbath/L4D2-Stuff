@@ -182,6 +182,7 @@ public Action:Timed_PostMapsetLoad(Handle:timer, any:tmpstack) {
 	} else {
 		PrintToChatAll("You may now veto maps from the map list.");
 	}
+	return Plugin_Handled;
 }
 
 //returns a handle to the first array which is found to contain the specified mapname
@@ -345,7 +346,7 @@ public Action:TagRank(args) {
 		new index = StringToInt(buffer);
 		
 		GetCmdArg(1, buffer, BUF_SZ);
-		PrintToChatAll("added tag %s as map%d", tag, index + 1);
+		PrintToChatAll("added tag %s as map%d", buffer, index + 1);
 
 		
 		if (index >= GetArraySize(g_hArrayGroupPlayOrder)) {
