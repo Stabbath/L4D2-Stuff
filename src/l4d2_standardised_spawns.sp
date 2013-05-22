@@ -59,12 +59,15 @@ public OnPluginStart()
 	hArCvar[ZC_JOCKEY] = FindConVar("z_versus_jockey_limit");
 }
 
-public L4D_OnEnterGhostState(client)	//replaces class of player with the bottom of the list, and removes it from the list
-{
+public L4D_OnEnterGhostState(client) {	//replaces class of player with the bottom of the list, and removes it from the list
+	CreateTimer(0.01, Timed_PostEnterGhostState, client);
+}
+
+public Action:Timed_PostEnterGhostState(Handle:timer, any:client) {
 	new buf = GetArrayCell(hArrayZCs, 0);
 	if (!GetConVarBool(hTHISISACVARLOL)) PrintToChat(client, "You've entered ghost state: you should be a %s.", buf == 1 ? "smoker" : buf == 2 ? "boomer" : buf == 3 ? "hunter" : buf == 4 ? "spitter" : buf == 5 ? "jockey" : buf == 6 ? "charger" : "wtf");
 	SDKCall(hSDKCallSetClass, client, GetArrayCell(hArrayZCs, 0));
-	RemoveFromArray(hArrayZCs, 0);
+	RemoveFromArray(hArrayZCs, 0);	
 }
 
 public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
