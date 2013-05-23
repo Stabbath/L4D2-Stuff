@@ -99,7 +99,7 @@ public Action:Timed_CheckRange(Handle:unused, any:newTank)
 			}
 			return Plugin_Continue;
 		}
-		if (GetConVarBool(g_hTankCvars)) {
+		if (GetConVarBool(g_hTankCvars) && !IsPlayerAlive(newTank)) {
 			SetConVarInt(FindConVar("z_ghost_delay_min"), 8);
 			SetConVarInt(FindConVar("z_ghost_delay_max"), 8);
 		}
