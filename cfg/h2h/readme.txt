@@ -21,19 +21,20 @@ Main features:
 -	Uses damage scoring.
 -	Custom map distances to hopefully reflect the difficulty of maps with a lot less commons.
 
-Things that need testing:
--	Spawn sack order is 100% reliable. (ie it currently might not be because needs testing)
-
 To-do:
+	- look into tank being faster than he should be
+	- try blocking tank long arms
+	- tank rock selection bugged?
+	- fix standardised spawns
+	- test melee_control
+	- find out why common were bugged on epi's server
+	- test extended tank control's spaw timer switching
+	
 	- more balance/difficulty testing
 	- map distances good?
-	- tank rock selection bugged?
 	
 	- increase the rate at which boomer bile screen effect fades, so it transitions more smoothly (maybe)
-	- test standardised spawns (should currently allow quad-caps, but that can be tweaked later)
-	- add melee_control with default damage settings
-	- use controlled rage gains on extended tank control when that's been coded
-	- write plugin to reduce getup time for hunters and chargers to 1.0 and 1.5 seconds. Reduce godframes to 0.5 seconds for both
+	- write plugin to reduce getup time for hunters and chargers to 1.0 and 1.5 seconds. Reduce godframes to 0.5 seconds for both. Or something like that
 
 
 Everything else is standard promod.

@@ -19,7 +19,7 @@ public Plugin:myinfo =
 {
     name = "L4D2 Extended Tank Control",
     author = "Stabby",
-    version = "0.1",
+    version = "0.2",
     description = "Allows for customisation of rage values from different attacks, allows for range-based tank LOS, and allows for custom tank-fight-only cvar settings. Also allows for a team to choose who will be tank in the current map. Or it will if I ever get arround to it."
 };
 
@@ -44,6 +44,7 @@ public OnPluginStart()
 	//
 	
 	HookEvent("tank_spawn", PostTankSpawn);	
+	HookEvent("player_death", TankDeath);
 }
 
 public OnMapStart()
@@ -62,13 +63,15 @@ public ConVarChange_LOSDelay(Handle:cvar, const String:oldVal[], const String:ne
 public PostTankSpawn(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new tank = GetClientOfUserId(GetEventInt(event, "userid"));
-	if (!IsFakeClient(tank) && (GetConVarBool(g_hLOSRangeEnable) || GetConVarBool(g_hTankCvars)))
+	if (!IsFakeClient(tank))
 	{
 		if (GetConVarBool(g_hTankCvars)) {
 			SetConVarInt(FindConVar("z_ghost_delay_min"), 17);
 			SetConVarInt(FindConVar("z_ghost_delay_max"), 17);
 		}
-		CreateTimer(GetConVarFloat(g_hLOSRangeCheckDelay), Timed_CheckRange, tank, TIMER_REPEAT);
+		if (GetConVarBool(g_hLOSRangeEnable)) {
+			CreateTimer(GetConVarFloat(g_hLOSRangeCheckDelay), Timed_CheckRange, tank, TIMER_REPEAT);
+		}
 	}
 }
 
@@ -99,11 +102,22 @@ public Action:Timed_CheckRange(Handle:unused, any:newTank)
 			}
 			return Plugin_Continue;
 		}
-		if (GetConVarBool(g_hTankCvars) && !IsPlayerAlive(newTank)) {
-			SetConVarInt(FindConVar("z_ghost_delay_min"), 8);
-			SetConVarInt(FindConVar("z_ghost_delay_max"), 8);
-		}
 	}
 
+	return Plugin_Stop;
+}
+
+public TankDeath(Handle:event, const String:name[], bool:dontBroadcast) {
+	CreateTimer(1.0, Timed_CheckAllTanksReallyDead);
+}
+
+public Action:Timed_CheckAllTanksReallyDead(Handle:timer) {
+	for (new i = 1; i <= MaxClients; i++) {
+		if (GetClientTeam(i) == 3 && GetEntProp(i, Prop_Send, "m_zombieClass") == 8 && IsPlayerAlive(i)) {
+			SetConVarInt(FindConVar("z_ghost_delay_min"), 8);
+			SetConVarInt(FindConVar("z_ghost_delay_max"), 8);
+			return Plugin_Stop;
+		}
+	}
 	return Plugin_Stop;
 }
