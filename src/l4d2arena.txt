@@ -5,3 +5,4 @@ Some notes for when I have time for this again:
 - Maybe just work on surv-surv modes at first. And then only add in 1 SI class at a time.
 - Work on no-class surv-surv 1v1 before other game modes. À la quake duel.
 - Add an invisibility powerup!
+- Try manually rotating powerups on a short timer. Or try it ongameframe
