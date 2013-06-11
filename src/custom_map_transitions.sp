@@ -55,6 +55,7 @@ new			g_bMaplistFinalized;
 new			g_iMapsPlayed;
 new bool:	g_bMapsetInitialized;
 new			g_iMapCount;
+new Handle:	g_hArrayMapOrder;
 //new Handle:	g_hTrieSelectedMaps;	//trie for optimization
 
 public OnPluginStart() {
@@ -87,8 +88,8 @@ public OnPluginStart() {
 										FCVAR_PLUGIN, true, 0.0, false);
 
 	g_hTrieTags = CreateTrie();
-	g_hArrayTagOrder = CreateArray(BUF_SZ*sizeof(char));
-	g_hArrayMapPools = CreateArray(BUF_SZ*sizeof(char));
+	g_hArrayTagOrder = CreateArray(BUF_SZ);
+	g_hArrayMapPools = CreateArray(BUF_SZ);
 }
 
 stock Handle:GetMapPool(String:tag[], poolsize) {
@@ -127,6 +128,7 @@ public Action:MapSet(client, args) {
 	decl String:group[BUF_SZ];
 	GetCmdArg(1, group, BUF_SZ);
 	
+
 	ServerCommand("exec %s%s.cfg", DIR_CFGS, group);
 	PrintToChatAll("Loading %s preset...", group);
 	g_bMapsetInitialized = true;
@@ -145,7 +147,7 @@ public Action:Lock(args) {
 		return Plugin_Handled;
 	}
 
-	if (g_iMapCount < GetArraySize(g_hArrayTagOrder)) {
+	if (g_iMapCount < GetTrieSize(g_hTrieTags)) {
 		g_bMapsetInitialized = false;	//bad preset format
 		PrintToChatAll("Preset has improper tagranks: the number of maps to be played does not match the highest rank. Should have N+1 maps for highest rank N.");
 		return Plugin_Handled;
@@ -217,7 +219,7 @@ public Action:Veto(client, args) {
 	GetCmdArg(1, map, BUF_SZ);
 	
 	decl index;
-	new Handle:hArrayPool = GetPoolThatContainsMap(map, &index);
+	new Handle:hArrayPool = GetPoolThatContainsMap(map, index);
 	if (hArrayPool == INVALID_HANDLE) {
 		ReplyToCommand(client, "Invalid map, no pool contains it.");
 		return Plugin_Handled;
@@ -246,8 +248,8 @@ stock VetoingIsOver() {
 	decl i, size;
 	decl Handle:hArrayPool;
 	
-	//Select 1 random map from each pool
-	for (i = 0; i < GetArraySize(g_hArrayMapPools); i++) {
+	//Select 1 random map for each 
+	for (i = 0; i < g_iMapCount; i++) {
 		hArrayPool = GetArrayCell(g_hArrayMapPools, i);
 		while ((size = GetArraySize(hArrayPool)) > 1) {
 			RemoveFromArray(hArrayPool, GetRandomInt(0, size - 1));
