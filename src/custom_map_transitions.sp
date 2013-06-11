@@ -139,7 +139,7 @@ public Action:Lock(args) {
 	decl sizepool;
 	for (new i = 0; i < sizetags; i++) {
 		GetArrayString(g_hArrayTags, i, buffer, BUF_SZ);
-		GetTrieValue(g_hTrieTags, buffer, hArrayMapPool);
+		GetTrieValue(g_hTriePools, buffer, hArrayMapPool);
 		while ((sizepool = GetArraySize(hArrayMapPool)) > poolsize) {
 			RemoveFromArray(hArrayMapPool, GetRandomInt(0, sizepool));
 		}
@@ -225,7 +225,7 @@ public Action:Veto(client, args) {
 stock VetoingIsOver() {
 	g_bMaplistFinalized = true;
 	
-	decl i, size, mapIndex;
+	decl i, mapIndex;
 	decl Handle:hArrayPool;
 	decl String:tag[BUF_SZ];
 	
@@ -274,7 +274,7 @@ public Action:Maplist(client, args) {
 
 	if (g_bMaplistFinalized) {
 		for (new i = 0; i < GetArraySize(g_hArrayMapOrder); i++) {
-			GetArrayString(hArrayMapOrder, i, buffer, BUF_SZ);
+			GetArrayString(g_hArrayMapOrder, i, buffer, BUF_SZ);
 			PrintToChat(client, "\t%d - %s", i + 1, RefineMapName(buffer));
 		}
 	} else {
@@ -309,7 +309,7 @@ public L4D2_OnRealRoundEnd(roundNumber) {
 stock GotoNextMap() {
 	decl String:buffer[BUF_SZ];
 	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
-	ForceChangeLevel(buffer, "Custom map transition: Map %d - %s.", g_iMapsPlayed, buffer);
+	ForceChangeLevel(buffer, "Custom map transition.");
 }
 
 //sets teams' scores to 0
