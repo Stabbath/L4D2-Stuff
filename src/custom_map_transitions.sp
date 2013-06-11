@@ -143,7 +143,7 @@ public Action:Lock(args) {
 		GetTrieValue(g_hTriePools, buffer, hArrayMapPool);
 		PrintToChatAll("Tag %d - %s, has %d initial maps", i, buffer, GetArraySize(hArrayMapPool));
 		while ((sizepool = GetArraySize(hArrayMapPool)) > poolsize) {
-			RemoveFromArray(hArrayMapPool, thingy);
+			RemoveFromArray(hArrayMapPool, GetRandomInt(0, sizepool - 1));
 		}
 	}
 
