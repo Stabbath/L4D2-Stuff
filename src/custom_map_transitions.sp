@@ -141,7 +141,7 @@ public Action:Lock(args) {
 		GetArrayString(g_hArrayTags, i, buffer, BUF_SZ);
 		GetTrieValue(g_hTriePools, buffer, hArrayMapPool);
 		while ((sizepool = GetArraySize(hArrayMapPool)) > poolsize) {
-			RemoveFromArray(hArrayMapPool, GetRandomInt(0, sizepool));
+			RemoveFromArray(hArrayMapPool, GetRandomInt(0, sizepool - 1));
 		}
 	}
 
@@ -228,18 +228,21 @@ stock VetoingIsOver() {
 	decl i, mapIndex;
 	decl Handle:hArrayPool;
 	decl String:tag[BUF_SZ];
-	
+	decl String:map[BUF_SZ];	
+
 	//Select 1 random map for each rank out of the remaining ones
 	for (i = 0; i < GetArraySize(g_hArrayTagOrder); i++) {
 		GetArrayString(g_hArrayTagOrder, i, tag, BUF_SZ);
 		GetTrieValue(g_hTriePools, tag, hArrayPool);
-		mapIndex = GetRandomInt(0, GetArraySize(hArrayPool));	
+		mapIndex = GetRandomInt(0, GetArraySize(hArrayPool) - 1);	
 
 /* TODO POSSIBLE ISSUE!! e.g. if there's 5 maps and they all use the same pool, and that pool is reduced to 4 maps, there will not be enough maps!! Possible solution: track the number of map ranks that use the same pool and use that to override the minimum poolsize cvar */
 
-		GetArrayString(hArrayPool, mapIndex, tag, BUF_SZ);	//using tag to store map since tag is no longer necessary here
+		GetArrayString(hArrayPool, mapIndex, map, BUF_SZ);
 		RemoveFromArray(hArrayPool, mapIndex);
 		PushArrayString(g_hArrayMapOrder, tag);
+
+		PrintToChatAll("Selected map %s of tag %s for map number %d. Its pool still has %d maps.", map, tag, i, GetArraySize(hArrayPool));
 	}
 
 	//clear things because we only need the finalised map order in memory
