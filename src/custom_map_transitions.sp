@@ -47,16 +47,15 @@ new Handle:	g_hCvarPoolsize;
 new Handle:	g_hCvarMinPoolsize;
 new Handle:	g_hCvarVetoCount;
 
-new Handle:	g_hTrieTags;				//stores array handles by tag name
+new Handle:	g_hArrayTags;				//stores tags for indexing g_hTriePools
+new Handle:	g_hTriePools;				//stores pool array handles by tag name
 new Handle:	g_hArrayTagOrder;			//stores tags by rank
 new Handle:	g_hArrayMapOrder;			//stores finalised map list in order
-new Handle:	g_hArrayMapPools;			
 new			g_iVetoesUsed[2];
-new			g_bMaplistFinalized;
+new	bool:	g_bMaplistFinalized;
 new			g_iMapsPlayed;
 new bool:	g_bMapsetInitialized;
 new			g_iMapCount;
-//new Handle:	g_hTrieSelectedMaps;	//trie for optimization
 
 public OnPluginStart() {
 	SetRandomSeed(seed:GetEngineTime());
@@ -87,32 +86,11 @@ public OnPluginStart() {
 										"How many vetoes each team gets.",
 										FCVAR_PLUGIN, true, 0.0, false);
 
-	g_hTrieTags = CreateTrie();
+	g_hArrayTags = CreateArray(BUF_SZ);
+	g_hTriePools = CreateTrie();
 	g_hArrayTagOrder = CreateArray(BUF_SZ);
-	g_hArrayMapPools = CreateArray(BUF_SZ);
+	g_hArrayMapOrder = CreateArray(BUF_SZ);
 }
-
-stock Handle:GetMapPool(String:tag[], poolsize) {
-	decl Handle:hArrayAvailableMaps;
-	if (!GetTrieValue(g_hTrieTags, tag, hArrayAvailableMaps)) return INVALID_HANDLE;
-	
-	if (GetArraySize(hArrayAvailableMaps) <= poolsize) {	//if there's no room for randomness, just get straight to it
-		return hArrayAvailableMaps;
-	} else { //otherwise, get random maps
-		new Handle:hArraySelectedMaps = CreateArray();
-		decl String:map[BUF_SZ];
-		for (new i = 0; i < poolsize; i++) {
-			GetArrayString(hArrayAvailableMaps, GetRandomInt(0, GetArraySize(hArrayAvailableMaps)), map, BUF_SZ);
-
-			if (HasMapBeenSelected(map)) //no repetitions
-				i--;
-			else
-				PushArrayString(hArraySelectedMaps, map);
-		}
-		return hArraySelectedMaps;
-	}
-}
-
 
 //server cmd: loads a cmt cfg
 public Action:MapSet(client, args) {
@@ -138,27 +116,35 @@ public Action:MapSet(client, args) {
 
 //creates the initial map list after a map set has been loaded
 public Action:Lock(args) {
-	new poolsize = GetConVarInt(g_hCvarPoolsize);
 	new mapnum = GetArraySize(g_hArrayTagOrder);
+	new triesize = GetTrieSize(g_hTriePools);
 	
-	if (mapnum == 0 || GetTrieSize(g_hTrieTags)) == 0) {
+	if (mapnum == 0) {
 		g_bMapsetInitialized = false;	//failed to load it on the exec
 		PrintToChatAll("Failed to load preset.");
 		return Plugin_Handled;
 	}
 
-	if (g_iMapCount < GetTrieSize(g_hTrieTags)) {
+	if (g_iMapCount < triesize) {
 		g_bMapsetInitialized = false;	//bad preset format
-		PrintToChatAll("Preset has improper tagranks: the number of maps to be played does not match the highest rank. Should have N+1 maps for highest rank N.");
+		PrintToChatAll("Preset has improper tagranks: the number of maps to be played does not match the highest rank. Should have N+1 tagranks for highest rank N.");
 		return Plugin_Handled;
 	}
-
-	decl String:tag[BUF_SZ];
-	for (new i = 0; i < mapnum; i++) {
-		GetArrayString(g_hArrayTagOrder, i, tag, BUF_SZ);
-		PrintToChatAll("Map tag for map %d is \"%s\".", i, tag);
-	}
 	
+	//all this to cut each pool down to cmt_poolsize maps
+	decl String:buffer[BUF_SZ];
+	decl Handle:hArrayMapPool;
+	new poolsize = GetConVarInt(g_hCvarPoolsize);
+	new sizetags = GetArraySize(g_hArrayTags);
+	decl sizepool;
+	for (new i = 0; i < sizetags; i++) {
+		GetArrayString(g_hArrayTags, i, buffer, BUF_SZ);
+		GetTrieValue(g_hTrieTags, buffer, hArrayMapPool);
+		while ((sizepool = GetArraySize(hArrayMapPool)) > poolsize) {
+			RemoveFromArray(hArrayMapPool, GetRandomInt(0, sizepool));
+		}
+	}
+
 	PrintToChatAll("Map set has been loaded!");
 
 	//if no vetoes are allowed, just go straight to vetoingisover
@@ -171,25 +157,19 @@ public Action:Lock(args) {
 	return Plugin_Handled;
 }
 
-//returns a handle to the first array which is found to contain the specified mapname
+//returns a handle to the first array which is found to contain the specified mapname (should be the first and only one)
 stock Handle:GetPoolThatContainsMap(String:map[], &index) {
-	for (new i = 0; i < GetArraySize(g_hArrayMapPools); i++) {
-		new Handle:hArrayPool = GetArrayCell(g_hArrayMapPools, i);
-		if ((index = FindStringInArray(hArrayPool, map)) >= 0) {
-			return hArrayPool;
+	decl String:buffer[BUF_SZ];
+	decl Handle:hArrayMapPool;
+
+	for (new i = 0; i < GetArraySize(g_hArrayTags); i++) {
+		GetArrayString(g_hArrayTags, i, buffer, BUF_SZ);
+		GetTrieValue(g_hTriePools, buffer, hArrayMapPool);
+		if ((index = FindStringInArray(hArrayMapPool, map)) >= 0) {
+			return hArrayMapPool;
 		}
 	}
 	return INVALID_HANDLE;
-}
-
-//returns whether or not a map has already been selected
-stock bool:HasMapBeenSelected(String:map[]) {	//could use a trie instead, but meh?
-	for (new i = 0; i < GetArraySize(g_hArrayMapPools); i++) {
-		if (FindStringInArray(GetArrayCell(g_hArrayMapPools, i), map) > 0) {
-			return true;
-		}
-	}
-	return false;
 }
 
 //client cmd: vetoes a map off the list
@@ -245,14 +225,14 @@ public Action:Veto(client, args) {
 stock VetoingIsOver() {
 	g_bMaplistFinalized = true;
 	
-	decl i, size;
+	decl i, size, mapIndex;
 	decl Handle:hArrayPool;
 	decl String:tag[BUF_SZ];
 	
-	//Select 1 random map for each
-	for (i = 0; i < g_iMapCount; i++) {
+	//Select 1 random map for each rank out of the remaining ones
+	for (i = 0; i < GetArraySize(g_hArrayTagOrder); i++) {
 		GetArrayString(g_hArrayTagOrder, i, tag, BUF_SZ);
-		GetTrieValue(g_hTrieTags, tag, hArrayPool);
+		GetTrieValue(g_hTriePools, tag, hArrayPool);
 		mapIndex = GetRandomInt(0, GetArraySize(hArrayPool));	
 
 /* TODO POSSIBLE ISSUE!! e.g. if there's 5 maps and they all use the same pool, and that pool is reduced to 4 maps, there will not be enough maps!! Possible solution: track the number of map ranks that use the same pool and use that to override the minimum poolsize cvar */
@@ -265,10 +245,10 @@ stock VetoingIsOver() {
 	//clear things because we only need the finalised map order in memory
 	for (i = 0; i < GetArraySize(g_hArrayTagOrder); i++) {
 		GetArrayString(g_hArrayTagOrder, i, tag, BUF_SZ);
-		GetTrieValue(g_hTrieTags, tag, hArrayPool);
+		GetTrieValue(g_hTriePools, tag, hArrayPool);
 		ClearArray(hArrayPool);
 	}
-	ClearTrie(g_hTrieTags);
+	ClearTrie(g_hTriePools);
 	ClearArray(g_hArrayTagOrder);
 
 	//Show final maplist to everyone
@@ -291,12 +271,23 @@ public Action:Timed_GiveThemTimeToReadTheMapList(Handle:timer) {
 public Action:Maplist(client, args) {
 	PrintToChat(client, "Maplist: ");
 	decl String:buffer[BUF_SZ];
-	decl Handle:hArrayMaps;
-	for (new i = 0; i < GetArraySize(g_hArrayMapPools); i++) {
-		hArrayMaps = GetArrayCell(g_hArrayMapPools, i);
-		for (new j = 0; j < GetArraySize(hArrayMaps); j++) {
-			GetArrayString(hArrayMaps, 0, buffer, BUF_SZ);
+
+	if (g_bMaplistFinalized) {
+		for (new i = 0; i < GetArraySize(g_hArrayMapOrder); i++) {
+			GetArrayString(hArrayMapOrder, i, buffer, BUF_SZ);
 			PrintToChat(client, "\t%d - %s", i + 1, RefineMapName(buffer));
+		}
+	} else {
+		decl Handle:hArrayMapPool;
+		decl String:tag[BUF_SZ];
+		for (new i = 0; i < GetArraySize(g_hArrayTagOrder); i++) {
+			GetArrayString(g_hArrayTagOrder, i, tag, BUF_SZ);
+			GetTrieValue(g_hTriePools, tag, hArrayMapPool);
+			PrintToChat(client, "%d - tag: %s", i + 1, tag);
+			for (new j = 0; j < GetArraySize(hArrayMapPool); j++) {
+				GetArrayString(hArrayMapPool, j, buffer, BUF_SZ);
+				PrintToChat(client, "\t%d - %s", j + 1, RefineMapName(buffer));
+			}
 		}
 	}
 	return Plugin_Handled;
@@ -317,8 +308,8 @@ public L4D2_OnRealRoundEnd(roundNumber) {
 //changes map
 stock GotoNextMap() {
 	decl String:buffer[BUF_SZ];
-	GetArrayString(GetArrayCell(g_hArrayMapPools, g_iMapsPlayed), 0, buffer, BUF_SZ);
-	ForceChangeLevel(buffer, "Custom map transition.");
+	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
+	ForceChangeLevel(buffer, "Custom map transition: Map %d - %s.", g_iMapsPlayed, buffer);
 }
 
 //sets teams' scores to 0
@@ -339,7 +330,6 @@ public Action:TagRank(args) {
 		new index = StringToInt(buffer);
 		
 		GetCmdArg(1, buffer, BUF_SZ);
-		PrintToChatAll("added tag %s as map%d", buffer, index + 1);
 		
 		if (index >= GetArraySize(g_hArrayTagOrder)) {
 			ResizeArray(g_hArrayTagOrder, index + 1);
@@ -347,6 +337,7 @@ public Action:TagRank(args) {
 		
 		g_iMapCount++;
 		SetArrayString(g_hArrayTagOrder, index, buffer);
+		PushArrayString(g_hArrayTags, buffer);
 	}
 	
 	return Plugin_Handled;
@@ -370,12 +361,9 @@ public Action:AddMap(args) {
 			GetCmdArg(GetRandomInt(2, args), tag, BUF_SZ);
 		}
 
-		PrintToChatAll("added map %s under tag %s", map, tag);
-
 		decl Handle:hArrayMapPool;
-		if (!GetTrieValue(g_hTrieTags, tag, hArrayMapPool)) SetTrieValue(g_hTrieTags, tag, (hArrayMapPool = CreateArray()));
+		if (!GetTrieValue(g_hTriePools, tag, hArrayMapPool)) SetTrieValue(g_hTriePools, tag, (hArrayMapPool = CreateArray()));
 		PushArrayString(hArrayMapPool, map);
-//		SetTrieValue(g_hTrieSelectedMaps, map, true); - for optimization, but is it worth it?
 	}
 	
 	return Plugin_Handled;
