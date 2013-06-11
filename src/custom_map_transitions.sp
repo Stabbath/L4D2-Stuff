@@ -47,15 +47,15 @@ new Handle:	g_hCvarPoolsize;
 new Handle:	g_hCvarMinPoolsize;
 new Handle:	g_hCvarVetoCount;
 
-new Handle:	g_hTrieTags;
-new Handle:	g_hArrayTagOrder;
-new Handle:	g_hArrayMapPools;
+new Handle:	g_hTrieTags;				//stores array handles by tag name
+new Handle:	g_hArrayTagOrder;			//stores tags by rank
+new Handle:	g_hArrayMapOrder;			//stores finalised map list in order
+new Handle:	g_hArrayMapPools;			
 new			g_iVetoesUsed[2];
 new			g_bMaplistFinalized;
 new			g_iMapsPlayed;
 new bool:	g_bMapsetInitialized;
 new			g_iMapCount;
-new Handle:	g_hArrayMapOrder;
 //new Handle:	g_hTrieSelectedMaps;	//trie for optimization
 
 public OnPluginStart() {
@@ -141,7 +141,7 @@ public Action:Lock(args) {
 	new poolsize = GetConVarInt(g_hCvarPoolsize);
 	new mapnum = GetArraySize(g_hArrayTagOrder);
 	
-	if (mapnum == 0 || GetArraySize(g_hArrayMapPools) == 0) {
+	if (mapnum == 0 || GetTrieSize(g_hTrieTags)) == 0) {
 		g_bMapsetInitialized = false;	//failed to load it on the exec
 		PrintToChatAll("Failed to load preset.");
 		return Plugin_Handled;
@@ -247,15 +247,30 @@ stock VetoingIsOver() {
 	
 	decl i, size;
 	decl Handle:hArrayPool;
+	decl String:tag[BUF_SZ];
 	
-	//Select 1 random map for each 
+	//Select 1 random map for each
 	for (i = 0; i < g_iMapCount; i++) {
-		hArrayPool = GetArrayCell(g_hArrayMapPools, i);
-		while ((size = GetArraySize(hArrayPool)) > 1) {
-			RemoveFromArray(hArrayPool, GetRandomInt(0, size - 1));
-		}
+		GetArrayString(g_hArrayTagOrder, i, tag, BUF_SZ);
+		GetTrieValue(g_hTrieTags, tag, hArrayPool);
+		mapIndex = GetRandomInt(0, GetArraySize(hArrayPool));	
+
+/* TODO POSSIBLE ISSUE!! e.g. if there's 5 maps and they all use the same pool, and that pool is reduced to 4 maps, there will not be enough maps!! Possible solution: track the number of map ranks that use the same pool and use that to override the minimum poolsize cvar */
+
+		GetArrayString(hArrayPool, mapIndex, tag, BUF_SZ);	//using tag to store map since tag is no longer necessary here
+		RemoveFromArray(hArrayPool, mapIndex);
+		PushArrayString(g_hArrayMapOrder, tag);
 	}
-	
+
+	//clear things because we only need the finalised map order in memory
+	for (i = 0; i < GetArraySize(g_hArrayTagOrder); i++) {
+		GetArrayString(g_hArrayTagOrder, i, tag, BUF_SZ);
+		GetTrieValue(g_hTrieTags, tag, hArrayPool);
+		ClearArray(hArrayPool);
+	}
+	ClearTrie(g_hTrieTags);
+	ClearArray(g_hArrayTagOrder);
+
 	//Show final maplist to everyone
 	PrintToChatAll("Map list has been settled!");
 	for (i = 1; i <= MaxClients; i++) {
@@ -357,9 +372,9 @@ public Action:AddMap(args) {
 
 		PrintToChatAll("added map %s under tag %s", map, tag);
 
-		new Handle:hArrayMaps;
-		if (!GetTrieValue(g_hTrieTags, tag, hArrayMaps)) SetTrieValue(g_hTrieTags, tag, (hArrayMaps = CreateArray()));
-		PushArrayString(hArrayMaps, map);
+		decl Handle:hArrayMapPool;
+		if (!GetTrieValue(g_hTrieTags, tag, hArrayMapPool)) SetTrieValue(g_hTrieTags, tag, (hArrayMapPool = CreateArray()));
+		PushArrayString(hArrayMapPool, map);
 //		SetTrieValue(g_hTrieSelectedMaps, map, true); - for optimization, but is it worth it?
 	}
 	
