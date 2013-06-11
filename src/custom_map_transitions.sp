@@ -76,20 +76,20 @@ public OnPluginStart() {
 					"Lets players veto a map. Uses per team per game cvar'd.");
 
 	
-	g_hCvarPoolsize = CreateConVar(		"cmt_poolsize", "1",
-										"How many maps will be initially pooled for each rank.",
+	g_hCvarPoolsize = CreateConVar(		"cmt_poolsize", "5",
+										"How many maps will be initially pooled for each tag.",
 										FCVAR_PLUGIN, true, 1.0, false);
-	g_hCvarMinPoolsize = CreateConVar(	"cmt_minimum_poolsize", "1",
+	g_hCvarMinPoolsize = CreateConVar(	"cmt_minimum_poolsize", "3",
 										"How many maps must remain in each pool after vetoing.",
 										FCVAR_PLUGIN, true, 1.0, false);
 	g_hCvarVetoCount = CreateConVar(	"cmt_veto_count", "0",
 										"How many vetoes each team gets.",
 										FCVAR_PLUGIN, true, 0.0, false);
 
-	g_hArrayTags = CreateArray(BUF_SZ);
+	g_hArrayTags = CreateArray(BUF_SZ/4);	//1 block = 4 characters => X characters = X/4 blocks
 	g_hTriePools = CreateTrie();
-	g_hArrayTagOrder = CreateArray(BUF_SZ);
-	g_hArrayMapOrder = CreateArray(BUF_SZ);
+	g_hArrayTagOrder = CreateArray(BUF_SZ/4);
+	g_hArrayMapOrder = CreateArray(BUF_SZ/4);
 }
 
 //server cmd: loads a cmt cfg
@@ -101,6 +101,7 @@ public Action:MapSet(client, args) {
 
 	if (g_bMapsetInitialized) {
 		ReplyToCommand(client, "Sorry, a map preset is already loaded. To select a different one you have to resetmatch and then load the config again before selecting a different mapset.");
+		return Plugin_Handled;
 	}
 	
 	decl String:group[BUF_SZ];
@@ -135,13 +136,14 @@ public Action:Lock(args) {
 	decl String:buffer[BUF_SZ];
 	decl Handle:hArrayMapPool;
 	new poolsize = GetConVarInt(g_hCvarPoolsize);
-	new sizetags = GetArraySize(g_hArrayTags);
+	new tagnum = GetArraySize(g_hArrayTags);
 	decl sizepool;
-	for (new i = 0; i < sizetags; i++) {
+	for (new i = 0; i < tagnum; i++) {
 		GetArrayString(g_hArrayTags, i, buffer, BUF_SZ);
 		GetTrieValue(g_hTriePools, buffer, hArrayMapPool);
+		PrintToChatAll("Tag %d - %s, has %d initial maps", i, buffer, GetArraySize(hArrayMapPool));
 		while ((sizepool = GetArraySize(hArrayMapPool)) > poolsize) {
-			RemoveFromArray(hArrayMapPool, GetRandomInt(0, sizepool - 1));
+			RemoveFromArray(hArrayMapPool, thingy);
 		}
 	}
 
@@ -365,7 +367,9 @@ public Action:AddMap(args) {
 		}
 
 		decl Handle:hArrayMapPool;
-		if (!GetTrieValue(g_hTriePools, tag, hArrayMapPool)) SetTrieValue(g_hTriePools, tag, (hArrayMapPool = CreateArray()));
+		if (!GetTrieValue(g_hTriePools, tag, hArrayMapPool))
+			SetTrieValue(g_hTriePools, tag, (hArrayMapPool = CreateArray(BUF_SZ/4)));
+
 		PushArrayString(hArrayMapPool, map);
 	}
 	
