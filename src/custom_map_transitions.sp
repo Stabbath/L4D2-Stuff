@@ -2,7 +2,7 @@
 
 #include <sourcemod>
 #include <sdktools>
-#include <l4d2util>
+#include <l4d2util_rounds>
 
 /*
 1: Collect underpants
@@ -25,20 +25,13 @@ public Plugin:myinfo =
 };
 
 /* TODO:
+ * - //forgot what i was going to type here
+ * - maybe make //also what i was going to type here
+ * - re-test using mapend instead of onroundend;
+ * - maybe add cvar for unbalanced vetoes: -1 keeps balanced, 0 means survivors get an extra veto, 1 means infected get an extra veto
+ * - possibly replace cmt_minimum_poolsize on a per-tag basis, since you might want to have 3 min pool for a tag but 1 min pool for another one, if the first is used by 3 ranks and the 2nd by only 1 or any other scenario
  * - Maybe show scores in already played maps with maplist cause why the hell not?
  */
-
-/*
-Other possible future additions:
-
-cmt_veto_style: (in addition to enforcing ordered vetoing, rather than relying on common courtesy)
-	0: means free vetoing
-	1: means 1-1-...-1-1 vetoing
-	2: means 1-2-...-2-1 vetoing (team 1 gets 1 veto, team 2 gets 2, team 1 gets 2, ...)
-cmt_veto_time:
-	0: unlimited veto time
-	>0: each team has this long for each of their vetoes. If this time elapses before they make a choice, they lose that veto.
-*/
 
 #define DIR_CFGS "cmt/"
 #define BUF_SZ	64
@@ -46,6 +39,7 @@ cmt_veto_time:
 new Handle:	g_hCvarPoolsize;
 new Handle:	g_hCvarMinPoolsize;
 new Handle:	g_hCvarVetoCount;
+new Handle:	g_hCvarAllowVoid;
 
 new Handle:	g_hArrayTags;				//stores tags for indexing g_hTriePools
 new Handle:	g_hTriePools;				//stores pool array handles by tag name
@@ -76,15 +70,18 @@ public OnPluginStart() {
 					"Lets players veto a map. Uses per team per game cvar'd.");
 
 	
-	g_hCvarPoolsize = CreateConVar(		"cmt_poolsize", "5",
+	g_hCvarPoolsize = CreateConVar(		"cmt_poolsize", "1000",
 										"How many maps will be initially pooled for each tag.",
 										FCVAR_PLUGIN, true, 1.0, false);
-	g_hCvarMinPoolsize = CreateConVar(	"cmt_minimum_poolsize", "3",
+	g_hCvarMinPoolsize = CreateConVar(	"cmt_minimum_poolsize", "1",
 										"How many maps must remain in each pool after vetoing.",
 										FCVAR_PLUGIN, true, 1.0, false);
 	g_hCvarVetoCount = CreateConVar(	"cmt_veto_count", "0",
 										"How many vetoes each team gets.",
 										FCVAR_PLUGIN, true, 0.0, false);
+	g_hCvarAllowVoid = CreateConVar(	"cmt_allow_void", "1",
+										"Are teams allowed to veto @void, therefore discarding a veto?",
+										FCVAR_PLUGIN, true, 0.0, true, 1.0);
 
 	g_hArrayTags = CreateArray(BUF_SZ/4);	//1 block = 4 characters => X characters = X/4 blocks
 	g_hTriePools = CreateTrie();
@@ -107,7 +104,6 @@ public Action:MapSet(client, args) {
 	decl String:group[BUF_SZ];
 	GetCmdArg(1, group, BUF_SZ);
 	
-
 	ServerCommand("exec %s%s.cfg", DIR_CFGS, group);
 	PrintToChatAll("Loading %s preset...", group);
 	g_bMapsetInitialized = true;
@@ -117,6 +113,11 @@ public Action:MapSet(client, args) {
 
 //creates the initial map list after a map set has been loaded
 public Action:Lock(args) {
+	if (g_bMapsetFinalized) {
+		ReplyToCommand(0, "Mapset is already finalized, what are you trying to lock?");
+		return Plugin_Handled;
+	}
+
 	new mapnum = GetArraySize(g_hArrayTagOrder);
 	new triesize = GetTrieSize(g_hTriePools);
 	
@@ -141,8 +142,7 @@ public Action:Lock(args) {
 	for (new i = 0; i < tagnum; i++) {
 		GetArrayString(g_hArrayTags, i, buffer, BUF_SZ);
 		GetTrieValue(g_hTriePools, buffer, hArrayMapPool);
-		PrintToChatAll("Tag %d - %s, has %d initial maps", i, buffer, GetArraySize(hArrayMapPool));
-		while ((sizepool = GetArraySize(hArrayMapPool)) > poolsize) {
+		while ((sizepool = GetArraySize(hArrayMapPool)) >= poolsize) {
 			RemoveFromArray(hArrayMapPool, GetRandomInt(0, sizepool - 1));
 		}
 	}
@@ -200,23 +200,35 @@ public Action:Veto(client, args) {
 	decl String:map[BUF_SZ];
 	GetCmdArg(1, map, BUF_SZ);
 	
-	decl index;
-	new Handle:hArrayPool = GetPoolThatContainsMap(map, index);
-	if (hArrayPool == INVALID_HANDLE) {
-		ReplyToCommand(client, "Invalid map, no pool contains it.");
-		return Plugin_Handled;
+	if (StrEqual(map, "@void", false)) {
+		if (GetConVarBool(g_hCvarAllowVoid)) {
+			PrintToChatAll("Veto discarded.");
+			++g_iVetoesUsed[team];
+		} else {
+			ReplyToCommand("Sorry, @void vetoes are disabled.");
+		}
+	} else {
+	
+		decl index;
+		new Handle:hArrayPool = GetPoolThatContainsMap(map, index);
+		if (hArrayPool == INVALID_HANDLE) {
+			ReplyToCommand(client, "Invalid map, no pool contains it.");
+			return Plugin_Handled;
+		}
+
+		if (GetArraySize(hArrayPool) <= GetConVarInt(g_hCvarMinPoolsize)) {
+			ReplyToCommand(client, "Sorry! There are too few maps in the pool the specified map belongs to: no more can be removed.");
+			return Plugin_Handled;
+		}
+	
+		RemoveFromArray(hArrayPool, index);
+		PrintToChatAll("Map %s has been removed from its pool.", map);
+		++g_iVetoesUsed[team];
+
 	}
 
-	if (GetArraySize(hArrayPool) <= GetConVarInt(g_hCvarMinPoolsize)) {
-		ReplyToCommand(client, "Sorry! There are too few maps in the pool the specified map belongs to: no more can be removed.");
-		return Plugin_Handled;
-	}
-	
-	RemoveFromArray(hArrayPool, index);
-	PrintToChatAll("Map %s has been removed from its pool.", map);
-	++g_iVetoesUsed[team];
-	
 	if (g_iVetoesUsed[0] == GetConVarInt(g_hCvarVetoCount) && g_iVetoesUsed[1] == GetConVarInt(g_hCvarVetoCount)) {
+		PrintToChatAll("Vetoing is over.");
 		VetoingIsOver();
 	}
 	
@@ -230,7 +242,7 @@ stock VetoingIsOver() {
 	decl i, mapIndex;
 	decl Handle:hArrayPool;
 	decl String:tag[BUF_SZ];
-	decl String:map[BUF_SZ];	
+	decl String:map[BUF_SZ];
 
 	//Select 1 random map for each rank out of the remaining ones
 	for (i = 0; i < GetArraySize(g_hArrayTagOrder); i++) {
@@ -238,13 +250,9 @@ stock VetoingIsOver() {
 		GetTrieValue(g_hTriePools, tag, hArrayPool);
 		mapIndex = GetRandomInt(0, GetArraySize(hArrayPool) - 1);	
 
-/* TODO POSSIBLE ISSUE!! e.g. if there's 5 maps and they all use the same pool, and that pool is reduced to 4 maps, there will not be enough maps!! Possible solution: track the number of map ranks that use the same pool and use that to override the minimum poolsize cvar */
-
 		GetArrayString(hArrayPool, mapIndex, map, BUF_SZ);
 		RemoveFromArray(hArrayPool, mapIndex);
-		PushArrayString(g_hArrayMapOrder, tag);
-
-		PrintToChatAll("Selected map %s of tag %s for map number %d. Its pool still has %d maps.", map, tag, i, GetArraySize(hArrayPool));
+		PushArrayString(g_hArrayMapOrder, map);
 	}
 
 	//clear things because we only need the finalised map order in memory
@@ -280,7 +288,6 @@ public Action:Maplist(client, args) {
 	if (g_bMaplistFinalized) {
 		for (new i = 0; i < GetArraySize(g_hArrayMapOrder); i++) {
 			GetArrayString(g_hArrayMapOrder, i, buffer, BUF_SZ);
-			PrintToChat(client, "\t%d - %s", i + 1, RefineMapName(buffer));
 		}
 	} else {
 		decl Handle:hArrayMapPool;
@@ -288,10 +295,8 @@ public Action:Maplist(client, args) {
 		for (new i = 0; i < GetArraySize(g_hArrayTagOrder); i++) {
 			GetArrayString(g_hArrayTagOrder, i, tag, BUF_SZ);
 			GetTrieValue(g_hTriePools, tag, hArrayMapPool);
-			PrintToChat(client, "%d - tag: %s", i + 1, tag);
 			for (new j = 0; j < GetArraySize(hArrayMapPool); j++) {
 				GetArrayString(hArrayMapPool, j, buffer, BUF_SZ);
-				PrintToChat(client, "\t%d - %s", j + 1, RefineMapName(buffer));
 			}
 		}
 	}
@@ -299,8 +304,8 @@ public Action:Maplist(client, args) {
 }
 
 //forces map transitions
-public L4D2_OnRealRoundEnd(roundNumber) {
-    if (roundNumber) {
+public OnRoundEnd() {
+    if (InSecondHalfOfRound()) {
 		g_iMapsPlayed++;
 		
 		//force-end the game since only finales would usually really end it
@@ -360,6 +365,8 @@ public Action:AddMap(args) {
 		decl String:tag[BUF_SZ];
 		
 		//add the map under only one of the tags
+		//TODO - maybe we should add it under all tags, since it might be removed from 1+ or even all of them anyway
+		//also, if that ends up being implemented, remember to remove vetoed maps from ALL the pools it belongs to
 		if (args == 2) {
 			GetCmdArg(2, tag, BUF_SZ);
 		} else {
@@ -374,10 +381,4 @@ public Action:AddMap(args) {
 	}
 	
 	return Plugin_Handled;
-}
-
-//returns a user-friendly name for a give map, that isn't "c10m1_blablabla" TODO 
-//maybe keyvalues?
-stock String:RefineMapName(String:map[]) {
-	return map;
 }
