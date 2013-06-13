@@ -26,7 +26,10 @@ public Plugin:myinfo =
 
 /* TODO:
  * - make it so people can set a predetermined mapset with !mapset <map1> <map2> <map3> <etc> or something like that
- *
+ * - make it so everything in the plugin is reset after the last map in the mapset
+ * - test onmapend transitions
+ * - test maplist printing
+ * - maybe readd differences between finales and non-finales in regards to map change (ie SetNextMap(string) vs ForceChangeLevel)
  * - maybe add a safeguard in case, for example, there's 9 maps and 3 vetoes per team, all maps belong to the same pool, and 4 is the min poolsize. the 6th veto will not be usable, so players would be stuck in the vetoing process (unless void is allowed)
  * - retest this version to see if it still changes map after the 1st round
  * - re-test using mapend instead of onroundend; possibly put level change on a timer after round end
@@ -57,6 +60,8 @@ public OnPluginStart() {
 	SetRandomSeed(seed:GetEngineTime());
 
 	//Pre-match commands
+	RegConsoleCmd(	"sm_forcemapset",	ForceMapSet,
+					"Starts a mapset according to the maps specified in the params.");
 	RegConsoleCmd(	"sm_mapset",		MapSet,
 					"Loads the mapset for the specified group. Use without params for syntax.");
 	RegServerCmd(	"sm_addmap",		AddMap,
@@ -91,7 +96,33 @@ public OnPluginStart() {
 	g_hArrayMapOrder = CreateArray(BUF_SZ/4);
 }
 
-//server cmd: loads a cmt cfg
+//console cmd: loads a specified set of maps
+public Action:ForceMapSet(client, args) {
+	if (args < 1) {
+		ReplyToCommand(client, "Syntax: sm_mapset <map1> <map2> <map3> <...>");
+		ReplyToCommand(client, "Launches a mapset as specified.");
+	}
+	
+	if (g_bMapsetInitialized) {
+		ReplyToCommand(client, "Sorry, a map preset is already loaded. To select a different one you have to resetmatch and then load the config again before selecting a different mapset.");
+		return Plugin_Handled;
+	}
+	
+	//so things don't break and so the game starts right away
+	ResetConVar(g_hCvarPoolsize);
+	ResetConVar(g_hCvarMinPoolsize);
+	ResetConVar(g_hCvarVetoCount);
+
+	decl String:map[BUF_SZ];
+	for (new i = 1, i <= args; i++) {
+		GetCmdArg(i, map, BUF_SZ);
+		ServerCommand("sm_addmap %s %d", map, i);
+		ServerCommand("sm_tagrank %d %d", i, i-1);
+	}
+	ServerCommand("sm_mapsetlock");
+}
+
+//console cmd: loads a cmt cfg
 public Action:MapSet(client, args) {
 	if (args < 1) {
 		ReplyToCommand(client, "Syntax: sm_mapset <groupname>");
@@ -116,7 +147,7 @@ public Action:MapSet(client, args) {
 //creates the initial map list after a map set has been loaded
 public Action:Lock(args) {
 	if (g_bMaplistFinalized) {
-		ReplyToCommand(0, "Mapset is already finalized, what are you trying to lock?");
+		ReplyToCommand(0, "The map list is already finalized, what are you trying to lock?");
 		return Plugin_Handled;
 	}
 
@@ -392,5 +423,3 @@ public Action:AddMap(args) {
 	
 	return Plugin_Handled;
 }
-
-            SetNextMap(SelectRandomMap(next));
