@@ -290,6 +290,7 @@ public Action:Maplist(client, args) {
 	if (g_bMaplistFinalized) {
 		for (new i = 0; i < GetArraySize(g_hArrayMapOrder); i++) {
 			GetArrayString(g_hArrayMapOrder, i, buffer, BUF_SZ);
+			PrintToChat(client, "%2d - %s", i, buffer);
 		}
 	} else {
 		decl Handle:hArrayMapPool;
@@ -297,8 +298,10 @@ public Action:Maplist(client, args) {
 		for (new i = 0; i < GetArraySize(g_hArrayTagOrder); i++) {
 			GetArrayString(g_hArrayTagOrder, i, tag, BUF_SZ);
 			GetTrieValue(g_hTriePools, tag, hArrayMapPool);
+			PrintToChat(client, "%2d - %s", i, tag);
 			for (new j = 0; j < GetArraySize(hArrayMapPool); j++) {
 				GetArrayString(hArrayMapPool, j, buffer, BUF_SZ);
+				PrintToChat(client, "\t%s", buffer);
 			}
 		}
 	}
@@ -306,17 +309,17 @@ public Action:Maplist(client, args) {
 }
 
 //forces map transitions
-public OnRoundEnd() {
-    if (InSecondHalfOfRound()) {
+public OnMapEnd() { //OnRoundEnd() {
+//	if (InSecondHalfOfRound()) {
 		g_iMapsPlayed++;
 
-		LogMessage("In second half of round, time to change map. Maps played: %d/%d", g_iMapsPlayed, g_iMapCount);
+		LogMessage("Time to change map. Maps played: %d/%d", g_iMapsPlayed, g_iMapCount);
 		
 		//force-end the game since only finales would usually really end it
 		if (g_iMapsPlayed == g_iMapCount) ServerCommand("sm_resetmatch");
 		
 		GotoNextMap();
-    }
+//	}
 }
 
 //changes map
@@ -389,3 +392,5 @@ public Action:AddMap(args) {
 	
 	return Plugin_Handled;
 }
+
+            SetNextMap(SelectRandomMap(next));
