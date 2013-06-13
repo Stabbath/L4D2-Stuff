@@ -25,8 +25,7 @@ public Plugin:myinfo =
 };
 
 /* TODO:
- * - //forgot what i was going to type here
- * - maybe make //also what i was going to type here
+ * - make it so people can set a predetermined mapset with !mapset <map1> <map2> <map3> <etc> or something like that
  *
  * - maybe add a safeguard in case, for example, there's 9 maps and 3 vetoes per team, all maps belong to the same pool, and 4 is the min poolsize. the 6th veto will not be usable, so players would be stuck in the vetoing process (unless void is allowed)
  * - retest this version to see if it still changes map after the 1st round
@@ -311,7 +310,7 @@ public OnRoundEnd() {
     if (InSecondHalfOfRound()) {
 		g_iMapsPlayed++;
 
-		PrintToServer("In second half of round, time to change map. Maps played: %d/%d", g_iMapsPlayed, g_iMapCount);
+		LogMessage("In second half of round, time to change map. Maps played: %d/%d", g_iMapsPlayed, g_iMapCount);
 		
 		//force-end the game since only finales would usually really end it
 		if (g_iMapsPlayed == g_iMapCount) ServerCommand("sm_resetmatch");
@@ -322,7 +321,7 @@ public OnRoundEnd() {
 
 //changes map
 stock GotoNextMap() {
-	PrintToServer("GotoNextMap called.");
+	LogMessage("GotoNextMap called.");
 
 	decl String:buffer[BUF_SZ];
 	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
@@ -331,6 +330,7 @@ stock GotoNextMap() {
 
 //sets teams' scores to 0
 stock ResetScores() {
+	LogMessage("scores reset.");
 	GameRules_SetProp("m_iSurvivorScore", 0, _, 0); //reset scores
 	GameRules_SetProp("m_iSurvivorScore", 0, _, 1); //
 }
