@@ -20,14 +20,17 @@ public Plugin:myinfo =
 	name = "Custom Map Transitions",
 	author = "Stabby",
 	description = "Makes games more fun and varied! Yay!",
-	version = "1",
+	version = "2",
 	url = "https://github.com/Stabbath/L4D2-Stuff"
 };
 
 /* TODO:
  * - //forgot what i was going to type here
  * - maybe make //also what i was going to type here
- * - re-test using mapend instead of onroundend;
+ *
+ * - maybe add a safeguard in case, for example, there's 9 maps and 3 vetoes per team, all maps belong to the same pool, and 4 is the min poolsize. the 6th veto will not be usable, so players would be stuck in the vetoing process (unless void is allowed)
+ * - retest this version to see if it still changes map after the 1st round
+ * - re-test using mapend instead of onroundend; possibly put level change on a timer after round end
  * - maybe add cvar for unbalanced vetoes: -1 keeps balanced, 0 means survivors get an extra veto, 1 means infected get an extra veto
  * - possibly replace cmt_minimum_poolsize on a per-tag basis, since you might want to have 3 min pool for a tag but 1 min pool for another one, if the first is used by 3 ranks and the 2nd by only 1 or any other scenario
  * - Maybe show scores in already played maps with maplist cause why the hell not?
@@ -62,7 +65,7 @@ public OnPluginStart() {
 	RegServerCmd(	"sm_tagrank",		TagRank,
 					"Sets a tag's rank in the group. Use without params for syntax.");
 	RegServerCmd(	"sm_mapsetlock",	Lock,
-					"Sets a tag's rank in the group. Use without params for syntax.");
+					"Locks and finalizes a mapset, allowing the plugin to start processing it.");
 	//Match commands
 	RegConsoleCmd(	"sm_maplist",		Maplist,
 					"Shows a player cmt's selected map list.");
@@ -113,7 +116,7 @@ public Action:MapSet(client, args) {
 
 //creates the initial map list after a map set has been loaded
 public Action:Lock(args) {
-	if (g_bMapsetFinalized) {
+	if (g_bMaplistFinalized) {
 		ReplyToCommand(0, "Mapset is already finalized, what are you trying to lock?");
 		return Plugin_Handled;
 	}
@@ -205,7 +208,7 @@ public Action:Veto(client, args) {
 			PrintToChatAll("Veto discarded.");
 			++g_iVetoesUsed[team];
 		} else {
-			ReplyToCommand("Sorry, @void vetoes are disabled.");
+			ReplyToCommand(client, "Sorry, @void vetoes are disabled.");
 		}
 	} else {
 	
@@ -307,6 +310,8 @@ public Action:Maplist(client, args) {
 public OnRoundEnd() {
     if (InSecondHalfOfRound()) {
 		g_iMapsPlayed++;
+
+		PrintToServer("In second half of round, time to change map. Maps played: %d/%d", g_iMapsPlayed, g_iMapCount);
 		
 		//force-end the game since only finales would usually really end it
 		if (g_iMapsPlayed == g_iMapCount) ServerCommand("sm_resetmatch");
@@ -317,6 +322,8 @@ public OnRoundEnd() {
 
 //changes map
 stock GotoNextMap() {
+	PrintToServer("GotoNextMap called.");
+
 	decl String:buffer[BUF_SZ];
 	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
 	ForceChangeLevel(buffer, "Custom map transition.");
