@@ -313,7 +313,7 @@ stock VetoingIsOver() {
 }
 
 public Action:Timed_GiveThemTimeToReadTheMapList(Handle:timer) {
-	GotoNextMap();
+	GotoNextMap(true);
 }
 
 //client cmd: displays map list
@@ -342,7 +342,7 @@ public Action:Maplist(client, args) {
 	return Plugin_Handled;
 }
 
-//forces map transitions
+//change map a bit after round end, because onmapend was too late
 public OnRoundEnd() {
 	if (InSecondHalfOfRound()) {
 		g_iMapsPlayed++;
@@ -352,16 +352,21 @@ public OnRoundEnd() {
 		//force-end the game since only finales would usually really end it
 		if (g_iMapsPlayed == g_iMapCount) ServerCommand("sm_resetmatch");
 		
-		decl String:buffer[BUF_SZ];
-		GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
+		GotoNextMap(L4D_IsMissionFinalMap());
+	}
+}
 
-		if (L4D_IsMissionFinalMap()) {
-			SetNextMap(buffer);
-		} else {
-			new Handle:pack = CreateDataPack();
-			WritePackString(pack, buffer);
-			CreateTimer(1.0, Timed_GotoNextMap, pack, TIMER_DATA_HNDL_CLOSE);
-		}
+//changes map
+GotoNextMap(bool:force=false) {
+	decl String:buffer[BUF_SZ];
+	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
+
+	if (force) {
+		new Handle:pack = CreateDataPack();
+		WritePackString(pack, buffer);
+		CreateTimer(1.0, Timed_GotoNextMap, pack, TIMER_DATA_HNDL_CLOSE);
+	} else {
+		SetNextMap(buffer);
 	}
 }
 
