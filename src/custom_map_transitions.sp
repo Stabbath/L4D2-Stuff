@@ -372,7 +372,7 @@ GotoNextMap(bool:force=false) {
 
 //forces map transition
 public Action:Timed_GotoNextMap(Handle:timer, Handle:pack) {
-	decl:map[BUF_SZ];
+	decl String:map[BUF_SZ];
 	ReadPackString(pack, map, BUF_SZ);
 	ForceChangeLevel(map, "Custom map transition.");
 }
