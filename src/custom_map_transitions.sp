@@ -3,6 +3,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <l4d2util_rounds>
+#include <left4downtown>
 
 /*
 1: Collect underpants
@@ -114,12 +115,14 @@ public Action:ForceMapSet(client, args) {
 	ResetConVar(g_hCvarVetoCount);
 
 	decl String:map[BUF_SZ];
-	for (new i = 1, i <= args; i++) {
+	for (new i = 1; i <= args; i++) {
 		GetCmdArg(i, map, BUF_SZ);
 		ServerCommand("sm_addmap %s %d", map, i);
 		ServerCommand("sm_tagrank %d %d", i, i-1);
 	}
 	ServerCommand("sm_mapsetlock");
+
+	return Plugin_Handled;
 }
 
 //console cmd: loads a cmt cfg
@@ -329,7 +332,7 @@ public Action:Maplist(client, args) {
 		for (new i = 0; i < GetArraySize(g_hArrayTagOrder); i++) {
 			GetArrayString(g_hArrayTagOrder, i, tag, BUF_SZ);
 			GetTrieValue(g_hTriePools, tag, hArrayMapPool);
-			PrintToChat(client, "%2d - %s", i, tag);
+			PrintToChat(client, "%2d - %s", i + 1, tag);
 			for (new j = 0; j < GetArraySize(hArrayMapPool); j++) {
 				GetArrayString(hArrayMapPool, j, buffer, BUF_SZ);
 				PrintToChat(client, "\t%s", buffer);
@@ -340,8 +343,8 @@ public Action:Maplist(client, args) {
 }
 
 //forces map transitions
-public OnMapEnd() { //OnRoundEnd() {
-//	if (InSecondHalfOfRound()) {
+public OnRoundEnd() {
+	if (InSecondHalfOfRound()) {
 		g_iMapsPlayed++;
 
 		LogMessage("Time to change map. Maps played: %d/%d", g_iMapsPlayed, g_iMapCount);
@@ -349,17 +352,24 @@ public OnMapEnd() { //OnRoundEnd() {
 		//force-end the game since only finales would usually really end it
 		if (g_iMapsPlayed == g_iMapCount) ServerCommand("sm_resetmatch");
 		
-		GotoNextMap();
-//	}
+		decl String:buffer[BUF_SZ];
+		GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
+
+		if (L4D_IsMissionFinalMap()) {
+			SetNextMap(buffer);
+		} else {
+			new Handle:pack = CreateDataPack();
+			WritePackString(pack, buffer);
+			CreateTimer(1.0, Timed_GotoNextMap, pack, TIMER_DATA_HNDL_CLOSE);
+		}
+	}
 }
 
-//changes map
-stock GotoNextMap() {
-	LogMessage("GotoNextMap called.");
-
-	decl String:buffer[BUF_SZ];
-	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
-	ForceChangeLevel(buffer, "Custom map transition.");
+//forces map transition
+public Action:Timed_GotoNextMap(Handle:timer, Handle:pack) {
+	decl:map[BUF_SZ];
+	ReadPackString(pack, map, BUF_SZ);
+	ForceChangeLevel(map, "Custom map transition.");
 }
 
 //sets teams' scores to 0
