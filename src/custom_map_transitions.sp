@@ -378,6 +378,15 @@ public Action:Timed_GotoNextMap(Handle:timer, Handle:stack) {
 	ForceChangeLevel(map, "Custom map transition.");
 }
 
+//stop scores from being reset on finales 
+//they'd be kinda reset on normal maps too if those weren't handled with SetNextMap()
+public Action:L4D_OnClearTeamScores(bool:newCampaign) {
+	if (newCampaign) return Plugin_Handled;
+	return Plugin_Continue;	
+}
+
+//Action:L4D_OnSetCampaignScores(&scoreA, &scoreB); <- maybe use this?
+
 //sets teams' scores to 0
 stock ResetScores() {
 	LogMessage("scores reset.");
