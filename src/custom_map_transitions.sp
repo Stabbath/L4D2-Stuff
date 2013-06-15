@@ -362,18 +362,18 @@ GotoNextMap(bool:force=false) {
 	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
 
 	if (force) {
-		new Handle:pack = CreateDataPack();
-		WritePackString(pack, buffer);
-		CreateTimer(1.0, Timed_GotoNextMap, pack, TIMER_DATA_HNDL_CLOSE);
+		new Handle:stack = CreateStack(BUF_SZ/4);
+		PushStackString(stack, buffer);
+		CreateTimer(1.0, Timed_GotoNextMap, stack, TIMER_DATA_HNDL_CLOSE);
 	} else {
 		SetNextMap(buffer);
 	}
 }
 
 //forces map transition
-public Action:Timed_GotoNextMap(Handle:timer, Handle:pack) {
+public Action:Timed_GotoNextMap(Handle:timer, Handle:stack) {
 	decl String:map[BUF_SZ];
-	ReadPackString(pack, map, BUF_SZ);
+	PopStackString(stack, map, BUF_SZ);
 	ForceChangeLevel(map, "Custom map transition.");
 }
 
