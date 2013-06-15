@@ -41,6 +41,7 @@ public Plugin:myinfo =
 
 #define DIR_CFGS "cmt/"
 #define BUF_SZ	64
+#define TIME_MAPCHANGE_DELAY	5.0
 
 new Handle:	g_hCvarPoolsize;
 new Handle:	g_hCvarMinPoolsize;
@@ -324,7 +325,7 @@ public Action:Maplist(client, args) {
 	if (g_bMaplistFinalized) {
 		for (new i = 0; i < GetArraySize(g_hArrayMapOrder); i++) {
 			GetArrayString(g_hArrayMapOrder, i, buffer, BUF_SZ);
-			PrintToChat(client, "%2d - %s", i, buffer);
+			PrintToChat(client, "%2d - %s", i + 1, buffer);
 		}
 	} else {
 		decl Handle:hArrayMapPool;
@@ -364,7 +365,7 @@ GotoNextMap(bool:force=false) {
 	if (force) {
 		new Handle:stack = CreateStack(BUF_SZ/4);
 		PushStackString(stack, buffer);
-		CreateTimer(1.0, Timed_GotoNextMap, stack, TIMER_DATA_HNDL_CLOSE);
+		CreateTimer(TIME_MAPCHANGE_DELAY, Timed_GotoNextMap, stack, TIMER_DATA_HNDL_CLOSE);
 	} else {
 		SetNextMap(buffer);
 	}
