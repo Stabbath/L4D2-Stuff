@@ -26,13 +26,9 @@ public Plugin:myinfo =
 };
 
 /* TODO:
- * - make it so people can set a predetermined mapset with !mapset <map1> <map2> <map3> <etc> or something like that
+ * - test !forcemapset
  * - make it so everything in the plugin is reset after the last map in the mapset
- * - test onmapend transitions
- * - test maplist printing
- * - maybe readd differences between finales and non-finales in regards to map change (ie SetNextMap(string) vs ForceChangeLevel)
  * - maybe add a safeguard in case, for example, there's 9 maps and 3 vetoes per team, all maps belong to the same pool, and 4 is the min poolsize. the 6th veto will not be usable, so players would be stuck in the vetoing process (unless void is allowed)
- * - retest this version to see if it still changes map after the 1st round
  * - re-test using mapend instead of onroundend; possibly put level change on a timer after round end
  * - maybe add cvar for unbalanced vetoes: -1 keeps balanced, 0 means survivors get an extra veto, 1 means infected get an extra veto
  * - possibly replace cmt_minimum_poolsize on a per-tag basis, since you might want to have 3 min pool for a tag but 1 min pool for another one, if the first is used by 3 ranks and the 2nd by only 1 or any other scenario
@@ -191,6 +187,10 @@ public Action:Lock(args) {
 		VetoingIsOver();
 	} else {
 		PrintToChatAll("You may now veto maps from the map list.");
+		for (i = 1; i <= MaxClients; i++) {
+			if (IsClientInGame(i) && !IsFakeClient(i))
+				FakeClientCommand(i, "sm_maplist");
+		}
 	}
 
 	return Plugin_Handled;
@@ -308,12 +308,12 @@ stock VetoingIsOver() {
 			FakeClientCommand(i, "sm_maplist");
 	}
 
-	ResetScores();
 	PrintToChatAll("Game will start in 8 seconds.");
 	CreateTimer(8.0, Timed_GiveThemTimeToReadTheMapList);
 }
 
 public Action:Timed_GiveThemTimeToReadTheMapList(Handle:timer) {
+	ResetScores();	//scores wouldn't cross over because of forced map change before 2nd round end, but doesnt hurt
 	GotoNextMap(true);
 }
 
@@ -328,6 +328,7 @@ public Action:Maplist(client, args) {
 			PrintToChat(client, "%2d - %s", i + 1, buffer);
 		}
 	} else {
+		PrintToChat(client, "should be printing maplist, unless there's segfaults");
 		decl Handle:hArrayMapPool;
 		decl String:tag[BUF_SZ];
 		for (new i = 0; i < GetArraySize(g_hArrayTagOrder); i++) {
@@ -348,12 +349,8 @@ public OnRoundEnd() {
 	if (InSecondHalfOfRound()) {
 		g_iMapsPlayed++;
 
-		LogMessage("Time to change map. Maps played: %d/%d", g_iMapsPlayed, g_iMapCount);
-		
-		//force-end the game since only finales would usually really end it
-		if (g_iMapsPlayed == g_iMapCount) ServerCommand("sm_resetmatch");
-		
-		GotoNextMap(L4D_IsMissionFinalMap());
+		//if it's over, just let the game do whatever it wants. Maybe force-end it later
+		if (g_iMapsPlayed < g_iMapCount) GotoNextMap(L4D_IsMissionFinalMap());
 	}
 }
 
@@ -385,11 +382,10 @@ public Action:L4D_OnClearTeamScores(bool:newCampaign) {
 	return Plugin_Continue;	
 }
 
-//Action:L4D_OnSetCampaignScores(&scoreA, &scoreB); <- maybe use this?
+//Action:L4D_OnSetCampaignScores(&scoreA, &scoreB); <- maybe use this to track map scores?
 
 //sets teams' scores to 0
 stock ResetScores() {
-	LogMessage("scores reset.");
 	GameRules_SetProp("m_iSurvivorScore", 0, _, 0); //reset scores
 	GameRules_SetProp("m_iSurvivorScore", 0, _, 1); //
 }
