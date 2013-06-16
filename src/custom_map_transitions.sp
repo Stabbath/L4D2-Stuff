@@ -37,7 +37,7 @@ public Plugin:myinfo =
 
 #define DIR_CFGS "cmt/"
 #define BUF_SZ	64
-#define TIME_MAPCHANGE_DELAY	5.0
+#define TIME_MAPCHANGE_DELAY	10.0	//5 worked perfectly, but maybe higher values are better?
 
 new Handle:	g_hCvarPoolsize;
 new Handle:	g_hCvarMinPoolsize;
@@ -187,7 +187,7 @@ public Action:Lock(args) {
 		VetoingIsOver();
 	} else {
 		PrintToChatAll("You may now veto maps from the map list.");
-		for (i = 1; i <= MaxClients; i++) {
+		for (new i = 1; i <= MaxClients; i++) {
 			if (IsClientInGame(i) && !IsFakeClient(i))
 				FakeClientCommand(i, "sm_maplist");
 		}
