@@ -5,6 +5,62 @@
 #include <l4d2util_rounds>
 #include <left4downtown>
 
+//things to test maybe
+//	L4D_RestartScenarioFromVote(const String:map[]); 
+//	L4D_GetTeamScore(logical_team, campaign_score=false);
+//	L4D_GetCampaignScores(&scoreA, &scoreB);
+
+public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {
+	PrintToChatAll("OnSetCampScores: Setting campaign scores! A: %d B: %d", scoreA, scoreB);
+	new a, b;
+	L4D_GetCampaignScores(a, b);
+	PrintToChatAll("OnSetCampScores: GetCampScores! A: %d B: %d", a, b);
+	PrintToChatAll("OnSetCampScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));
+
+	CreateTimer(1.0, Timed_postset);
+}
+public Action:Timed_postset(Handle:timer) {
+	new a, b;
+	L4D_GetCampaignScores(a, b);
+	PrintToChatAll("POST setcamp: GetCampScores! A: %d B: %d", a, b);
+	PrintToChatAll("POST setcamp: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
+}
+
+
+public Action:L4D_OnClearTeamScores(bool:newCampaign) {
+	PrintToChatAll("OnClearTeamScores: Setting campaign scores! A: %d B: %d", scoreA, scoreB);
+	new a, b;
+	L4D_GetCampaignScores(a, b);
+	PrintToChatAll("OnClearTeamScores: GetCampScores! A: %d B: %d", a, b);
+	PrintToChatAll("OnClearTeamScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
+
+	CreateTimer(1.0, Timed_postclear);
+}
+public Action:Timed_postclear(Handle:timer) {
+	new a, b;
+	L4D_GetCampaignScores(a, b);
+	PrintToChatAll("POST OnClearTeamScores: GetCampScores! A: %d B: %d", a, b);
+	PrintToChatAll("POST ClearTeamScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
+}
+
+
+public Action:L4D2_OnEndVersusModeRound(bool:countSurvivors) {
+	PrintToChatAll("OnEndVersusModeRound");
+	new a, b;
+	L4D_GetCampaignScores(a, b);
+	PrintToChatAll("OnEndVsRnd: GetCampScores! A: %d B: %d", a, b);
+	PrintToChatAll("OnEndVsRnd: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));
+
+	CreateTimer(1.0, Timed_postendvs);
+}
+public Action:Timed_postendvs(Handle:timer) {
+	new a, b;
+	L4D_GetCampaignScores(a, b);
+	PrintToChatAll("post vs rnd: GetCampScores! A: %d B: %d", a, b);
+	PrintToChatAll("post vs rnd: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
+}
+
+
 /*
 1: Collect underpants
 2a: Fetch all maps from each preset pool into a plugin pool
@@ -377,10 +433,10 @@ public Action:Timed_GotoNextMap(Handle:timer, Handle:stack) {
 
 //stop scores from being reset on finales 
 //they'd be kinda reset on normal maps too if those weren't handled with SetNextMap()
-public Action:L4D_OnClearTeamScores(bool:newCampaign) {
-	if (newCampaign) return Plugin_Handled;
-	return Plugin_Continue;	
-}
+//public Action:L4D_OnClearTeamScores(bool:newCampaign) {
+//	if (newCampaign) return Plugin_Handled;
+//	return Plugin_Continue;	
+//}
 
 //Action:L4D_OnSetCampaignScores(&scoreA, &scoreB); <- maybe use this to track map scores?
 
