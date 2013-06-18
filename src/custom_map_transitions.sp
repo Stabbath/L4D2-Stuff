@@ -45,6 +45,11 @@ public Action:Timed_postclear(Handle:timer) {
 	LogMessage("POST OnClearTeamScores: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
 	PrintToChatAll("POST ClearTeamScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
 	LogMessage("POST ClearTeamScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
+	
+	g_iMapsPlayed++;
+	
+	PrintToChatAll("changing map");
+	GotoNextMap(true);
 }
 
 
@@ -154,6 +159,14 @@ public OnPluginStart() {
 	g_hTriePools = CreateTrie();
 	g_hArrayTagOrder = CreateArray(BUF_SZ/4);
 	g_hArrayMapOrder = CreateArray(BUF_SZ/4);
+}
+
+public OnMapStart() {
+	SetNextMap("#game_nextmap");
+}
+
+public OnPluginEnd() {
+	SetNextMap("#game_nextmap");
 }
 
 //console cmd: loads a specified set of maps
@@ -407,14 +420,14 @@ public Action:Maplist(client, args) {
 }
 
 //change map a bit after round end, because onmapend was too late
-public OnRoundEnd() {
+/*public OnRoundEnd() {
 	if (InSecondHalfOfRound()) {
 		g_iMapsPlayed++;
 
 		//if it's over, just let the game do whatever it wants. Maybe force-end it later
-		if (g_iMapsPlayed < g_iMapCount) GotoNextMap(L4D_IsMissionFinalMap());
+//		if (g_iMapsPlayed < g_iMapCount) GotoNextMap(L4D_IsMissionFinalMap());
 	}
-}
+}*/
 
 //changes map
 GotoNextMap(bool:force=false) {
@@ -422,9 +435,10 @@ GotoNextMap(bool:force=false) {
 	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
 
 	if (force) {
-		new Handle:stack = CreateStack(BUF_SZ/4);
-		PushStackString(stack, buffer);
-		CreateTimer(TIME_MAPCHANGE_DELAY, Timed_GotoNextMap, stack, TIMER_DATA_HNDL_CLOSE);
+		L4D_RestartScenarioFromVote(buffer);
+//		new Handle:stack = CreateStack(BUF_SZ/4);
+//		PushStackString(stack, buffer);
+//		CreateTimer(TIME_MAPCHANGE_DELAY, Timed_GotoNextMap, stack, TIMER_DATA_HNDL_CLOSE);
 	} else {
 		SetNextMap(buffer);
 	}
