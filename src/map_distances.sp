@@ -3,6 +3,7 @@
 #define L4D2UTIL_STOCKS_ONLY
 
 #include <sourcemod>
+#include <left4downtown>
 #include <l4d2lib>
 
 public Plugin:myinfo =
