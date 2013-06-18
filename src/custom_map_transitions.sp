@@ -10,67 +10,6 @@
 //	L4D_GetTeamScore(logical_team, campaign_score=false);
 //	L4D_GetCampaignScores(&scoreA, &scoreB);
 
-public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {
-	PrintToChatAll("OnSetCampScores: Setting campaign scores! A: %d B: %d", scoreA, scoreB);
-	LogMessage("OnSetCampScores: Setting campaign scores! A: %d B: %d", scoreA, scoreB);
-
-	PrintToChatAll("OnSetCampScores: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
-	LogMessage("OnSetCampScores: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
-	PrintToChatAll("OnSetCampScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));
-	LogMessage("OnSetCampScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));
-
-	CreateTimer(1.0, Timed_postset);
-}
-public Action:Timed_postset(Handle:timer) {
-	PrintToChatAll("POST setcamp: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
-	LogMessage("POST setcamp: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
-	PrintToChatAll("POST setcamp: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
-	LogMessage("POST setcamp: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
-}
-
-
-public Action:L4D_OnClearTeamScores(bool:newCampaign) {
-	PrintToChatAll("OnClearTeamScores");
-	LogMessage("OnClearTeamScores");
-
-	PrintToChatAll("OnClearTeamScores: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
-	LogMessage("OnClearTeamScores: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
-	PrintToChatAll("OnClearTeamScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
-	LogMessage("OnClearTeamScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
-
-	CreateTimer(1.0, Timed_postclear);
-}
-public Action:Timed_postclear(Handle:timer) {
-	PrintToChatAll("POST OnClearTeamScores: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
-	LogMessage("POST OnClearTeamScores: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
-	PrintToChatAll("POST ClearTeamScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
-	LogMessage("POST ClearTeamScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
-	
-	g_iMapsPlayed++;
-	
-	PrintToChatAll("changing map");
-	GotoNextMap(true);
-}
-
-
-public Action:L4D2_OnEndVersusModeRound(bool:countSurvivors) {
-	PrintToChatAll("OnEndVersusModeRound");
-	LogMessage("OnEndVersusModeRound");
-
-	PrintToChatAll("OnEndVsRnd: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
-	LogMessage("OnEndVsRnd: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
-	PrintToChatAll("OnEndVsRnd: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));
-	LogMessage("OnEndVsRnd: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));
-
-	CreateTimer(1.0, Timed_postendvs);
-}
-public Action:Timed_postendvs(Handle:timer) {
-	PrintToChatAll("post vs rnd: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
-	LogMessage("post vs rnd: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
-	PrintToChatAll("post vs rnd: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
-	LogMessage("post vs rnd: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
-}
-
 
 /*
 1: Collect underpants
@@ -520,3 +459,66 @@ public Action:AddMap(args) {
 	
 	return Plugin_Handled;
 }
+
+
+public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {
+	PrintToChatAll("OnSetCampScores: Setting campaign scores! A: %d B: %d", scoreA, scoreB);
+	LogMessage("OnSetCampScores: Setting campaign scores! A: %d B: %d", scoreA, scoreB);
+
+	PrintToChatAll("OnSetCampScores: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
+	LogMessage("OnSetCampScores: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
+	PrintToChatAll("OnSetCampScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));
+	LogMessage("OnSetCampScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));
+
+	CreateTimer(1.0, Timed_postset);
+}
+public Action:Timed_postset(Handle:timer) {
+	PrintToChatAll("POST setcamp: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
+	LogMessage("POST setcamp: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
+	PrintToChatAll("POST setcamp: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
+	LogMessage("POST setcamp: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
+}
+
+
+public Action:L4D_OnClearTeamScores(bool:newCampaign) {
+	PrintToChatAll("OnClearTeamScores");
+	LogMessage("OnClearTeamScores");
+
+	PrintToChatAll("OnClearTeamScores: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
+	LogMessage("OnClearTeamScores: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
+	PrintToChatAll("OnClearTeamScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
+	LogMessage("OnClearTeamScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
+
+	CreateTimer(1.0, Timed_postclear);
+}
+public Action:Timed_postclear(Handle:timer) {
+	PrintToChatAll("POST OnClearTeamScores: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
+	LogMessage("POST OnClearTeamScores: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
+	PrintToChatAll("POST ClearTeamScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
+	LogMessage("POST ClearTeamScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
+	
+	g_iMapsPlayed++;
+	
+	PrintToChatAll("changing map");
+	GotoNextMap(true);
+}
+
+
+public Action:L4D2_OnEndVersusModeRound(bool:countSurvivors) {
+	PrintToChatAll("OnEndVersusModeRound");
+	LogMessage("OnEndVersusModeRound");
+
+	PrintToChatAll("OnEndVsRnd: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
+	LogMessage("OnEndVsRnd: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
+	PrintToChatAll("OnEndVsRnd: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));
+	LogMessage("OnEndVsRnd: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));
+
+	CreateTimer(1.0, Timed_postendvs);
+}
+public Action:Timed_postendvs(Handle:timer) {
+	PrintToChatAll("post vs rnd: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
+	LogMessage("post vs rnd: GetCampScores! A: %d B: %d", L4D_GetTeamScore(0, true),  L4D_GetTeamScore(1, true));
+	PrintToChatAll("post vs rnd: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
+	LogMessage("post vs rnd: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
+}
+
