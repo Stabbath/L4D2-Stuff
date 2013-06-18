@@ -26,7 +26,7 @@ public OnLibraryRemoved(const String:name[]) {
 }
  
 public OnLibraryAdded(const String:name[]) {
-	if (StrEqual(name, "l4d2lib"))	g_bL4D2LibAvailable = = true;
+	if (StrEqual(name, "l4d2lib"))	g_bL4D2LibAvailable = true;
 }
 
 public OnMapStart() {
