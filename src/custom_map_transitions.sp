@@ -373,12 +373,11 @@ GotoNextMap(bool:force=false) {
 	decl String:buffer[BUF_SZ];
 	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
 
-	L4D_RestartScenarioFromVote(buffer);
-
 	if (force) {
-//		ForceChangeLevel(buffer, "Custom map transition.");
+		ForceChangeLevel(buffer, "Custom map transition.");
+	//	L4D_RestartScenarioFromVote(buffer);	//from l4do. this is just kicking players to the main menu (crash?)
 	} else {
-//		SetNextMap(buffer);
+		SetNextMap(buffer);
 	}
 }
 
