@@ -374,20 +374,11 @@ GotoNextMap(bool:force=false) {
 	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
 
 	if (force) {
-		L4D_RestartScenarioFromVote(buffer);
-//		new Handle:stack = CreateStack(BUF_SZ/4);
-//		PushStackString(stack, buffer);
-//		CreateTimer(TIME_MAPCHANGE_DELAY, Timed_GotoNextMap, stack, TIMER_DATA_HNDL_CLOSE);
+//		L4D_RestartScenarioFromVote(buffer);	<- this doesnt seem to work, it sends people to the main menu ( left4downtown)
+		ForceChangeLevel(buffer, "Custom map transition.");
 	} else {
 		SetNextMap(buffer);
 	}
-}
-
-//forces map transition
-public Action:Timed_GotoNextMap(Handle:timer, Handle:stack) {
-	decl String:map[BUF_SZ];
-	PopStackString(stack, map, BUF_SZ);
-	ForceChangeLevel(map, "Custom map transition.");
 }
 
 //stop scores from being reset on finales 
@@ -498,9 +489,8 @@ public Action:Timed_postclear(Handle:timer) {
 	LogMessage("POST ClearTeamScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(0),  L4D_GetTeamScore(1));	
 	
 	g_iMapsPlayed++;
-	
-	PrintToChatAll("changing map");
-	GotoNextMap(true);
+
+	if (g_iMapsPlayed < g_iMapCount) GotoNextMap(L4D_IsMissionFinalMap());
 }
 
 
