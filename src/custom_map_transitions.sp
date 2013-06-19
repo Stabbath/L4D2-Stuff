@@ -58,6 +58,7 @@ new	bool:	g_bMaplistFinalized;
 new			g_iMapsPlayed;
 new bool:	g_bMapsetInitialized;
 new			g_iMapCount;
+new bool:	g_bAllowMapChanges = true;
 
 public OnPluginStart() {
 	SetRandomSeed(seed:GetEngineTime());
@@ -100,19 +101,20 @@ public OnPluginStart() {
 }
 
 public OnMapEnd() {
-	PrintToChatAll("OnMapEnd");
 	LogMessage("OnMapEnd");
-
+	
 	CreateTimer(0.1, Timed_PostMapEnd);
 }
 
-public Action:Timed_PostMapEnd() {
-	MapEndStuff();	
+public Action:Timed_PostMapEnd(Handle:timer) {
+	if (g_bAllowMapChanges) MapEndStuff();
+	g_bAllowMapChanges = false;
 }
 
 public OnMapStart() {
-	PrintToChatAll("OnMapStart");
 	LogMessage("OnMapStart");
+
+	g_bAllowMapChanges = true;
 	SetNextMap("#game_nextmap");
 }
 
@@ -372,7 +374,6 @@ public Action:Maplist(client, args) {
 
 //change map a bit after round end, because onmapend was too late
 public OnRoundEnd() {
-	PrintToChatAll("OnRoundEnd");
 	LogMessage("OnRoundEnd");
 //	if (InSecondHalfOfRound()) {
 //		g_iMapsPlayed++;
@@ -383,7 +384,6 @@ public OnRoundEnd() {
 }
 
 public OnRoundStart() {
-	PrintToChatAll("OnRoundStart");
 	LogMessage("OnRoundStart");
 }
 
@@ -469,25 +469,15 @@ public Action:AddMap(args) {
 
 public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {	//changing map here sent people back to lobby
 	LogMessage("OnSetCampaignScores: %d A; %d B", scoreA, scoreB);
-
-//	MapEndStuff();
 }
 
 public Action:L4D_OnClearTeamScores(bool:newCampaign) {	//changing map here crashed the server on !mapset
-	PrintToChatAll("OnClearTeamScores");
 	LogMessage("OnClearTeamScores");
-
-//	MapEndStuff();
 }
 
 public Action:L4D2_OnEndVersusModeRound(bool:countSurvivors) {	//changing map here crashed the server on !mapset
-	PrintToChatAll("OnEndVersusModeRound");
 	LogMessage("OnEndVersusModeRound");
-
-//	MapEndStuff();
 }
-
-//I think the reason these crashes were caused was because the server was being forced to change to a map, but these forwards were called again so it tried to force change the map while force-changing the map, and either that's deadly or, if it succeeds, it would just keep forcing itself to change map over and over!
 
 /*
 This seems to be what happens in order:
@@ -508,5 +498,5 @@ This seems to be what happens in order:
 10.	OnEndVersusModeRound
 11.	OnSetCampaignScores
 12.	OnRoundEnd
-13. OnMapEnd??? untested
+13. OnMapEnd
 */
