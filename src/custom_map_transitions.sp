@@ -27,7 +27,7 @@ public Plugin:myinfo =
 	name = "Custom Map Transitions",
 	author = "Stabby",
 	description = "Makes games more fun and varied! Yay!",
-	version = "3",
+	version = "4",
 	url = "https://github.com/Stabbath/L4D2-Stuff"
 };
 
@@ -359,14 +359,22 @@ public Action:Maplist(client, args) {
 }
 
 //change map a bit after round end, because onmapend was too late
-/*public OnRoundEnd() {
-	if (InSecondHalfOfRound()) {
-		g_iMapsPlayed++;
+public OnRoundEnd() {
+	PrintToChatAll("OnRoundEnd");
+	LogMessage("OnRoundEnd");
+//	if (InSecondHalfOfRound()) {
+//		g_iMapsPlayed++;
 
 		//if it's over, just let the game do whatever it wants. Maybe force-end it later
 //		if (g_iMapsPlayed < g_iMapCount) GotoNextMap(L4D_IsMissionFinalMap());
-	}
-}*/
+//	}
+}
+
+MapEndStuff() {
+	g_iMapsPlayed++;
+
+	if (g_iMapsPlayed < g_iMapCount) GotoNextMap(L4D_IsMissionFinalMap());
+}
 
 //changes map
 GotoNextMap(bool:force=false) {
@@ -380,15 +388,6 @@ GotoNextMap(bool:force=false) {
 		SetNextMap(buffer);
 	}
 }
-
-//stop scores from being reset on finales 
-//they'd be kinda reset on normal maps too if those weren't handled with SetNextMap()
-//public Action:L4D_OnClearTeamScores(bool:newCampaign) {
-//	if (newCampaign) return Plugin_Handled;
-//	return Plugin_Continue;	
-//}
-
-//Action:L4D_OnSetCampaignScores(&scoreA, &scoreB); <- maybe use this to track map scores?
 
 //sets teams' scores to 0
 stock ResetScores() {
@@ -451,64 +450,36 @@ public Action:AddMap(args) {
 	return Plugin_Handled;
 }
 
-
 public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {
-	PrintToChatAll("OnSetCampScores: Setting campaign scores! A: %d B: %d", scoreA, scoreB);
-	LogMessage("OnSetCampScores: Setting campaign scores! A: %d B: %d", scoreA, scoreB);
+	PrintToChatAll("OnSetCampaignScores");
+	LogMessage("OnSetCampaignScores");
 
-	PrintToChatAll("OnSetCampScores: GetCampScores! A: %d B: %d", L4D_GetTeamScore(1, true),  L4D_GetTeamScore(2, true));
-	LogMessage("OnSetCampScores: GetCampScores! A: %d B: %d", L4D_GetTeamScore(1, true),  L4D_GetTeamScore(2, true));
-	PrintToChatAll("OnSetCampScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(1),  L4D_GetTeamScore(2));
-	LogMessage("OnSetCampScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(1),  L4D_GetTeamScore(2));
-
-	CreateTimer(1.0, Timed_postset);
+	CreateTimer(0.1, Timed_postset);
 }
 public Action:Timed_postset(Handle:timer) {
-	PrintToChatAll("POST setcamp: GetCampScores! A: %d B: %d", L4D_GetTeamScore(1, true),  L4D_GetTeamScore(2, true));
-	LogMessage("POST setcamp: GetCampScores! A: %d B: %d", L4D_GetTeamScore(1, true),  L4D_GetTeamScore(2, true));
-	PrintToChatAll("POST setcamp: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(1),  L4D_GetTeamScore(2));	
-	LogMessage("POST setcamp: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(1),  L4D_GetTeamScore(2));	
+	PrintToChatAll("OnSetCampaignScores");
+	LogMessage("OnSetCampaignScores");
 }
-
 
 public Action:L4D_OnClearTeamScores(bool:newCampaign) {
 	PrintToChatAll("OnClearTeamScores");
 	LogMessage("OnClearTeamScores");
 
-	PrintToChatAll("OnClearTeamScores: GetCampScores! A: %d B: %d", L4D_GetTeamScore(1, true),  L4D_GetTeamScore(2, true));
-	LogMessage("OnClearTeamScores: GetCampScores! A: %d B: %d", L4D_GetTeamScore(1, true),  L4D_GetTeamScore(2, true));
-	PrintToChatAll("OnClearTeamScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(1),  L4D_GetTeamScore(2));	
-	LogMessage("OnClearTeamScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(1),  L4D_GetTeamScore(2));	
-
-	CreateTimer(1.0, Timed_postclear);
+	CreateTimer(0.1, Timed_postclear);
 }
 public Action:Timed_postclear(Handle:timer) {
-	PrintToChatAll("POST OnClearTeamScores: GetCampScores! A: %d B: %d", L4D_GetTeamScore(1, true),  L4D_GetTeamScore(2, true));
-	LogMessage("POST OnClearTeamScores: GetCampScores! A: %d B: %d", L4D_GetTeamScore(1, true),  L4D_GetTeamScore(2, true));
-	PrintToChatAll("POST ClearTeamScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(1),  L4D_GetTeamScore(2));	
-	LogMessage("POST ClearTeamScores: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(1),  L4D_GetTeamScore(2));	
-	
-	g_iMapsPlayed++;
-
-	if (g_iMapsPlayed < g_iMapCount) GotoNextMap(L4D_IsMissionFinalMap());
+	PrintToChatAll("PostOnClearTeamScores");
+	LogMessage("PostOnClearTeamScores");
 }
-
 
 public Action:L4D2_OnEndVersusModeRound(bool:countSurvivors) {
 	PrintToChatAll("OnEndVersusModeRound");
 	LogMessage("OnEndVersusModeRound");
 
-	PrintToChatAll("OnEndVsRnd: GetCampScores! A: %d B: %d", L4D_GetTeamScore(1, true),  L4D_GetTeamScore(2, true));
-	LogMessage("OnEndVsRnd: GetCampScores! A: %d B: %d", L4D_GetTeamScore(1, true),  L4D_GetTeamScore(2, true));
-	PrintToChatAll("OnEndVsRnd: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(1),  L4D_GetTeamScore(2));
-	LogMessage("OnEndVsRnd: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(1),  L4D_GetTeamScore(2));
-
-	CreateTimer(1.0, Timed_postendvs);
+	CreateTimer(0.1, Timed_postendvs);
 }
 public Action:Timed_postendvs(Handle:timer) {
-	PrintToChatAll("post vs rnd: GetCampScores! A: %d B: %d", L4D_GetTeamScore(1, true),  L4D_GetTeamScore(2, true));
-	LogMessage("post vs rnd: GetCampScores! A: %d B: %d", L4D_GetTeamScore(1, true),  L4D_GetTeamScore(2, true));
-	PrintToChatAll("post vs rnd: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(1),  L4D_GetTeamScore(2));	
-	LogMessage("post vs rnd: GetTeamScore! A: %d B: %d",  L4D_GetTeamScore(1),  L4D_GetTeamScore(2));	
+	PrintToChatAll("PostOnEndVersusModeRound");
+	LogMessage("PostOnEndVersusModeRound");
 }
 
