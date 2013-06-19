@@ -58,6 +58,7 @@ new	bool:	g_bMaplistFinalized;
 new			g_iMapsPlayed;
 new bool:	g_bMapsetInitialized;
 new			g_iMapCount;
+new bool:	g_bInMapChange;
 
 public OnPluginStart() {
 	SetRandomSeed(seed:GetEngineTime());
@@ -107,7 +108,10 @@ public Action:Timed_PostMapEnd(Handle:timer) {
 	}
 }
 
-public OnMapStart() 	SetNextMap("#game_nextmap");
+public OnMapStart() {
+	SetNextMap("#game_nextmap");
+	g_bInMapChange = false;
+}
 public OnPluginEnd()	SetNextMap("#game_nextmap");
 
 //console cmd: loads a specified set of maps
@@ -362,14 +366,17 @@ public Action:Maplist(client, args) {
 
 //changes map
 GotoNextMap(bool:force=false) {
-	decl String:buffer[BUF_SZ];
-	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
+	if (!g_bInMapChange) {
+		g_bInMapChange = true;
+		decl String:buffer[BUF_SZ];
+		GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
 
-	if (force) {
-		ForceChangeLevel(buffer, "Custom map transition.");
-	//	L4D_RestartScenarioFromVote(buffer);	//from l4do. this is just kicking players to the main menu (crash?)
-	} else {
-		SetNextMap(buffer);
+		if (force) {
+			ForceChangeLevel(buffer, "Custom map transition.");
+		//	L4D_RestartScenarioFromVote(buffer);	//from l4do. this is just kicking players to the main menu (crash?)
+		} else {
+			SetNextMap(buffer);
+		}
 	}
 }
 
