@@ -101,6 +101,8 @@ public OnPluginStart() {
 }
 
 public OnMapStart() {
+	PrintToChatAll("OnMapStart");
+	LogMessage("OnMapStart");
 	SetNextMap("#game_nextmap");
 }
 
@@ -370,6 +372,11 @@ public OnRoundEnd() {
 //	}
 }
 
+public OnRoundStart() {
+	PrintToChatAll("OnRoundStart");
+	LogMessage("OnRoundStart");
+}
+
 MapEndStuff() {
 	g_iMapsPlayed++;
 
@@ -450,48 +457,37 @@ public Action:AddMap(args) {
 	return Plugin_Handled;
 }
 
-public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {
-	PrintToChatAll("OnSetCampaignScores");
-	LogMessage("OnSetCampaignScores");
-
-	CreateTimer(0.1, Timed_postset);
-
-//	MapEndStuff();
-}
-public Action:Timed_postset(Handle:timer) {
-	PrintToChatAll("OnSetCampaignScores");
-	LogMessage("OnSetCampaignScores");
+public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {	//changing map here sent people back to lobby
+	LogMessage("OnSetCampaignScores: %d A; %d B", scoreA, scoreB);
 
 //	MapEndStuff();
 }
 
-public Action:L4D_OnClearTeamScores(bool:newCampaign) {
+public Action:L4D_OnClearTeamScores(bool:newCampaign) {	//changing map here crashed the server on !mapset
 	PrintToChatAll("OnClearTeamScores");
 	LogMessage("OnClearTeamScores");
 
-	CreateTimer(0.1, Timed_postclear);
-
-//	MapEndStuff();
-}
-public Action:Timed_postclear(Handle:timer) {
-	PrintToChatAll("PostOnClearTeamScores");
-	LogMessage("PostOnClearTeamScores");
-
 //	MapEndStuff();
 }
 
-public Action:L4D2_OnEndVersusModeRound(bool:countSurvivors) {
+public Action:L4D2_OnEndVersusModeRound(bool:countSurvivors) {	//changing map here crashed the server on !mapset
 	PrintToChatAll("OnEndVersusModeRound");
 	LogMessage("OnEndVersusModeRound");
 
-	CreateTimer(0.1, Timed_postendvs);
-
-//	MapEndStuff();
-}
-public Action:Timed_postendvs(Handle:timer) {
-	PrintToChatAll("PostOnEndVersusModeRound");
-	LogMessage("PostOnEndVersusModeRound");
-
 //	MapEndStuff();
 }
 
+//I think the reason these crashes were caused was because the server was being forced to change to a map, but these forwards were called again so it tried to force change the map while force-changing the map, and either that's deadly or, if it succeeds, it would just keep forcing itself to change map over and over!
+
+/*
+This seems to be what happens in order:
+0.	Map change
+?.	OnMapStart??
+?.	OnRoundStart??
+2.	OnSetCampaignScores, instantly followed by
+3.	OnClearTeamScores
+4.	OnEndVersusModeRound, instantly followed by
+5.	OnSetCampaignScores, instantly followed by
+6.	OnRoundEnd
+7.	OnMapEnd
+*/
