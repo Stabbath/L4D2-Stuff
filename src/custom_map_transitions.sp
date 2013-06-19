@@ -43,7 +43,6 @@ public Plugin:myinfo =
 
 #define DIR_CFGS "cmt/"
 #define BUF_SZ	64
-#define TIME_MAPCHANGE_DELAY	10.0	//5 worked perfectly, but maybe higher values are better?
 
 new Handle:	g_hCvarPoolsize;
 new Handle:	g_hCvarMinPoolsize;
@@ -98,6 +97,17 @@ public OnPluginStart() {
 	g_hTriePools = CreateTrie();
 	g_hArrayTagOrder = CreateArray(BUF_SZ/4);
 	g_hArrayMapOrder = CreateArray(BUF_SZ/4);
+}
+
+public OnMapEnd() {
+	PrintToChatAll("OnMapEnd");
+	LogMessage("OnMapEnd");
+
+	CreateTimer(0.1, Timed_PostMapEnd);
+}
+
+public Action:Timed_PostMapEnd() {
+	MapEndStuff();	
 }
 
 public OnMapStart() {
@@ -481,13 +491,22 @@ public Action:L4D2_OnEndVersusModeRound(bool:countSurvivors) {	//changing map he
 
 /*
 This seems to be what happens in order:
-0.	Map change
-?.	OnMapStart??
-?.	OnRoundStart??
-2.	OnSetCampaignScores, instantly followed by
+
+//right after map change
+1.	OnSetCampaignScores
+2.	OnRoundStart
 3.	OnClearTeamScores
-4.	OnEndVersusModeRound, instantly followed by
-5.	OnSetCampaignScores, instantly followed by
-6.	OnRoundEnd
-7.	OnMapEnd
+4.	OnMapStart
+//end of round 1
+5.	OnEndVersusModeRound
+6.	OnSetCampaignScores
+7.	OnRoundEnd
+//beginning of round 2
+8.	OnSetCampaignScores
+9.	OnRoundStart
+//end of round 2
+10.	OnEndVersusModeRound
+11.	OnSetCampaignScores
+12.	OnRoundEnd
+13. OnMapEnd??? untested
 */
