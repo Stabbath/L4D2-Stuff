@@ -455,10 +455,14 @@ public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {
 	LogMessage("OnSetCampaignScores");
 
 	CreateTimer(0.1, Timed_postset);
+
+//	MapEndStuff();
 }
 public Action:Timed_postset(Handle:timer) {
 	PrintToChatAll("OnSetCampaignScores");
 	LogMessage("OnSetCampaignScores");
+
+//	MapEndStuff();
 }
 
 public Action:L4D_OnClearTeamScores(bool:newCampaign) {
@@ -466,10 +470,14 @@ public Action:L4D_OnClearTeamScores(bool:newCampaign) {
 	LogMessage("OnClearTeamScores");
 
 	CreateTimer(0.1, Timed_postclear);
+
+//	MapEndStuff();
 }
 public Action:Timed_postclear(Handle:timer) {
 	PrintToChatAll("PostOnClearTeamScores");
 	LogMessage("PostOnClearTeamScores");
+
+//	MapEndStuff();
 }
 
 public Action:L4D2_OnEndVersusModeRound(bool:countSurvivors) {
@@ -477,9 +485,13 @@ public Action:L4D2_OnEndVersusModeRound(bool:countSurvivors) {
 	LogMessage("OnEndVersusModeRound");
 
 	CreateTimer(0.1, Timed_postendvs);
+
+//	MapEndStuff();
 }
 public Action:Timed_postendvs(Handle:timer) {
 	PrintToChatAll("PostOnEndVersusModeRound");
 	LogMessage("PostOnEndVersusModeRound");
+
+//	MapEndStuff();
 }
 
