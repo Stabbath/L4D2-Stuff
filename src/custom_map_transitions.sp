@@ -58,7 +58,6 @@ new	bool:	g_bMaplistFinalized;
 new			g_iMapsPlayed;
 new bool:	g_bMapsetInitialized;
 new			g_iMapCount;
-new bool:	g_bAllowMapChanges = true;
 
 public OnPluginStart() {
 	SetRandomSeed(seed:GetEngineTime());
@@ -100,27 +99,16 @@ public OnPluginStart() {
 	g_hArrayMapOrder = CreateArray(BUF_SZ/4);
 }
 
-public OnMapEnd() {
-	LogMessage("OnMapEnd");
-	
-	CreateTimer(0.1, Timed_PostMapEnd);
-}
-
+public OnMapEnd() CreateTimer(0.1, Timed_PostMapEnd);
 public Action:Timed_PostMapEnd(Handle:timer) {
-	if (g_bAllowMapChanges) MapEndStuff();
-	g_bAllowMapChanges = false;
+	if (g_iMapsPlayed++ < g_iMapCount) GotoNextMap(L4D_IsMissionFinalMap());
+	else {
+		//code for finishing the game
+	}
 }
 
-public OnMapStart() {
-	LogMessage("OnMapStart");
-
-	g_bAllowMapChanges = true;
-	SetNextMap("#game_nextmap");
-}
-
-public OnPluginEnd() {
-	SetNextMap("#game_nextmap");
-}
+public OnMapStart() 	SetNextMap("#game_nextmap");
+public OnPluginEnd()	SetNextMap("#game_nextmap");
 
 //console cmd: loads a specified set of maps
 public Action:ForceMapSet(client, args) {
@@ -372,27 +360,6 @@ public Action:Maplist(client, args) {
 	return Plugin_Handled;
 }
 
-//change map a bit after round end, because onmapend was too late
-public OnRoundEnd() {
-	LogMessage("OnRoundEnd");
-//	if (InSecondHalfOfRound()) {
-//		g_iMapsPlayed++;
-
-		//if it's over, just let the game do whatever it wants. Maybe force-end it later
-//		if (g_iMapsPlayed < g_iMapCount) GotoNextMap(L4D_IsMissionFinalMap());
-//	}
-}
-
-public OnRoundStart() {
-	LogMessage("OnRoundStart");
-}
-
-MapEndStuff() {
-	g_iMapsPlayed++;
-
-	if (g_iMapsPlayed < g_iMapCount) GotoNextMap(L4D_IsMissionFinalMap());
-}
-
 //changes map
 GotoNextMap(bool:force=false) {
 	decl String:buffer[BUF_SZ];
@@ -465,18 +432,6 @@ public Action:AddMap(args) {
 	}
 	
 	return Plugin_Handled;
-}
-
-public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {	//changing map here sent people back to lobby
-	LogMessage("OnSetCampaignScores: %d A; %d B", scoreA, scoreB);
-}
-
-public Action:L4D_OnClearTeamScores(bool:newCampaign) {	//changing map here crashed the server on !mapset
-	LogMessage("OnClearTeamScores");
-}
-
-public Action:L4D2_OnEndVersusModeRound(bool:countSurvivors) {	//changing map here crashed the server on !mapset
-	LogMessage("OnEndVersusModeRound");
 }
 
 /*
