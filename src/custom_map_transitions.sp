@@ -5,10 +5,12 @@
 #include <l4d2util_rounds>
 #include <left4downtown>
 
-//things to test maybe
-//	L4D_RestartScenarioFromVote(const String:map[]); 
-//	L4D_GetTeamScore(logical_team, campaign_score=false);
-//	L4D_GetCampaignScores(&scoreA, &scoreB);
+/*
+	Known issues:
+	- losing team will sometimes be survivors first
+
+
+*/
 
 
 /*
@@ -55,7 +57,7 @@ new Handle:	g_hArrayTagOrder;			//stores tags by rank
 new Handle:	g_hArrayMapOrder;			//stores finalised map list in order
 new			g_iVetoesUsed[2];
 new	bool:	g_bMaplistFinalized;
-new			g_iMapsPlayed;
+new			g_iMapsPlayed = -1;
 new bool:	g_bMapsetInitialized;
 new			g_iMapCount;
 new bool:	g_bInMapChange;
@@ -100,6 +102,10 @@ public OnPluginStart() {
 	g_hArrayMapOrder = CreateArray(BUF_SZ/4);
 }
 
+public Action:L4D_OnFirstSurvivorLeftSafeArea(client) {
+	g_bInMapChange = false;
+}
+
 public OnMapEnd() CreateTimer(0.1, Timed_PostMapEnd);
 public Action:Timed_PostMapEnd(Handle:timer) {
 	if (g_iMapsPlayed++ < g_iMapCount) GotoNextMap(L4D_IsMissionFinalMap());
@@ -108,10 +114,7 @@ public Action:Timed_PostMapEnd(Handle:timer) {
 	}
 }
 
-public OnMapStart() {
-	SetNextMap("#game_nextmap");
-	g_bInMapChange = false;
-}
+public OnMapStart() 	SetNextMap("#game_nextmap");
 public OnPluginEnd()	SetNextMap("#game_nextmap");
 
 //console cmd: loads a specified set of maps
