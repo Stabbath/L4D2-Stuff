@@ -143,8 +143,15 @@ public OnRoundEnd() {
 	}
 }
 
-public OnMapStart() 	SetNextMap("#game_nextmap");	//Otherwise nextmap would be stuck and people wouldn't be able
-public OnPluginEnd()	SetNextMap("#game_nextmap");	//to play normal campaigns without the plugin
+//SetNextMap: Otherwise nextmap would be stuck and people wouldn't be able
+//to play normal campaigns without the plugin
+public OnMapStart() {
+	SetNextMap("#game_nextmap");
+	PrintToChatAll("%d in finale!", L4D2Direct_GetVSInFinaleMap());
+	LogMessage("%d in finale!", L4D2Direct_GetVSInFinaleMap());
+	L4D2Direct_SetVsInFinaleMap(false);
+}
+public OnPluginEnd()	SetNextMap("#game_nextmap");
 
 //console cmd: loads a specified set of maps
 public Action:ForceMapSet(client, args) {
