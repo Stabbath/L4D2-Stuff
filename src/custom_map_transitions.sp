@@ -125,11 +125,11 @@ public OnPluginStart() {
 	g_hArrayTagOrder = CreateArray(BUF_SZ/4);
 	g_hArrayMapOrder = CreateArray(BUF_SZ/4);
 
-	HookEvent("versus_match_finished", Event_VersusMatchFinished, EventHookMode_Pre);
-	HookEvent("start_score_animation", Event_StartScoreAnimation, EventHookMode_Pre);
+//	HookEvent("versus_match_finished", Event_VersusMatchFinished, EventHookMode_Pre);
+//	HookEvent("start_score_animation", Event_StartScoreAnimation, EventHookMode_Pre);
 }
 
-public Action:Event_VersusMatchFinished(Handle:event, const String:name[], bool:dontBroadcast) {
+/*public Action:Event_VersusMatchFinished(Handle:event, const String:name[], bool:dontBroadcast) {
 //	SetEventBroadcast(event, false);
 	PrintToChatAll("%s",name);
 	return Plugin_Handled;
@@ -137,7 +137,7 @@ public Action:Event_VersusMatchFinished(Handle:event, const String:name[], bool:
 
 public Action:Event_StartScoreAnimation(Handle:event, const String:name[], bool:dontBroadcast) {
 	PrintToChatAll("%s",name);
-}
+}*/
 
 public OnRoundEnd() {
 	if (InSecondHalfOfRound()) {
