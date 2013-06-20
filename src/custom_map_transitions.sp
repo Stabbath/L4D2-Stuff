@@ -4,6 +4,9 @@
 #include <sdktools>
 #include <l4d2util_rounds>
 #include <left4downtown>
+#include <l4d2_direct>
+
+
 
 /*
 	Known issues:
@@ -29,7 +32,7 @@ public Plugin:myinfo =
 	name = "Custom Map Transitions",
 	author = "Stabby",
 	description = "Makes games more fun and varied! Yay!",
-	version = "4",
+	version = "5",
 	url = "https://github.com/Stabbath/L4D2-Stuff"
 };
 
@@ -60,7 +63,28 @@ new	bool:	g_bMaplistFinalized;
 new			g_iMapsPlayed = -1;
 new bool:	g_bMapsetInitialized;
 new			g_iMapCount;
-new bool:	g_bInMapChange;
+
+stock L4D2Direct_GetVSInFinaleMap()
+{
+	return LoadFromAddress(L4D2Direct_GetVSInFinaleMapAddr(), NumberType_Int8);
+}
+
+stock L4D2Direct_SetVSInFinaleMap(bool:inFinale)
+{
+	StoreToAddress(L4D2Direct_GetVSInFinaleMapAddr(), _:inFinale, NumberType_Int8);
+}
+
+stock L4D2Direct_GetVSInFinaleMapAddr()
+{
+	static Address:pInFinaleMap = Address_Null;
+	if (pInFinaleMap == Address_Null)
+	{
+		new offs = GameConfGetOffset(L4D2Direct_GetGameConf(), "CDirectorVersusMode::m_bInFinaleMap");
+		if (offs == -1) return Address_Null;
+		pInFinaleMap = L4D2Direct_GetCDirectorVersusMode() + Address:offs;
+	}
+	return pInFinaleMap;
+}
 
 public OnPluginStart() {
 	SetRandomSeed(seed:GetEngineTime());
@@ -115,22 +139,15 @@ public Action:Event_StartScoreAnimation(Handle:event, const String:name[], bool:
 	PrintToChatAll("%s",name);
 }
 
-public Action:L4D_OnFirstSurvivorLeftSafeArea(client) {
-	g_bInMapChange = false;
-}
-
-//public OnMapEnd() CreateTimer(0.1, Timed_PostMapEnd);
 public OnRoundEnd() {
 	if (InSecondHalfOfRound()) {
-		if (g_iMapsPlayed++ < g_iMapCount) GotoNextMap(L4D_IsMissionFinalMap());
-		else {
-			//code for finishing the game
-		}
+		if (g_iMapsPlayed++ < g_iMapCount)	GotoNextMap();	//does not actually "goto" map, only changes NextMap!
+		else 								L4D2Direct_SetVSInFinaleMap(true);	//so the game will end itself!
 	}
 }
 
-public OnMapStart() 	SetNextMap("#game_nextmap");
-public OnPluginEnd()	SetNextMap("#game_nextmap");
+public OnMapStart() 	SetNextMap("#game_nextmap");	//Otherwise nextmap would be stuck and people wouldn't be able
+public OnPluginEnd()	SetNextMap("#game_nextmap");	//to play normal campaigns without the plugin
 
 //console cmd: loads a specified set of maps
 public Action:ForceMapSet(client, args) {
@@ -352,7 +369,7 @@ stock VetoingIsOver() {
 
 public Action:Timed_GiveThemTimeToReadTheMapList(Handle:timer) {
 	ResetScores();	//scores wouldn't cross over because of forced map change before 2nd round end, but doesnt hurt
-	GotoNextMap(true);
+	GotoNextMap();
 }
 
 //client cmd: displays map list
@@ -383,22 +400,19 @@ public Action:Maplist(client, args) {
 }
 
 //changes map
-GotoNextMap(bool:force=false) {
-	if (!g_bInMapChange) {
-		g_bInMapChange = true;
-		decl String:buffer[BUF_SZ];
-		GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
-
-		if (force) {
-			ForceChangeLevel(buffer, "Custom map transition.");
-		//	L4D_RestartScenarioFromVote(buffer);	//from l4do. this is just kicking players to the main menu (crash?)
-		} else {
-			SetNextMap(buffer);
-		}
+GotoNextMap(bool:force) {
+	decl String:buffer[BUF_SZ];
+	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
+	
+	if (force) {
+		L4D2Direct_SetVSInFinaleMap(false);	//so finales won't cause the game to end
+		SetNextMap(buffer);
+	} else {
+		ForceChangeLevel(buffer, "Starting custom map transitions.");
 	}
 }
 
-//sets teams' scores to 0
+//sets teams' campagin scores to 0
 stock ResetScores() {
 	GameRules_SetProp("m_iSurvivorScore", 0, _, 0); //reset scores
 	GameRules_SetProp("m_iSurvivorScore", 0, _, 1); //
