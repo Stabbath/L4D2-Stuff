@@ -71,7 +71,7 @@ stock L4D2Direct_SetVSInFinaleMap(bool:inFinale)
 	StoreToAddress(L4D2Direct_GetVSInFinaleMapAddr(), _:inFinale, NumberType_Int8);
 }
 
-stock L4D2Direct_GetVSInFinaleMapAddr()
+stock AddressL4D2Direct_GetVSInFinaleMapAddr()
 {
 	static Address:pInFinaleMap = Address_Null;
 	if (pInFinaleMap == Address_Null)
