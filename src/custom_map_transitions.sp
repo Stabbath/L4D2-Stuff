@@ -71,7 +71,7 @@ stock L4D2Direct_SetVSInFinaleMap(bool:inFinale)
 	StoreToAddress(L4D2Direct_GetVSInFinaleMapAddr(), _:inFinale, NumberType_Int8);
 }
 
-stock AddressL4D2Direct_GetVSInFinaleMapAddr()
+stock Address:L4D2Direct_GetVSInFinaleMapAddr()
 {
 	static Address:pInFinaleMap = Address_Null;
 	if (pInFinaleMap == Address_Null)
@@ -147,9 +147,9 @@ public OnRoundEnd() {
 //to play normal campaigns without the plugin
 public OnMapStart() {
 	SetNextMap("#game_nextmap");
-	PrintToChatAll("%d in finale!", L4D2Direct_GetVSInFinaleMap());
 	LogMessage("%d in finale!", L4D2Direct_GetVSInFinaleMap());
-	L4D2Direct_SetVsInFinaleMap(false);
+	L4D2Direct_SetVSInFinaleMap(false);
+	LogMessage("post set: %d in finale!", L4D2Direct_GetVSInFinaleMap());
 }
 public OnPluginEnd()	SetNextMap("#game_nextmap");
 
