@@ -369,7 +369,7 @@ stock VetoingIsOver() {
 
 public Action:Timed_GiveThemTimeToReadTheMapList(Handle:timer) {
 	ResetScores();	//scores wouldn't cross over because of forced map change before 2nd round end, but doesnt hurt
-	GotoNextMap();
+	GotoNextMap(true);
 }
 
 //client cmd: displays map list
