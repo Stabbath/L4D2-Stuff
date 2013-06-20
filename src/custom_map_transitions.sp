@@ -122,24 +122,18 @@ public OnPluginStart() {
 	g_hArrayTagOrder = CreateArray(BUF_SZ/4);
 	g_hArrayMapOrder = CreateArray(BUF_SZ/4);
 
-	HookEvent("versus_match_finished", Event_VersusMatchFinished, EventHookMode_Pre);
-	HookEvent("start_score_animation", Event_StartScoreAnimation, EventHookMode_Pre);
+	HookEvent("versus_match_finished", Event_VersusMatchFinished);
 }
 
 public Action:Event_VersusMatchFinished(Handle:event, const String:name[], bool:dontBroadcast) {
-//	SetEventBroadcast(event, false);
 	PrintToChatAll("%s",name);
-	return Plugin_Handled;
-}
-
-public Action:Event_StartScoreAnimation(Handle:event, const String:name[], bool:dontBroadcast) {
-	PrintToChatAll("%s",name);
+	if (++g_iMapsPlayed < g_iMapCount)	GotoNextMap(true);	//does not actually "goto" map, only changes NextMap!
 }
 
 public OnRoundEnd() {
-	if (InSecondHalfOfRound()) {
-		if (g_iMapsPlayed++ < g_iMapCount)	GotoNextMap();	//does not actually "goto" map, only changes NextMap!
-		else 								L4D2Direct_SetVSInFinaleMap(true);	//so the game will end itself!
+	if (InSecondHalfOfRound() && L4D_IsMissionFinalMap()) {
+		if (++g_iMapsPlayed < g_iMapCount)	GotoNextMap();	//does not actually "goto" map, only changes NextMap!
+//		else 								L4D2Direct_SetVSInFinaleMap(true);	//so the game will end itself!
 	}
 }
 
@@ -147,15 +141,15 @@ public OnRoundEnd() {
 //to play normal campaigns without the plugin
 public OnMapStart() {
 	SetNextMap("#game_nextmap");
-	LogMessage("%d in finale!", L4D2Direct_GetVSInFinaleMap());
-	L4D2Direct_SetVSInFinaleMap(false);
-	LogMessage("post set: %d in finale!", L4D2Direct_GetVSInFinaleMap());
-	CreateTimer(2.0, Timed_repeat, TIMER_REPEAT);
+//	LogMessage("%d in finale!", L4D2Direct_GetVSInFinaleMap());
+	//L4D2Direct_SetVSInFinaleMap(false);
+//	LogMessage("post set: %d in finale!", L4D2Direct_GetVSInFinaleMap());
+//	CreateTimer(2.0, Timed_repeat, TIMER_REPEAT);
 }
-public Action:Timed_repeat(Handle:timer) {
-	LogMessage("%d in finale!", L4D2Direct_GetVSInFinaleMap());
-	L4D2Direct_SetVSInFinaleMap(false);
-}
+//public Action:Timed_repeat(Handle:timer) {
+//	LogMessage("%d in finale!", L4D2Direct_GetVSInFinaleMap());
+//	L4D2Direct_SetVSInFinaleMap(false);
+//}
 
 public OnPluginEnd()	SetNextMap("#game_nextmap");
 
@@ -415,9 +409,9 @@ GotoNextMap(bool:force=false) {
 	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
 	
 	if (force) {
-		ForceChangeLevel(buffer, "Starting custom map transitions.");
+		ForceChangeLevel(buffer, "Custom map transitions.");
 	} else {
-		L4D2Direct_SetVSInFinaleMap(false);	//so finales won't cause the game to end
+//		L4D2Direct_SetVSInFinaleMap(false);	//so finales won't cause the game to end
 		SetNextMap(buffer);
 	}
 }
