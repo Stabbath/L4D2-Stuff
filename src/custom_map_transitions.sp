@@ -57,7 +57,7 @@ new Handle:	g_hArrayTagOrder;			//stores tags by rank
 new Handle:	g_hArrayMapOrder;			//stores finalised map list in order
 new			g_iVetoesUsed[2];
 new	bool:	g_bMaplistFinalized;
-new			g_iMapsPlayed = -1;
+new			g_iMapsPlayed;
 new bool:	g_bMapsetInitialized;
 new			g_iMapCount;
 
@@ -402,10 +402,10 @@ GotoNextMap(bool:force=false) {
 	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
 	
 	if (force) {
+		ForceChangeLevel(buffer, "Starting custom map transitions.");
+	} else {
 		L4D2Direct_SetVSInFinaleMap(false);	//so finales won't cause the game to end
 		SetNextMap(buffer);
-	} else {
-		ForceChangeLevel(buffer, "Starting custom map transitions.");
 	}
 }
 
