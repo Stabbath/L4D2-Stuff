@@ -9,9 +9,7 @@
 /*
 	Known issues:
 	- losing team will sometimes be survivors first
-
 */
-
 
 /*
 1: Collect underpants
@@ -29,7 +27,7 @@ public Plugin:myinfo =
 	name = "Custom Map Transitions",
 	author = "Stabby",
 	description = "Makes games more fun and varied! Yay!",
-	version = "5",
+	version = "6",
 	url = "https://github.com/Stabbath/L4D2-Stuff"
 };
 
@@ -37,10 +35,8 @@ public Plugin:myinfo =
  * - test !forcemapset
  * - make it so everything in the plugin is reset after the last map in the mapset
  * - maybe add a safeguard in case, for example, there's 9 maps and 3 vetoes per team, all maps belong to the same pool, and 4 is the min poolsize. the 6th veto will not be usable, so players would be stuck in the vetoing process (unless void is allowed)
- * - re-test using mapend instead of onroundend; possibly put level change on a timer after round end
  * - maybe add cvar for unbalanced vetoes: -1 keeps balanced, 0 means survivors get an extra veto, 1 means infected get an extra veto
  * - possibly replace cmt_minimum_poolsize on a per-tag basis, since you might want to have 3 min pool for a tag but 1 min pool for another one, if the first is used by 3 ranks and the 2nd by only 1 or any other scenario
- * - Maybe show scores in already played maps with maplist cause why the hell not?
  */
 
 #define DIR_CFGS "cmt/"
@@ -56,32 +52,12 @@ new Handle:	g_hTriePools;				//stores pool array handles by tag name
 new Handle:	g_hArrayTagOrder;			//stores tags by rank
 new Handle:	g_hArrayMapOrder;			//stores finalised map list in order
 new			g_iVetoesUsed[2];
-new	bool:	g_bMaplistFinalized;
+new bool:	g_bMaplistFinalized;
 new			g_iMapsPlayed;
 new bool:	g_bMapsetInitialized;
 new			g_iMapCount;
-
-stock L4D2Direct_GetVSInFinaleMap()
-{
-	return LoadFromAddress(L4D2Direct_GetVSInFinaleMapAddr(), NumberType_Int8);
-}
-
-stock L4D2Direct_SetVSInFinaleMap(bool:inFinale)
-{
-	StoreToAddress(L4D2Direct_GetVSInFinaleMapAddr(), _:inFinale, NumberType_Int8);
-}
-
-stock Address:L4D2Direct_GetVSInFinaleMapAddr()
-{
-	static Address:pInFinaleMap = Address_Null;
-	if (pInFinaleMap == Address_Null)
-	{
-		new offs = GameConfGetOffset(L4D2Direct_GetGameConf(), "CDirectorVersusMode::m_bInFinaleMap");
-		if (offs == -1) return Address_Null;
-		pInFinaleMap = L4D2Direct_GetCDirectorVersusMode() + Address:offs;
-	}
-	return pInFinaleMap;
-}
+new 		g_iTeamCampaignScore[2];
+new Handle:	g_hArrayTeamMapScore[2];
 
 public OnPluginStart() {
 	SetRandomSeed(seed:GetEngineTime());
@@ -122,35 +98,33 @@ public OnPluginStart() {
 	g_hArrayTagOrder = CreateArray(BUF_SZ/4);
 	g_hArrayMapOrder = CreateArray(BUF_SZ/4);
 
-	HookEvent("versus_match_finished", Event_VersusMatchFinished);
+	g_hArrayTeamMapScore[0] = CreateArray();
+	g_hArrayTeamMapScore[1] = CreateArray();
 }
 
-public Action:Event_VersusMatchFinished(Handle:event, const String:name[], bool:dontBroadcast) {
-	PrintToChatAll("%s",name);
-	if (++g_iMapsPlayed < g_iMapCount)	GotoNextMap(true);	//does not actually "goto" map, only changes NextMap!
+//public Action:L4D_OnClearTeamScores(bool:newCampaign) {}
+public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {
+	scoreA = g_iTeamCampaignScore[0];	//overwrite scores every time the game tries to change them
+	scoreB = g_iTeamCampaignScore[1];	//
 }
 
 public OnRoundEnd() {
-	if (InSecondHalfOfRound() && L4D_IsMissionFinalMap()) {
-		if (++g_iMapsPlayed < g_iMapCount)	GotoNextMap();	//does not actually "goto" map, only changes NextMap!
-//		else 								L4D2Direct_SetVSInFinaleMap(true);	//so the game will end itself!
+	if (InSecondHalfOfRound()) {
+		decl score;
+		for (new i = 0; i < 2; i++) {
+			score = L4D_GetTeamScore(i);
+			PushArrayCell(g_hArrayTeamMapScore[i], score);
+			g_iTeamCampaignScore[i] += score;
+			L4D2Direct_SetVSCampaignScore(i, g_iTeamCampaignScore[i]);
+		}
+
+		if (g_iMapsPlayed++ < g_iMapCount)	GotoNextMap(L4D_IsMissionFinalMap());
 	}
 }
 
 //SetNextMap: Otherwise nextmap would be stuck and people wouldn't be able
 //to play normal campaigns without the plugin
-public OnMapStart() {
-	SetNextMap("#game_nextmap");
-//	LogMessage("%d in finale!", L4D2Direct_GetVSInFinaleMap());
-	//L4D2Direct_SetVSInFinaleMap(false);
-//	LogMessage("post set: %d in finale!", L4D2Direct_GetVSInFinaleMap());
-//	CreateTimer(2.0, Timed_repeat, TIMER_REPEAT);
-}
-//public Action:Timed_repeat(Handle:timer) {
-//	LogMessage("%d in finale!", L4D2Direct_GetVSInFinaleMap());
-//	L4D2Direct_SetVSInFinaleMap(false);
-//}
-
+public OnMapStart() 	SetNextMap("#game_nextmap");
 public OnPluginEnd()	SetNextMap("#game_nextmap");
 
 //console cmd: loads a specified set of maps
@@ -384,7 +358,8 @@ public Action:Maplist(client, args) {
 	if (g_bMaplistFinalized) {
 		for (new i = 0; i < GetArraySize(g_hArrayMapOrder); i++) {
 			GetArrayString(g_hArrayMapOrder, i, buffer, BUF_SZ);
-			PrintToChat(client, "%2d - %s", i + 1, buffer);
+			PrintToChat(client, "%2d - %s (%4d:%4d)", i + 1, buffer, 
+				GetArrayCell(g_hArrayTeamMapScore[0], i), GetArrayCell(g_hArrayTeamMapScore[0], i));
 		}
 	} else {
 		PrintToChat(client, "should be printing maplist, unless there's segfaults");
@@ -498,3 +473,27 @@ This seems to be what happens in order:
 12.	OnRoundEnd
 13. OnMapEnd
 */
+
+
+//this variable seems to be useless
+/*stock L4D2Direct_GetVSInFinaleMap()
+{
+	return LoadFromAddress(L4D2Direct_GetVSInFinaleMapAddr(), NumberType_Int8);
+}
+
+stock L4D2Direct_SetVSInFinaleMap(bool:inFinale)
+{
+	StoreToAddress(L4D2Direct_GetVSInFinaleMapAddr(), _:inFinale, NumberType_Int8);
+}
+
+stock Address:L4D2Direct_GetVSInFinaleMapAddr()
+{
+	static Address:pInFinaleMap = Address_Null;
+	if (pInFinaleMap == Address_Null)
+	{
+		new offs = GameConfGetOffset(L4D2Direct_GetGameConf(), "CDirectorVersusMode::m_bInFinaleMap");
+		if (offs == -1) return Address_Null;
+		pInFinaleMap = L4D2Direct_GetCDirectorVersusMode() + Address:offs;
+	}
+	return pInFinaleMap;
+}*/
