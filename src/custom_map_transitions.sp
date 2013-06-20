@@ -125,8 +125,8 @@ public OnPluginStart() {
 //	HookEvent("versus_match_finished", Event_VersusMatchFinished, EventHookMode_Pre);
 //	HookEvent("start_score_animation", Event_StartScoreAnimation, EventHookMode_Pre);
 }
-
-/*public Action:Event_VersusMatchFinished(Handle:event, const String:name[], bool:dontBroadcast) {
+/*
+public Action:Event_VersusMatchFinished(Handle:event, const String:name[], bool:dontBroadcast) {
 //	SetEventBroadcast(event, false);
 	PrintToChatAll("%s",name);
 	return Plugin_Handled;
@@ -134,8 +134,8 @@ public OnPluginStart() {
 
 public Action:Event_StartScoreAnimation(Handle:event, const String:name[], bool:dontBroadcast) {
 	PrintToChatAll("%s",name);
-}*/
-
+}
+*/
 public OnRoundEnd() {
 	if (InSecondHalfOfRound()) {
 		if (g_iMapsPlayed++ < g_iMapCount)	GotoNextMap();	//does not actually "goto" map, only changes NextMap!
