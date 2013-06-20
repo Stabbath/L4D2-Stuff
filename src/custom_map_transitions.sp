@@ -397,7 +397,7 @@ public Action:Maplist(client, args) {
 }
 
 //changes map
-GotoNextMap(bool:force) {
+GotoNextMap(bool:force=false) {
 	decl String:buffer[BUF_SZ];
 	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
 	
