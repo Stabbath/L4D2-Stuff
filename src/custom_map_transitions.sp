@@ -6,12 +6,9 @@
 #include <left4downtown>
 #include <l4d2_direct>
 
-
-
 /*
 	Known issues:
 	- losing team will sometimes be survivors first
-
 
 */
 
