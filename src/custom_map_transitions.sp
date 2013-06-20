@@ -122,10 +122,10 @@ public OnPluginStart() {
 	g_hArrayTagOrder = CreateArray(BUF_SZ/4);
 	g_hArrayMapOrder = CreateArray(BUF_SZ/4);
 
-//	HookEvent("versus_match_finished", Event_VersusMatchFinished, EventHookMode_Pre);
-//	HookEvent("start_score_animation", Event_StartScoreAnimation, EventHookMode_Pre);
+	HookEvent("versus_match_finished", Event_VersusMatchFinished, EventHookMode_Pre);
+	HookEvent("start_score_animation", Event_StartScoreAnimation, EventHookMode_Pre);
 }
-/*
+
 public Action:Event_VersusMatchFinished(Handle:event, const String:name[], bool:dontBroadcast) {
 //	SetEventBroadcast(event, false);
 	PrintToChatAll("%s",name);
@@ -135,7 +135,7 @@ public Action:Event_VersusMatchFinished(Handle:event, const String:name[], bool:
 public Action:Event_StartScoreAnimation(Handle:event, const String:name[], bool:dontBroadcast) {
 	PrintToChatAll("%s",name);
 }
-*/
+
 public OnRoundEnd() {
 	if (InSecondHalfOfRound()) {
 		if (g_iMapsPlayed++ < g_iMapCount)	GotoNextMap();	//does not actually "goto" map, only changes NextMap!
@@ -150,7 +150,13 @@ public OnMapStart() {
 	LogMessage("%d in finale!", L4D2Direct_GetVSInFinaleMap());
 	L4D2Direct_SetVSInFinaleMap(false);
 	LogMessage("post set: %d in finale!", L4D2Direct_GetVSInFinaleMap());
+	CreateTimer(2.0, Timed_repeat, TIMER_REPEAT);
 }
+public Action:Timed_repeat(Handle:timer) {
+	LogMessage("%d in finale!", L4D2Direct_GetVSInFinaleMap());
+	L4D2Direct_SetVSInFinaleMap(false);
+}
+
 public OnPluginEnd()	SetNextMap("#game_nextmap");
 
 //console cmd: loads a specified set of maps
