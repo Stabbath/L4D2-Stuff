@@ -37,15 +37,33 @@ new Handle:	hArCvar[ARRAYSIZE] = INVALID_HANDLE;	//cvar array for z_versus_<clas
 
 new Handle: hTHISISACVARLOL;
 
+new 		g_iAbilityOffset;
+new Handle:	g_hConfRandom;
+new Handle:	g_hSDKCallCreateAbility;
+
 public OnPluginStart()
 {
 	HookEvent("player_death", Event_PlayerDeath);
 
+	g_hConfRandom = LoadGameConfigFile("l4d2_random");
+
+	if (g_hConfRandom == INVALID_HANDLE) {
+		ThrowError("Could not load gamedata/l4d2_random.txt. Do you have Random installed?");
+	}
+
 	StartPrepSDKCall(SDKCall_Player);
-	PrepSDKCall_SetFromConf(LoadGameConfigFile("l4d2_random"), SDKConf_Signature, "SetClass");
+	PrepSDKCall_SetFromConf(g_hConfRandom, SDKConf_Signature, "SetClass");
 	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 	hSDKCallSetClass = EndPrepSDKCall();
+
+	StartPrepSDKCall(SDKCall_Static);
+	PrepSDKCall_SetFromConf(g_hConfRandom, SDKConf_Signature, "CreateAbility");
+	PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
+	PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
+	g_hSDKCallCreateAbility = EndPrepSDKCall();
 	
+	g_iAbilityOffset = GameConfGetOffset(g_hConfRandom, "oAbility");
+
 	hArrayZCs = CreateArray();
 	hArrayCrossroundBuffer = CreateArray();
 	
@@ -66,7 +84,7 @@ public L4D_OnEnterGhostState(client) {	//replaces class of player with the botto
 public Action:Timed_PostEnterGhostState(Handle:timer, any:client) {
 	new buf = GetArrayCell(hArrayZCs, 0);
 	if (!GetConVarBool(hTHISISACVARLOL)) PrintToChat(client, "You've entered ghost state: you should be a %s.", buf == 1 ? "smoker" : buf == 2 ? "boomer" : buf == 3 ? "hunter" : buf == 4 ? "spitter" : buf == 5 ? "jockey" : buf == 6 ? "charger" : "wtf");
-	SDKCall(hSDKCallSetClass, client, GetArrayCell(hArrayZCs, 0));
+	ChangeSIClass(client, GetArrayCell(hArrayZCs, 0));
 	RemoveFromArray(hArrayZCs, 0);	
 }
 
@@ -121,4 +139,18 @@ stock GetSumOfZLimits()
 		count += GetConVarInt(hArCvar[zc]);
 	}
 	return count;
+}
+
+ChangeSIClass(client, class) {
+	//code from random and zombomanager
+	new WeaponIndex;
+	while ((WeaponIndex = GetPlayerWeaponSlot(client, 0)) != -1) {
+		RemovePlayerItem(client, WeaponIndex);
+		RemoveEdict(WeaponIndex);
+	}
+
+	SDKCall(g_setClass, client, iClass);
+
+	AcceptEntityInput(MakeCompatEntRef(GetEntProp(client, Prop_Send, "m_customAbility")), "Kill");
+	SetEntProp(client, Prop_Send, "m_customAbility", GetEntData(SDKCall(g_hSDKCallCreateAbility, client), g_iAbilityOffset));
 }
