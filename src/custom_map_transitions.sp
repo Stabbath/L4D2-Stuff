@@ -40,7 +40,8 @@ public Plugin:myinfo =
  */
 
 #define DIR_CFGS "cmt/"
-#define BUF_SZ	64
+#define BUF_SZ   64
+#define TIME_MAPCHANGE_DELAY 10
 
 new Handle:	g_hCvarPoolsize;
 new Handle:	g_hCvarMinPoolsize;
@@ -110,16 +111,19 @@ public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {
 
 public OnRoundEnd() {
 	if (InSecondHalfOfRound()) {
-		decl score;
-		for (new i = 0; i < 2; i++) {
-			score = L4D_GetTeamScore(i);
-			PushArrayCell(g_hArrayTeamMapScore[i], score);
-			g_iTeamCampaignScore[i] += score;
-			L4D2Direct_SetVSCampaignScore(i, g_iTeamCampaignScore[i]);
-		}
-
-		if (g_iMapsPlayed++ < g_iMapCount)	GotoNextMap(L4D_IsMissionFinalMap());
+		CreateTimer(TIME_MAPCHANGE_DELAY, Timed_PostOnRoundEnd)
 	}
+}
+public Action:Timed_PostOnRoundEnd(Handle:timer) {
+	decl score;
+	for (new i = 0; i < 2; i++) {
+		score = L4D_GetTeamScore(i);
+		PushArrayCell(g_hArrayTeamMapScore[i], score);
+		g_iTeamCampaignScore[i] += score;
+		L4D2Direct_SetVSCampaignScore(i, g_iTeamCampaignScore[i]);
+	}
+
+	if (g_iMapsPlayed++ < g_iMapCount)	GotoNextMap(L4D_IsMissionFinalMap());
 }
 
 //SetNextMap: Otherwise nextmap would be stuck and people wouldn't be able
@@ -352,20 +356,20 @@ public Action:Timed_GiveThemTimeToReadTheMapList(Handle:timer) {
 
 //client cmd: displays map list
 public Action:Maplist(client, args) {
-	decl String:output;
+	decl String:output[BUF_SZ];
 	decl String:buffer[BUF_SZ];
 
 	Format(output, BUF_SZ, "Maplist: ");
 	if (g_bMaplistFinalized)
-		Format(output, BUF_SZ, "%s\t %4d-%4d", output, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
+		Format(output, BUF_SZ, "%s\t %-4d-%4d", output, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
 
 	PrintToChat(client, output);
 
 	if (g_bMaplistFinalized) {
 		/*	Final Maplist	*/
 		for (new i = 0; i < GetArraySize(g_hArrayMapOrder); i++) {
-			Format(output, BUF_SZ, "%2d - %s", i + 1, buffer);
 			GetArrayString(g_hArrayMapOrder, i, buffer, BUF_SZ);
+			Format(output, BUF_SZ, "%2d - %s", i + 1, buffer);
 
 			if (g_iMapsPlayed > i) 
 				Format(output, BUF_SZ, "%s\t %-4d-%4d", output, GetArrayCell(g_hArrayTeamMapScore[0], i), GetArrayCell(g_hArrayTeamMapScore[1], i));
