@@ -352,16 +352,28 @@ public Action:Timed_GiveThemTimeToReadTheMapList(Handle:timer) {
 
 //client cmd: displays map list
 public Action:Maplist(client, args) {
-	PrintToChat(client, "Maplist: ");
+	decl String:output;
 	decl String:buffer[BUF_SZ];
 
+	Format(output, BUF_SZ, "Maplist: ");
+	if (g_bMaplistFinalized)
+		Format(output, BUF_SZ, "%s\t %4d-%4d", output, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
+
+	PrintToChat(client, output);
+
 	if (g_bMaplistFinalized) {
+		/*	Final Maplist	*/
 		for (new i = 0; i < GetArraySize(g_hArrayMapOrder); i++) {
+			Format(output, BUF_SZ, "%2d - %s", i + 1, buffer);
 			GetArrayString(g_hArrayMapOrder, i, buffer, BUF_SZ);
-			PrintToChat(client, "%2d - %s (%4d:%4d)", i + 1, buffer, 
-				GetArrayCell(g_hArrayTeamMapScore[0], i), GetArrayCell(g_hArrayTeamMapScore[0], i));
+
+			if (g_iMapsPlayed > i) 
+				Format(output, BUF_SZ, "%s\t %-4d-%4d", output, GetArrayCell(g_hArrayTeamMapScore[0], i), GetArrayCell(g_hArrayTeamMapScore[1], i));
+
+			PrintToChat(client, "%s", output);				
 		}
 	} else {
+		/*	Mid-veto Maplist	*/
 		PrintToChat(client, "should be printing maplist, unless there's segfaults");
 		decl Handle:hArrayMapPool;
 		decl String:tag[BUF_SZ];
