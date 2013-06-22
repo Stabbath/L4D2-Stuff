@@ -27,7 +27,7 @@ public Plugin:myinfo =
 	name = "Custom Map Transitions",
 	author = "Stabby",
 	description = "Makes games more fun and varied! Yay!",
-	version = "6",
+	version = "7",
 	url = "https://github.com/Stabbath/L4D2-Stuff"
 };
 
@@ -80,7 +80,7 @@ public OnPluginStart() {
 	RegConsoleCmd(	"sm_veto",			Veto,
 					"Lets players veto a map. Uses per team per game cvar'd.");
 
-	
+
 	g_hCvarPoolsize = CreateConVar(		"cmt_poolsize", "1000",
 										"How many maps will be initially pooled for each tag.",
 										FCVAR_PLUGIN, true, 1.0, false);
@@ -109,21 +109,20 @@ public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {
 	scoreB = g_iTeamCampaignScore[1];	//
 }
 
+//maybe replace with Action:L4D2_OnEndVersusModeRound(bool:countSurvivors);
 public OnRoundEnd() {
-	if (InSecondHalfOfRound()) {
-		CreateTimer(TIME_MAPCHANGE_DELAY, Timed_PostOnRoundEnd);
-	}
+	new round = _:InSecondHalfOfRound();
+	CreateTimer(round ? TIME_MAPCHANGE_DELAY : 1.0, Timed_PostOnRoundEnd, round);
 }
-public Action:Timed_PostOnRoundEnd(Handle:timer) {
-	decl score;
-	for (new i = 0; i < 2; i++) {
-		score = L4D_GetTeamScore(i);
-		PushArrayCell(g_hArrayTeamMapScore[i], score);
-		g_iTeamCampaignScore[i] += score;
-		L4D2Direct_SetVSCampaignScore(i, g_iTeamCampaignScore[i]);
-	}
+public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
+	new score = L4D_GetTeamScore(round + 1);
+	PushArrayCell(g_hArrayTeamMapScore[round], score);
+	g_iTeamCampaignScore[round] += score;
+	L4D2Direct_SetVSCampaignScore(round, g_iTeamCampaignScore[round]);
 
-	if (g_iMapsPlayed++ < g_iMapCount)	GotoNextMap(L4D_IsMissionFinalMap());
+	if (round) {
+		if (++g_iMapsPlayed < g_iMapCount)	GotoNextMap(L4D_IsMissionFinalMap());
+	}
 }
 
 //SetNextMap: Otherwise nextmap would be stuck and people wouldn't be able
