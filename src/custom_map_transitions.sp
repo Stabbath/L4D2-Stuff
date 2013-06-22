@@ -116,7 +116,12 @@ public OnRoundEnd() {
 }
 public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 	new score = L4D_GetTeamScore(round + 1);
-	PushArrayCell(g_hArrayTeamMapScore[round], score);
+	if (!round) {	//this if-el is so that scores for a map are shown right after round 1
+		PushArrayCell(g_hArrayTeamMapScore[0], score);
+		PushArrayCell(g_hArrayTeamMapScore[1], 0);
+	} else {
+		SetArrayCell(g_hArrayTeamMapScore[1], GetArraySize(g_hArrayTeamMapScore[1]) - 1, score);
+	}
 	g_iTeamCampaignScore[round] += score;
 	L4D2Direct_SetVSCampaignScore(round, g_iTeamCampaignScore[round]);
 
@@ -146,6 +151,7 @@ public Action:ForceMapSet(client, args) {
 	ResetConVar(g_hCvarPoolsize);
 	ResetConVar(g_hCvarMinPoolsize);
 	ResetConVar(g_hCvarVetoCount);
+	ResetConVar(g_hCvarAllowVoid);	//doesnt matter because no vetoes but just reset it too
 
 	decl String:map[BUF_SZ];
 	for (new i = 1; i <= args; i++) {
