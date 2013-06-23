@@ -13,10 +13,9 @@
 
 /*
 	TODO
-	- change the way it works so that your poolsize and min poolsize scale with the number of times a tag is used
+	- make it so everything in the plugin is reset after the last map in the mapset
 	- make it so in-vetoing map list groups up all map numbers that use teh same tag
 	- fix in-game scoring
-	- replace Lock with a timer again since otherwise we can't detect failed preset loads
 */
 
 /*
@@ -38,13 +37,6 @@ public Plugin:myinfo =
 	version = "8",
 	url = "https://github.com/Stabbath/L4D2-Stuff"
 };
-
-/* TODO:
- * - make it so everything in the plugin is reset after the last map in the mapset
- * - maybe add a safeguard in case, for example, there's 9 maps and 3 vetoes per team, all maps belong to the same pool, and 4 is the min poolsize. the 6th veto will not be usable, so players would be stuck in the vetoing process (unless void is allowed)
- * - maybe add cvar for unbalanced vetoes: -1 keeps balanced, 0 means survivors get an extra veto, 1 means infected get an extra veto
- * - possibly replace cmt_minimum_poolsize on a per-tag basis, since you might want to have 3 min pool for a tag but 1 min pool for another one, if the first is used by 3 ranks and the 2nd by only 1 or any other scenario
- */
 
 #define DIR_CFGS "cmt/"
 #define BUF_SZ   64
@@ -87,7 +79,7 @@ public OnPluginStart() {
 
 
 	g_hCvarPoolsize = CreateConVar(		"cmt_poolsize", "1000",
-										"How many maps will be initially pooled for each tag.",
+										"How many maps will be initially pooled for each tag for each rank that uses that tag (can be a float).",
 										FCVAR_PLUGIN, true, 1.0, false);
 	g_hCvarMinPoolsize = CreateConVar(	"cmt_minimum_poolsize", "1",
 										"How many maps must remain in each pool after vetoing for each time that pool's tag is used/ranked.",
@@ -206,16 +198,17 @@ public Action:Timed_PostMapSet(Handle:timer) {
 		return Plugin_Handled;
 	}
 	
-	//all this to cut each pool down to cmt_poolsize maps
+	//all this to cut each pool down to cmt_poolsize*tagUses maps
 	decl String:buffer[BUF_SZ];
 	decl Handle:hArrayMapPool;
-	new poolsize = GetConVarInt(g_hCvarPoolsize);
+	new Float:poolsize = GetConVarFloat(g_hCvarPoolsize);
 	new tagnum = GetArraySize(g_hArrayTags);
-	decl sizepool;
+	decl sizepool, tagUses;
 	for (new i = 0; i < tagnum; i++) {
+		GetTrieValue(g_hTrieTagUses, tag, tagUses);
 		GetArrayString(g_hArrayTags, i, buffer, BUF_SZ);
 		GetTrieValue(g_hTriePools, buffer, hArrayMapPool);
-		while ((sizepool = GetArraySize(hArrayMapPool)) > poolsize) {
+		while ((sizepool = GetArraySize(hArrayMapPool)) > RoundToFloor(poolsize*float(tagUses))) {
 			RemoveFromArray(hArrayMapPool, GetRandomInt(0, sizepool - 1));
 		}
 	}
@@ -237,11 +230,11 @@ public Action:Timed_PostMapSet(Handle:timer) {
 }
 
 //returns a handle to the first array which is found to contain the specified mapname (should be the first and only one)
-stock Handle:GetPoolThatContainsMap(String:map[], &index, &String:tag[]) {
+stock Handle:GetPoolThatContainsMap(String:map[], &index, String:tag[]) {
 	decl Handle:hArrayMapPool;
 
 	for (new i = 0; i < GetArraySize(g_hArrayTags); i++) {
-		GetArrayString(g_hArrayTags, i, tag, sizeof(tag));
+		GetArrayString(g_hArrayTags, i, tag, BUF_SZ);
 		GetTrieValue(g_hTriePools, tag, hArrayMapPool);
 		if ((index = FindStringInArray(hArrayMapPool, map)) >= 0) {
 			return hArrayMapPool;
