@@ -12,6 +12,14 @@
 */
 
 /*
+	TODO
+	- change the way it works so that your poolsize and min poolsize scale with the number of times a tag is used
+	- make it so in-vetoing map list groups up all map numbers that use teh same tag
+	- fix in-game scoring
+	- replace Lock with a timer again since otherwise we can't detect failed preset loads
+*/
+
+/*
 1: Collect underpants
 2a: Fetch all maps from each preset pool into a plugin pool
 	- if a map is tagged for 2+ pools in the preset, load it only into one of them
@@ -27,12 +35,11 @@ public Plugin:myinfo =
 	name = "Custom Map Transitions",
 	author = "Stabby",
 	description = "Makes games more fun and varied! Yay!",
-	version = "7",
+	version = "8",
 	url = "https://github.com/Stabbath/L4D2-Stuff"
 };
 
 /* TODO:
- * - test !forcemapset
  * - make it so everything in the plugin is reset after the last map in the mapset
  * - maybe add a safeguard in case, for example, there's 9 maps and 3 vetoes per team, all maps belong to the same pool, and 4 is the min poolsize. the 6th veto will not be usable, so players would be stuck in the vetoing process (unless void is allowed)
  * - maybe add cvar for unbalanced vetoes: -1 keeps balanced, 0 means survivors get an extra veto, 1 means infected get an extra veto
@@ -46,12 +53,12 @@ public Plugin:myinfo =
 new Handle:	g_hCvarPoolsize;
 new Handle:	g_hCvarMinPoolsize;
 new Handle:	g_hCvarVetoCount;
-new Handle:	g_hCvarAllowVoid;
 
 new Handle:	g_hArrayTags;				//stores tags for indexing g_hTriePools
 new Handle:	g_hTriePools;				//stores pool array handles by tag name
 new Handle:	g_hArrayTagOrder;			//stores tags by rank
 new Handle:	g_hArrayMapOrder;			//stores finalised map list in order
+new Handle:	g_hTrieTagUses;				//how many different ranks a tag has, ie how many played maps will be based on this tag
 new			g_iVetoesUsed[2];
 new bool:	g_bMaplistFinalized;
 new			g_iMapsPlayed;
@@ -72,8 +79,6 @@ public OnPluginStart() {
 					"Adds a map to a map group under the specified tags. Use without params for syntax.");
 	RegServerCmd(	"sm_tagrank",		TagRank,
 					"Sets a tag's rank in the group. Use without params for syntax.");
-	RegServerCmd(	"sm_mapsetlock",	Lock,
-					"Locks and finalizes a mapset, allowing the plugin to start processing it.");
 	//Match commands
 	RegConsoleCmd(	"sm_maplist",		Maplist,
 					"Shows a player cmt's selected map list.");
@@ -85,19 +90,17 @@ public OnPluginStart() {
 										"How many maps will be initially pooled for each tag.",
 										FCVAR_PLUGIN, true, 1.0, false);
 	g_hCvarMinPoolsize = CreateConVar(	"cmt_minimum_poolsize", "1",
-										"How many maps must remain in each pool after vetoing.",
+										"How many maps must remain in each pool after vetoing for each time that pool's tag is used/ranked.",
 										FCVAR_PLUGIN, true, 1.0, false);
 	g_hCvarVetoCount = CreateConVar(	"cmt_veto_count", "0",
 										"How many vetoes each team gets.",
 										FCVAR_PLUGIN, true, 0.0, false);
-	g_hCvarAllowVoid = CreateConVar(	"cmt_allow_void", "1",
-										"Are teams allowed to veto @void, therefore discarding a veto?",
-										FCVAR_PLUGIN, true, 0.0, true, 1.0);
 
 	g_hArrayTags = CreateArray(BUF_SZ/4);	//1 block = 4 characters => X characters = X/4 blocks
 	g_hTriePools = CreateTrie();
 	g_hArrayTagOrder = CreateArray(BUF_SZ/4);
 	g_hArrayMapOrder = CreateArray(BUF_SZ/4);
+	g_hTrieTagUses = CreateTrie();
 
 	g_hArrayTeamMapScore[0] = CreateArray();
 	g_hArrayTeamMapScore[1] = CreateArray();
@@ -151,7 +154,6 @@ public Action:ForceMapSet(client, args) {
 	ResetConVar(g_hCvarPoolsize);
 	ResetConVar(g_hCvarMinPoolsize);
 	ResetConVar(g_hCvarVetoCount);
-	ResetConVar(g_hCvarAllowVoid);	//doesnt matter because no vetoes but just reset it too
 
 	decl String:map[BUF_SZ];
 	for (new i = 1; i <= args; i++) {
@@ -182,17 +184,13 @@ public Action:MapSet(client, args) {
 	ServerCommand("exec %s%s.cfg", DIR_CFGS, group);
 	PrintToChatAll("Loading %s preset...", group);
 	g_bMapsetInitialized = true;
+	CreateTimer(0.1, Timed_PostMapSet);
 
 	return Plugin_Handled;
 }
 
 //creates the initial map list after a map set has been loaded
-public Action:Lock(args) {
-	if (g_bMaplistFinalized) {
-		ReplyToCommand(0, "The map list is already finalized, what are you trying to lock?");
-		return Plugin_Handled;
-	}
-
+public Action:Timed_PostMapSet(Handle:timer) {
 	new mapnum = GetArraySize(g_hArrayTagOrder);
 	new triesize = GetTrieSize(g_hTriePools);
 	
@@ -217,7 +215,7 @@ public Action:Lock(args) {
 	for (new i = 0; i < tagnum; i++) {
 		GetArrayString(g_hArrayTags, i, buffer, BUF_SZ);
 		GetTrieValue(g_hTriePools, buffer, hArrayMapPool);
-		while ((sizepool = GetArraySize(hArrayMapPool)) >= poolsize) {
+		while ((sizepool = GetArraySize(hArrayMapPool)) > poolsize) {
 			RemoveFromArray(hArrayMapPool, GetRandomInt(0, sizepool - 1));
 		}
 	}
@@ -239,13 +237,12 @@ public Action:Lock(args) {
 }
 
 //returns a handle to the first array which is found to contain the specified mapname (should be the first and only one)
-stock Handle:GetPoolThatContainsMap(String:map[], &index) {
-	decl String:buffer[BUF_SZ];
+stock Handle:GetPoolThatContainsMap(String:map[], &index, &String:tag[]) {
 	decl Handle:hArrayMapPool;
 
 	for (new i = 0; i < GetArraySize(g_hArrayTags); i++) {
-		GetArrayString(g_hArrayTags, i, buffer, BUF_SZ);
-		GetTrieValue(g_hTriePools, buffer, hArrayMapPool);
+		GetArrayString(g_hArrayTags, i, tag, sizeof(tag));
+		GetTrieValue(g_hTriePools, tag, hArrayMapPool);
 		if ((index = FindStringInArray(hArrayMapPool, map)) >= 0) {
 			return hArrayMapPool;
 		}
@@ -280,22 +277,21 @@ public Action:Veto(client, args) {
 	GetCmdArg(1, map, BUF_SZ);
 	
 	if (StrEqual(map, "@void", false)) {
-		if (GetConVarBool(g_hCvarAllowVoid)) {
-			PrintToChatAll("Veto discarded.");
-			++g_iVetoesUsed[team];
-		} else {
-			ReplyToCommand(client, "Sorry, @void vetoes are disabled.");
-		}
+		PrintToChatAll("Veto discarded.");
+		++g_iVetoesUsed[team];
 	} else {
 	
 		decl index;
-		new Handle:hArrayPool = GetPoolThatContainsMap(map, index);
+		decl String:tag[BUF_SZ];
+		new Handle:hArrayPool = GetPoolThatContainsMap(map, index, tag);
 		if (hArrayPool == INVALID_HANDLE) {
 			ReplyToCommand(client, "Invalid map, no pool contains it.");
 			return Plugin_Handled;
 		}
 
-		if (GetArraySize(hArrayPool) <= GetConVarInt(g_hCvarMinPoolsize)) {
+		decl tagUses;
+		GetTrieValue(g_hTrieTagUses, tag, tagUses);
+		if (GetArraySize(hArrayPool) <= GetConVarInt(g_hCvarMinPoolsize)*tagUses) {
 			ReplyToCommand(client, "Sorry! There are too few maps in the pool the specified map belongs to: no more can be removed.");
 			return Plugin_Handled;
 		}
@@ -382,7 +378,6 @@ public Action:Maplist(client, args) {
 		}
 	} else {
 		/*	Mid-veto Maplist	*/
-		PrintToChat(client, "should be printing maplist, unless there's segfaults");
 		decl Handle:hArrayMapPool;
 		decl String:tag[BUF_SZ];
 		for (new i = 0; i < GetArraySize(g_hArrayTagOrder); i++) {
@@ -430,6 +425,10 @@ public Action:TagRank(args) {
 		
 		GetCmdArg(1, buffer, BUF_SZ);
 		
+		decl tagUses;
+		if (!GetTrieValue(g_hTrieTagUses, buffer, tagUses)) tagUses = 0;
+		SetTrieValue(g_hTrieTagUses, buffer, ++tagUses);
+
 		if (index >= GetArraySize(g_hArrayTagOrder)) {
 			ResizeArray(g_hArrayTagOrder, index + 1);
 		}
