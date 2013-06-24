@@ -8,7 +8,7 @@
 
 /*
 	Known issues:
-	- losing team will sometimes be survivors first
+	- team order is bugged because of in-game scoring being bugged
 */
 
 /*
@@ -98,7 +98,11 @@ public OnPluginStart() {
 	g_hArrayTeamMapScore[1] = CreateArray();
 }
 
-//public Action:L4D_OnClearTeamScores(bool:newCampaign) {}
+public Action:L4D_OnClearTeamScores(bool:newCampaign) {
+	L4D2Direct_SetVSCampaignScore(0, g_iTeamCampaignScore[0]);
+	L4D2Direct_SetVSCampaignScore(1, g_iTeamCampaignScore[1]);	
+}
+
 public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {
 	scoreA = g_iTeamCampaignScore[0];	//overwrite scores every time the game tries to change them
 	scoreB = g_iTeamCampaignScore[1];	//
@@ -205,8 +209,8 @@ public Action:Timed_PostMapSet(Handle:timer) {
 	new tagnum = GetArraySize(g_hArrayTags);
 	decl sizepool, tagUses;
 	for (new i = 0; i < tagnum; i++) {
-		GetTrieValue(g_hTrieTagUses, buffer, tagUses);
 		GetArrayString(g_hArrayTags, i, buffer, BUF_SZ);
+		GetTrieValue(g_hTrieTagUses, buffer, tagUses);
 		GetTrieValue(g_hTriePools, buffer, hArrayMapPool);
 		while ((sizepool = GetArraySize(hArrayMapPool)) > RoundToFloor(poolsize*float(tagUses))) {
 			RemoveFromArray(hArrayMapPool, GetRandomInt(0, sizepool - 1));
