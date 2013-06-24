@@ -205,7 +205,7 @@ public Action:Timed_PostMapSet(Handle:timer) {
 	new tagnum = GetArraySize(g_hArrayTags);
 	decl sizepool, tagUses;
 	for (new i = 0; i < tagnum; i++) {
-		GetTrieValue(g_hTrieTagUses, tag, tagUses);
+		GetTrieValue(g_hTrieTagUses, buffer, tagUses);
 		GetArrayString(g_hArrayTags, i, buffer, BUF_SZ);
 		GetTrieValue(g_hTriePools, buffer, hArrayMapPool);
 		while ((sizepool = GetArraySize(hArrayMapPool)) > RoundToFloor(poolsize*float(tagUses))) {
