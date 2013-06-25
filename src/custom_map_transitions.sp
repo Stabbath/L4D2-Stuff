@@ -41,6 +41,7 @@ public Plugin:myinfo =
 #define DIR_CFGS "cmt/"
 #define BUF_SZ   64
 #define TIME_MAPCHANGE_DELAY 5.0
+#define TIME_POSTROUND1_SCORE_DELAY 1.0
 
 new Handle:	g_hCvarPoolsize;
 new Handle:	g_hCvarMinPoolsize;
@@ -98,11 +99,14 @@ public OnPluginStart() {
 	g_hArrayTeamMapScore[1] = CreateArray();
 }
 
+public Action:L4D2_OnEndVersusModeRound(bool:countSurvivors) {
+	L4D2Direct_SetVSCampaignScore(0, g_iTeamCampaignScore[0]);
+	L4D2Direct_SetVSCampaignScore(1, g_iTeamCampaignScore[1]);
+}
 public Action:L4D_OnClearTeamScores(bool:newCampaign) {
 	L4D2Direct_SetVSCampaignScore(0, g_iTeamCampaignScore[0]);
-	L4D2Direct_SetVSCampaignScore(1, g_iTeamCampaignScore[1]);	
+	L4D2Direct_SetVSCampaignScore(1, g_iTeamCampaignScore[1]);
 }
-
 public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {
 	scoreA = g_iTeamCampaignScore[0];	//overwrite scores every time the game tries to change them
 	scoreB = g_iTeamCampaignScore[1];	//
@@ -111,7 +115,7 @@ public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {
 //maybe replace with Action:L4D2_OnEndVersusModeRound(bool:countSurvivors);
 public OnRoundEnd() {
 	new round = _:InSecondHalfOfRound();
-	CreateTimer(round ? TIME_MAPCHANGE_DELAY : 1.0, Timed_PostOnRoundEnd, round);
+	CreateTimer(round ? TIME_MAPCHANGE_DELAY : TIME_POSTROUND1_SCORE_DELAY, Timed_PostOnRoundEnd, round);
 }
 public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 	new score = L4D_GetTeamScore(round + 1);
@@ -157,7 +161,7 @@ public Action:ForceMapSet(client, args) {
 		ServerCommand("sm_addmap %s %d", map, i);
 		ServerCommand("sm_tagrank %d %d", i, i-1);
 	}
-	ServerCommand("sm_mapsetlock");
+	CreateTimer(0.1, Timed_PostMapSet);
 
 	return Plugin_Handled;
 }
@@ -274,8 +278,7 @@ public Action:Veto(client, args) {
 	GetCmdArg(1, map, BUF_SZ);
 	
 	if (StrEqual(map, "@void", false)) {
-		PrintToChatAll("Veto discarded.");
-		++g_iVetoesUsed[team];
+		PrintToChatAll("Veto discarded. Your team has %d vetoes left.", GetConVarInt(g_hCvarVetoCount) - ++g_iVetoesUsed[team]);
 	} else {
 	
 		decl index;
@@ -289,13 +292,12 @@ public Action:Veto(client, args) {
 		decl tagUses;
 		GetTrieValue(g_hTrieTagUses, tag, tagUses);
 		if (GetArraySize(hArrayPool) <= GetConVarInt(g_hCvarMinPoolsize)*tagUses) {
-			ReplyToCommand(client, "Sorry! There are too few maps in the pool the specified map belongs to: no more can be removed.");
+			ReplyToCommand(client, "Sorry! There are too few maps in the pool the specified map belongs to: no more can be removed. If this happens with all of the pools, use !veto @void to get rid of all remaining vetoes.");
 			return Plugin_Handled;
 		}
 	
 		RemoveFromArray(hArrayPool, index);
-		PrintToChatAll("Map %s has been removed from its pool.", map);
-		++g_iVetoesUsed[team];
+		PrintToChatAll("Map %s has been removed from its pool. Your team has %d vetoes left.", map, GetConVarInt(g_hCvarVetoCount) - ++g_iVetoesUsed[team]);
 
 	}
 
@@ -366,7 +368,7 @@ public Action:Maplist(client, args) {
 		/*	Final Maplist	*/
 		for (new i = 0; i < GetArraySize(g_hArrayMapOrder); i++) {
 			GetArrayString(g_hArrayMapOrder, i, buffer, BUF_SZ);
-			FormatEx(output, BUF_SZ, "%2d - %s", i + 1, buffer);
+			FormatEx(output, BUF_SZ, "%d - %s", i + 1, buffer);
 
 			if (g_iMapsPlayed > i) 
 				Format(output, BUF_SZ, "%s\t %-4d-%4d", output, GetArrayCell(g_hArrayTeamMapScore[0], i), GetArrayCell(g_hArrayTeamMapScore[1], i));
@@ -377,11 +379,20 @@ public Action:Maplist(client, args) {
 		/*	Mid-veto Maplist	*/
 		decl Handle:hArrayMapPool;
 		decl String:tag[BUF_SZ];
-		for (new i = 0; i < GetArraySize(g_hArrayTagOrder); i++) {
-			GetArrayString(g_hArrayTagOrder, i, tag, BUF_SZ);
+		decl String:buffer[BUF_SZ];
+		decl String:output[BUF_SZ];
+		decl j;
+		for (new i = 0; i < GetArraySize(g_hArrayTags); i++) {
+			GetArrayString(g_hArrayTags, i, tag, BUF_SZ);
+
+			for (j = 0; j < GetArraySize(g_hArrayTagOrder); j++) {
+				GetArrayString(g_hArrayTagOrder, j, buffer, BUF_SZ);
+				if (StrEqual(tag, buffer, false)) Format(output, BUF_SZ, "%s, %d", output, j + 1);
+			}
+			Format(output, BUF_SZ, "%s - %s", output, tag);
+
 			GetTrieValue(g_hTriePools, tag, hArrayMapPool);
-			PrintToChat(client, "%2d - %s", i + 1, tag);
-			for (new j = 0; j < GetArraySize(hArrayMapPool); j++) {
+			for (j = 0; j < GetArraySize(hArrayMapPool); j++) {
 				GetArrayString(hArrayMapPool, j, buffer, BUF_SZ);
 				PrintToChat(client, "\t%s", buffer);
 			}
