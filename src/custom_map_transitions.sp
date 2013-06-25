@@ -390,7 +390,7 @@ public Action:Maplist(client, args) {
 			output = "";
 			for (j = 0; j < GetArraySize(g_hArrayTagOrder); j++) {
 				GetArrayString(g_hArrayTagOrder, j, buffer, BUF_SZ);
-				if (StrEqual(tag, buffer, false)) Format(output, BUF_SZ, "%s%s %d", output, output == "" ? "" : "," j + 1);
+				if (StrEqual(tag, buffer, false)) Format(output, BUF_SZ, "%s%s %d", output, output[0] == '\0' ? "" : ",", j + 1);
 			}
 			PrintToChat(client, "%s - %s", output, tag);
 
