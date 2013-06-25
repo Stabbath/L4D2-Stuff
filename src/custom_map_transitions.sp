@@ -278,7 +278,9 @@ public Action:Veto(client, args) {
 	GetCmdArg(1, map, BUF_SZ);
 	
 	if (StrEqual(map, "@void", false)) {
-		PrintToChatAll("Veto discarded. Your team has %d vetoes left.", GetConVarInt(g_hCvarVetoCount) - ++g_iVetoesUsed[team]);
+		new tmp = GetConVarInt(g_hCvarVetoCount);
+		++g_iVetoesUsed[team];
+		PrintToChatAll("Veto discarded. Remaining vetoes: %d - %d.", tmp - g_iVetoesUsed[0], tmp - g_iVetoesUsed[1]);
 	} else {
 	
 		decl index;
@@ -297,7 +299,9 @@ public Action:Veto(client, args) {
 		}
 	
 		RemoveFromArray(hArrayPool, index);
-		PrintToChatAll("Map %s has been removed from its pool. Your team has %d vetoes left.", map, GetConVarInt(g_hCvarVetoCount) - ++g_iVetoesUsed[team]);
+		new tmp = GetConVarInt(g_hCvarVetoCount);
+		++g_iVetoesUsed[team];
+		PrintToChatAll("Map %s has been removed from its pool. Remaining vetoes: %d - %d.", map, tmp - g_iVetoesUsed[0], tmp - g_iVetoesUsed[1]);
 
 	}
 
@@ -379,17 +383,16 @@ public Action:Maplist(client, args) {
 		/*	Mid-veto Maplist	*/
 		decl Handle:hArrayMapPool;
 		decl String:tag[BUF_SZ];
-		decl String:buffer[BUF_SZ];
-		decl String:output[BUF_SZ];
 		decl j;
 		for (new i = 0; i < GetArraySize(g_hArrayTags); i++) {
 			GetArrayString(g_hArrayTags, i, tag, BUF_SZ);
 
+			output = "";
 			for (j = 0; j < GetArraySize(g_hArrayTagOrder); j++) {
 				GetArrayString(g_hArrayTagOrder, j, buffer, BUF_SZ);
 				if (StrEqual(tag, buffer, false)) Format(output, BUF_SZ, "%s, %d", output, j + 1);
 			}
-			Format(output, BUF_SZ, "%s - %s", output, tag);
+			PrintToChat(client, "%s - %s", output, tag);
 
 			GetTrieValue(g_hTriePools, tag, hArrayMapPool);
 			for (j = 0; j < GetArraySize(hArrayMapPool); j++) {
