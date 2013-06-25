@@ -390,7 +390,7 @@ public Action:Maplist(client, args) {
 			output = "";
 			for (j = 0; j < GetArraySize(g_hArrayTagOrder); j++) {
 				GetArrayString(g_hArrayTagOrder, j, buffer, BUF_SZ);
-				if (StrEqual(tag, buffer, false)) Format(output, BUF_SZ, "%s, %d", output, j + 1);
+				if (StrEqual(tag, buffer, false)) Format(output, BUF_SZ, "%s%s %d", output, output == "" ? "" : "," j + 1);
 			}
 			PrintToChat(client, "%s - %s", output, tag);
 
@@ -446,7 +446,7 @@ public Action:TagRank(args) {
 		
 		g_iMapCount++;
 		SetArrayString(g_hArrayTagOrder, index, buffer);
-		PushArrayString(g_hArrayTags, buffer);
+		if (FindStringInArray(g_hArrayTags, buffer) < 0) PushArrayString(g_hArrayTags, buffer);
 	}
 	
 	return Plugin_Handled;
