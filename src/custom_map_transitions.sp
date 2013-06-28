@@ -34,7 +34,7 @@ public Plugin:myinfo =
 	name = "Custom Map Transitions",
 	author = "Stabby",
 	description = "Makes games more fun and varied! Yay!",
-	version = "8",
+	version = "9",
 	url = "https://github.com/Stabbath/L4D2-Stuff"
 };
 
@@ -112,6 +112,11 @@ public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {
 	scoreB = g_iTeamCampaignScore[1];	//
 }
 
+public OnRoundStart() {
+	L4D2Direct_SetVSCampaignScore(0, g_iTeamCampaignScore[0]);
+	L4D2Direct_SetVSCampaignScore(1, g_iTeamCampaignScore[1]);	
+}
+
 //maybe replace with Action:L4D2_OnEndVersusModeRound(bool:countSurvivors);
 public OnRoundEnd() {
 	new round = _:InSecondHalfOfRound();
@@ -128,15 +133,19 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 	g_iTeamCampaignScore[round] += score;
 	L4D2Direct_SetVSCampaignScore(round, g_iTeamCampaignScore[round]);
 
+	for (new i = 1; i <= MaxClients; i++) {
+		if (IsClientInGame(i) && !IsFakeClient(i)) FakeClientCommand("sm_maplist");
+	}
+
 	if (round) {
-		if (++g_iMapsPlayed < g_iMapCount)	GotoNextMap(L4D_IsMissionFinalMap());
+		if (++g_iMapsPlayed < g_iMapCount)	GotoNextMap(true/*L4D_IsMissionFinalMap()*/);	//nextmap's don't get reset after plugin ends
 	}
 }
 
 //SetNextMap: Otherwise nextmap would be stuck and people wouldn't be able
 //to play normal campaigns without the plugin
-public OnMapStart() 	SetNextMap("#game_nextmap");
-public OnPluginEnd()	SetNextMap("#game_nextmap");
+//public OnMapStart() 	SetNextMap("#game_nextmap");
+//public OnPluginEnd()	SetNextMap("#game_nextmap");
 
 //console cmd: loads a specified set of maps
 public Action:ForceMapSet(client, args) {
