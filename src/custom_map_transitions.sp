@@ -502,7 +502,7 @@ stock GetPrettyName(String:map[]) {
 	static Handle:hKvMapNames = INVALID_HANDLE;
 	if (hKvMapNames == INVALID_HANDLE) {
 		hKvMapNames = CreateKeyValues("Custom Map Transitions Map Names");
-		if (FileToKeyValues(hKvMapNames, PATH_KV)) {
+		if (!FileToKeyValues(hKvMapNames, PATH_KV)) {
 			LogMessage("Couldn't create KV for map names.");
 			hKvMapNames = INVALID_HANDLE;
 			return 0;
