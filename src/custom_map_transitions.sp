@@ -510,8 +510,12 @@ stock GetPrettyName(String:map[]) {
 	}
 	
 	decl String:buffer[BUF_SZ];
-	KvGetString(hKvMapNames, map, buffer, BUF_SZ, "no");//this is probably not gonna work
-	return !StrEqual(buffer, "no");
+	KvGetString(hKvMapNames, map, buffer, BUF_SZ, "no");
+	if (!StrEqual(buffer, "no")) {
+		strcopy(map, BUF_SZ, buffer);
+		return 1;
+	}
+	return 0;
 }
 
 /*
