@@ -39,6 +39,7 @@ public Plugin:myinfo =
 };
 
 #define DIR_CFGS "cmt/"
+#define PATH_KV  "cfg/cmt/mapnames.txt"
 #define BUF_SZ   64
 #define TIME_MAPCHANGE_DELAY 5.0
 #define TIME_POSTROUND1_SCORE_DELAY 1.0
@@ -134,7 +135,7 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 	L4D2Direct_SetVSCampaignScore(round, g_iTeamCampaignScore[round]);
 
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsClientInGame(i) && !IsFakeClient(i)) FakeClientCommand("sm_maplist");
+		if (IsClientInGame(i) && !IsFakeClient(i)) FakeClientCommand(i, "sm_maplist");
 	}
 
 	if (round) {
@@ -383,6 +384,8 @@ public Action:Maplist(client, args) {
 			GetArrayString(g_hArrayMapOrder, i, buffer, BUF_SZ);
 			FormatEx(output, BUF_SZ, "%d - %s", i + 1, buffer);
 
+			if (GetPrettyName(buffer)) Format(output, BUF_SZ, "%s (%s)", output, buffer);
+
 			if (g_iMapsPlayed > i) 
 				Format(output, BUF_SZ, "%s\t %-4d-%4d", output, GetArrayCell(g_hArrayTeamMapScore[0], i), GetArrayCell(g_hArrayTeamMapScore[1], i));
 
@@ -406,7 +409,10 @@ public Action:Maplist(client, args) {
 			GetTrieValue(g_hTriePools, tag, hArrayMapPool);
 			for (j = 0; j < GetArraySize(hArrayMapPool); j++) {
 				GetArrayString(hArrayMapPool, j, buffer, BUF_SZ);
-				PrintToChat(client, "\t%s", buffer);
+
+				FormatEx(output, BUF_SZ, "\t%s", buffer);
+				if (GetPrettyName(buffer)) Format(output, "%s (%s)", output, buffer);
+				PrintToChat(client, "%s", output);
 			}
 		}
 	}
@@ -489,6 +495,16 @@ public Action:AddMap(args) {
 	}
 	
 	return Plugin_Handled;
+}
+
+//return 0 if pretty name not found, 1 otherwise
+stock GetPrettyName(String:map[]) {
+	static Handle:hKvMapNames = INVALID_HANDLE;
+	if (hKvMapNames == INVALID_HANDLE) FileToKeyValues(hKvMapNames, PATH_KV);
+	
+	decl String:buffer[BUF_SZ];
+	KvGetString(hKvMapNames, map, buffer, BUF_SZ, "no");//this is probably not gonna work
+	return StrEqual(buffer, "no");
 }
 
 /*
