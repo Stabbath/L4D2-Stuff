@@ -411,7 +411,7 @@ public Action:Maplist(client, args) {
 				GetArrayString(hArrayMapPool, j, buffer, BUF_SZ);
 
 				FormatEx(output, BUF_SZ, "\t%s", buffer);
-				if (GetPrettyName(buffer)) Format(output, "%s (%s)", output, buffer);
+				if (GetPrettyName(buffer)) Format(output, BUF_SZ, "%s (%s)", output, buffer);
 				PrintToChat(client, "%s", output);
 			}
 		}
@@ -500,11 +500,18 @@ public Action:AddMap(args) {
 //return 0 if pretty name not found, 1 otherwise
 stock GetPrettyName(String:map[]) {
 	static Handle:hKvMapNames = INVALID_HANDLE;
-	if (hKvMapNames == INVALID_HANDLE) FileToKeyValues(hKvMapNames, PATH_KV);
+	if (hKvMapNames == INVALID_HANDLE) {
+		hKvMapNames = CreateKeyValues("Custom Map Transitions Map Names");
+		if (FileToKeyValues(hKvMapNames, PATH_KV)) {
+			LogMessage("Couldn't create KV for map names.");
+			hKvMapNames = INVALID_HANDLE;
+			return 0;
+		}
+	}
 	
 	decl String:buffer[BUF_SZ];
 	KvGetString(hKvMapNames, map, buffer, BUF_SZ, "no");//this is probably not gonna work
-	return StrEqual(buffer, "no");
+	return !StrEqual(buffer, "no");
 }
 
 /*
