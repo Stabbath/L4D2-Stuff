@@ -140,6 +140,7 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 
 	if (round) {
 		if (++g_iMapsPlayed < g_iMapCount)	GotoNextMap(true/*L4D_IsMissionFinalMap()*/);	//nextmap's don't get reset after plugin ends
+		else ServerCommand("sm_resetmatch");
 	}
 }
 
