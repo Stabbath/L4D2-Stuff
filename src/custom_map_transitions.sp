@@ -7,18 +7,6 @@
 #include <l4d2_direct>
 
 /*
-	Known issues:
-	- team order is bugged because of in-game scoring being bugged
-*/
-
-/*
-	TODO
-	- make it so everything in the plugin is reset after the last map in the mapset
-	- make it so in-vetoing map list groups up all map numbers that use teh same tag
-	- fix in-game scoring
-*/
-
-/*
 1: Collect underpants
 2a: Fetch all maps from each preset pool into a plugin pool
 	- if a map is tagged for 2+ pools in the preset, load it only into one of them
@@ -34,7 +22,7 @@ public Plugin:myinfo =
 	name = "Custom Map Transitions",
 	author = "Stabby",
 	description = "Makes games more fun and varied! Yay!",
-	version = "9",
+	version = "10",
 	url = "https://github.com/Stabbath/L4D2-Stuff"
 };
 
@@ -60,6 +48,7 @@ new bool:	g_bMapsetInitialized;
 new			g_iMapCount;
 new 		g_iTeamCampaignScore[2];
 new Handle:	g_hArrayTeamMapScore[2];
+new Handle: g_hSDKCallSetCampaignScores;
 
 public OnPluginStart() {
 	SetRandomSeed(seed:GetEngineTime());
@@ -98,25 +87,23 @@ public OnPluginStart() {
 
 	g_hArrayTeamMapScore[0] = CreateArray();
 	g_hArrayTeamMapScore[1] = CreateArray();
+
+	StartPrepSDKCall(SDKCall_GameRules);
+	if (PrepSDKCall_SetFromConf(LoadGameConfigFile("left4downtown.l4d2");, SDKConf_Signature, "SetCampaignScores")) {
+		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
+		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
+		g_hSDKCallSetCampaignScores = EndPrepSDKCall();
+	} 
+	else LogError("Could not find 'SetCampaignScores' signature in gamedata (left4downtown.l4d2.txt).");
 }
 
-/*public Action:L4D2_OnEndVersusModeRound(bool:countSurvivors) {
-	L4D2Direct_SetVSCampaignScore(0, g_iTeamCampaignScore[0]);
-	L4D2Direct_SetVSCampaignScore(1, g_iTeamCampaignScore[1]);
-}
-public Action:L4D_OnClearTeamScores(bool:newCampaign) {
-	L4D2Direct_SetVSCampaignScore(0, g_iTeamCampaignScore[0]);
-	L4D2Direct_SetVSCampaignScore(1, g_iTeamCampaignScore[1]);
-}
 public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {
 	scoreA = g_iTeamCampaignScore[0];	//overwrite scores every time the game tries to change them
 	scoreB = g_iTeamCampaignScore[1];	//
-}*/
+}
 
 public OnRoundStart() {
-	CreateTimer(1.0, Timed_PostOnRoundStart);
-}
-public Action:Timed_PostOnRoundStart(Handle:timer) {
+	SDKCall(g_hSDKCallSetCampaignScores, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
 	L4D2Direct_SetVSCampaignScore(0, g_iTeamCampaignScore[0]);
 	L4D2Direct_SetVSCampaignScore(1, g_iTeamCampaignScore[1]);
 }
@@ -137,13 +124,9 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 	g_iTeamCampaignScore[round] += score;
 	L4D2Direct_SetVSCampaignScore(round, g_iTeamCampaignScore[round]);
 
-	for (new i = 1; i <= MaxClients; i++) {
-		if (IsClientInGame(i) && !IsFakeClient(i)) FakeClientCommand(i, "sm_maplist");
-	}
-
 	if (round) {
 		if (++g_iMapsPlayed < g_iMapCount)	GotoNextMap(true/*L4D_IsMissionFinalMap()*/);	//nextmap's don't get reset after plugin ends
-		else ServerCommand("sm_resetmatch");
+		else if (g_bMaplistFinalized)	ServerCommand("sm_resetmatch");	//this condition is so the game doesn't get resetmatch'd when the plugin isn't being used, ie in a normal campaign run
 	}
 }
 
@@ -241,7 +224,7 @@ public Action:Timed_PostMapSet(Handle:timer) {
 	if (GetConVarInt(g_hCvarVetoCount) == 0) {
 		VetoingIsOver();
 	} else {
-		PrintToChatAll("You may now veto maps from the map list.");
+		PrintToChatAll("You may now veto maps from the map list. (!veto for more info)");
 		for (new i = 1; i <= MaxClients; i++) {
 			if (IsClientInGame(i) && !IsFakeClient(i))
 				FakeClientCommand(i, "sm_maplist");
@@ -284,7 +267,7 @@ public Action:Veto(client, args) {
 	}
 
 	if (args < 1) {
-		ReplyToCommand(client, "Please specify a map.");
+		ReplyToCommand(client, "Syntax: \"!veto <mapname|@void|@voidall>\". @void throws away one of your vetoes, @voidall throws away all remaining ones.");
 		return Plugin_Handled;
 	}
 	
@@ -526,49 +509,3 @@ stock GetPrettyName(String:map[]) {
 	}
 	return 0;
 }
-
-/*
-This seems to be what happens in order:
-
-//right after map change
-1.	OnSetCampaignScores
-2.	OnRoundStart
-3.	OnClearTeamScores
-4.	OnMapStart
-//end of round 1
-5.	OnEndVersusModeRound
-6.	OnSetCampaignScores
-7.	OnRoundEnd
-//beginning of round 2
-8.	OnSetCampaignScores
-9.	OnRoundStart
-//end of round 2
-10.	OnEndVersusModeRound
-11.	OnSetCampaignScores
-12.	OnRoundEnd
-13. OnMapEnd
-*/
-
-
-//this variable seems to be useless
-/*stock L4D2Direct_GetVSInFinaleMap()
-{
-	return LoadFromAddress(L4D2Direct_GetVSInFinaleMapAddr(), NumberType_Int8);
-}
-
-stock L4D2Direct_SetVSInFinaleMap(bool:inFinale)
-{
-	StoreToAddress(L4D2Direct_GetVSInFinaleMapAddr(), _:inFinale, NumberType_Int8);
-}
-
-stock Address:L4D2Direct_GetVSInFinaleMapAddr()
-{
-	static Address:pInFinaleMap = Address_Null;
-	if (pInFinaleMap == Address_Null)
-	{
-		new offs = GameConfGetOffset(L4D2Direct_GetGameConf(), "CDirectorVersusMode::m_bInFinaleMap");
-		if (offs == -1) return Address_Null;
-		pInFinaleMap = L4D2Direct_GetCDirectorVersusMode() + Address:offs;
-	}
-	return pInFinaleMap;
-}*/
