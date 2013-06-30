@@ -100,7 +100,7 @@ public OnPluginStart() {
 	g_hArrayTeamMapScore[1] = CreateArray();
 }
 
-public Action:L4D2_OnEndVersusModeRound(bool:countSurvivors) {
+/*public Action:L4D2_OnEndVersusModeRound(bool:countSurvivors) {
 	L4D2Direct_SetVSCampaignScore(0, g_iTeamCampaignScore[0]);
 	L4D2Direct_SetVSCampaignScore(1, g_iTeamCampaignScore[1]);
 }
@@ -111,11 +111,14 @@ public Action:L4D_OnClearTeamScores(bool:newCampaign) {
 public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {
 	scoreA = g_iTeamCampaignScore[0];	//overwrite scores every time the game tries to change them
 	scoreB = g_iTeamCampaignScore[1];	//
-}
+}*/
 
 public OnRoundStart() {
+	CreateTimer(1.0, Timed_PostOnRoundStart);
+}
+public Action:Timed_PostOnRoundStart(Handle:timer) {
 	L4D2Direct_SetVSCampaignScore(0, g_iTeamCampaignScore[0]);
-	L4D2Direct_SetVSCampaignScore(1, g_iTeamCampaignScore[1]);	
+	L4D2Direct_SetVSCampaignScore(1, g_iTeamCampaignScore[1]);
 }
 
 //maybe replace with Action:L4D2_OnEndVersusModeRound(bool:countSurvivors);
@@ -292,6 +295,11 @@ public Action:Veto(client, args) {
 		new tmp = GetConVarInt(g_hCvarVetoCount);
 		++g_iVetoesUsed[team];
 		PrintToChatAll("Veto discarded. Remaining vetoes: %d - %d.", tmp - g_iVetoesUsed[0], tmp - g_iVetoesUsed[1]);
+	} else
+	if (StrEqual(map, "@voidall", false)) {
+		new tmp = GetConVarInt(g_hCvarVetoCount);
+		g_iVetoesUsed[team] = tmp;
+		PrintToChatAll("All vetoes discarded. Remaining vetoes: %d - %d.", tmp - g_iVetoesUsed[0], tmp - g_iVetoesUsed[1]);
 	} else {
 	
 		decl index;
