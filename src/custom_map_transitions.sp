@@ -371,7 +371,10 @@ public Action:Timed_GiveThemTimeToReadTheMapList(Handle:timer) {
 
 //client cmd: displays map list
 public Action:Maplist(client, args) {
-	if (!g_bMapsetInitialized) return;
+	if (!g_bMapsetInitialized) {
+		PrintToChat(client, "No mapset is loaded, so there's no maplist.");
+		return Plugin_Handled;
+	}
 
 	new String:output[BUF_SZ] = "Maplist: ";
 	decl String:buffer[BUF_SZ];
