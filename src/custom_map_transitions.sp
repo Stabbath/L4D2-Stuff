@@ -89,7 +89,7 @@ public OnPluginStart() {
 	g_hArrayTeamMapScore[1] = CreateArray();
 
 	StartPrepSDKCall(SDKCall_GameRules);
-	if (PrepSDKCall_SetFromConf(LoadGameConfigFile("left4downtown.l4d2");, SDKConf_Signature, "SetCampaignScores")) {
+	if (PrepSDKCall_SetFromConf(LoadGameConfigFile("left4downtown.l4d2"), SDKConf_Signature, "SetCampaignScores")) {
 		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 		g_hSDKCallSetCampaignScores = EndPrepSDKCall();
@@ -98,11 +98,13 @@ public OnPluginStart() {
 }
 
 public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {
+	if (!g_bMapsetInitialized) return;
 	scoreA = g_iTeamCampaignScore[0];	//overwrite scores every time the game tries to change them
 	scoreB = g_iTeamCampaignScore[1];	//
 }
 
 public OnRoundStart() {
+	if (!g_bMapsetInitialized) return;
 	SDKCall(g_hSDKCallSetCampaignScores, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
 	L4D2Direct_SetVSCampaignScore(0, g_iTeamCampaignScore[0]);
 	L4D2Direct_SetVSCampaignScore(1, g_iTeamCampaignScore[1]);
@@ -114,6 +116,8 @@ public OnRoundEnd() {
 	CreateTimer(round ? TIME_MAPCHANGE_DELAY : TIME_POSTROUND1_SCORE_DELAY, Timed_PostOnRoundEnd, round);
 }
 public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
+	if (!g_bMaplistFinalized) return;
+
 	new score = L4D_GetTeamScore(round + 1);
 	if (!round) {	//this if-el is so that scores for a map are shown right after round 1
 		PushArrayCell(g_hArrayTeamMapScore[0], score);
@@ -126,7 +130,7 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 
 	if (round) {
 		if (++g_iMapsPlayed < g_iMapCount)	GotoNextMap(true/*L4D_IsMissionFinalMap()*/);	//nextmap's don't get reset after plugin ends
-		else if (g_bMaplistFinalized)	ServerCommand("sm_resetmatch");	//this condition is so the game doesn't get resetmatch'd when the plugin isn't being used, ie in a normal campaign run
+		else	ServerCommand("sm_resetmatch");
 	}
 }
 
@@ -250,6 +254,11 @@ stock Handle:GetPoolThatContainsMap(String:map[], &index, String:tag[]) {
 
 //client cmd: vetoes a map off the list
 public Action:Veto(client, args) {
+	if (!g_bMapsetInitialized) {
+		ReplyToCommand(client, "No mapset is loaded, what are you trying to veto?");
+		return Plugin_Handled;		
+	}
+
 	new team = GetClientTeam(client) - 2;
 	if (team < 0) {
 		ReplyToCommand(client, "You're a spectator, no veto for you.");
@@ -277,12 +286,12 @@ public Action:Veto(client, args) {
 	if (StrEqual(map, "@void", false)) {
 		new tmp = GetConVarInt(g_hCvarVetoCount);
 		++g_iVetoesUsed[team];
-		PrintToChatAll("Veto discarded. Remaining vetoes: %d - %d.", tmp - g_iVetoesUsed[0], tmp - g_iVetoesUsed[1]);
+		PrintToChatAll("Veto discarded.\n Remaining vetoes: %d - %d.", tmp - g_iVetoesUsed[0], tmp - g_iVetoesUsed[1]);
 	} else
 	if (StrEqual(map, "@voidall", false)) {
 		new tmp = GetConVarInt(g_hCvarVetoCount);
 		g_iVetoesUsed[team] = tmp;
-		PrintToChatAll("All vetoes discarded. Remaining vetoes: %d - %d.", tmp - g_iVetoesUsed[0], tmp - g_iVetoesUsed[1]);
+		PrintToChatAll("All vetoes discarded.\n Remaining vetoes: %d - %d.", tmp - g_iVetoesUsed[0], tmp - g_iVetoesUsed[1]);
 	} else {
 	
 		decl index;
@@ -362,6 +371,8 @@ public Action:Timed_GiveThemTimeToReadTheMapList(Handle:timer) {
 
 //client cmd: displays map list
 public Action:Maplist(client, args) {
+	if (!g_bMapsetInitialized) return;
+
 	new String:output[BUF_SZ] = "Maplist: ";
 	decl String:buffer[BUF_SZ];
 
