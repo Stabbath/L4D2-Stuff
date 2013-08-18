@@ -103,6 +103,38 @@ public OnPluginStart() {
 	scoreB = g_iTeamCampaignScore[1];	//
 }*/
 
+new Handle:userIdTeamPairs;
+
+public OnClientPutInServer(client) {
+	decl array[2];
+	for (new i = 0; i < GetArraySize(userIdTeamPairs); i++) {
+		GetArrayArray(userIdTeamPairs, i, array);
+		
+		if (array[0] == GetClientUserId(client)) {
+			if (g_iTeamCampaignScore[0] < g_iTeamCampaignScore[1] && array[1] > 1) {
+				ChangeClientTeam(client, (array[1] == 2) ? 3 : 2);
+			} else {
+				ChangeClientTeam(client, array[1]);
+			}
+			RemoveFromArray(userIdTeamPairs, i);
+			return;
+		}
+	}
+}
+
+stock SaveAllUserTeamPairs() {
+	for (new i = 1; i <= MaxClients; i++) {
+		if (IsClientInGame(i) && !IsFakeClient(i)) {
+			SaveUserIdTeamPair(GetClientUserId(i), GetClientTeam(i));
+		}
+	}
+}
+
+stock SaveUserIdTeamPair(userid, team) {
+	new array[2] = {userid, team};
+	PushArrayArray(userIdTeamPairs, array);
+}
+
 public OnRoundStart(){
 	CreateTimer(5.0, Timed_PostOnRoundStart);
 }
@@ -114,35 +146,6 @@ public Action:Timed_PostOnRoundStart(Handle:timer) {
 
 	if (g_iTeamCampaignScore[0] < g_iTeamCampaignScore[1]) {
 		SwapScores();
-
-		decl Handle:stack[2]; 
-		stack[0] = CreateStack();
-		stack[1] = CreateStack();
-		for (new i = 1; i <= MaxClients; i++) {
-			if (IsClientInGame(i) && !IsFakeClient(i)) {
-				PushStackCell(stack[GetClientTeam(i) - 2], i);
-			}
-		}
-
-		decl survivor, infected;
-		if (!IsStackEmpty(stack[1])) {
-			PopStackCell(stack[1], infected);
-			ChangeClientTeam(infected, 1);
-		}
-		while (!IsStackEmpty(stack[0]) && !IsStackEmpty(stack[1])) {
-			PopStackCell(stack[0], survivor);
-			PopStackCell(stack[1], infected);
-			ChangeClientTeam(survivor, 3);
-			ChangeClientTeam(infected, 2);
-		}
-		while (!IsStackEmpty(stack[0])) {
-			PopStackCell(stack[0], survivor);
-			ChangeClientTeam(survivor, 3);
-		}
-		while (!IsStackEmpty(stack[1])) {
-			PopStackCell(stack[1], infected);
-			ChangeClientTeam(infected, 2);
-		}
 	}
 }
 
@@ -169,6 +172,8 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 		if (++g_iMapsPlayed < g_iMapCount)	GotoNextMap(true/*L4D_IsMissionFinalMap()*/);	//nextmap's don't get reset after plugin ends
 		else	ServerCommand("sm_resetmatch");
 	}
+
+	SaveAllUserTeamPairs();
 }
 
 //SetNextMap: Otherwise nextmap would be stuck and people wouldn't be able
