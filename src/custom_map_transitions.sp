@@ -5,6 +5,7 @@
 #include <l4d2util_rounds>
 #include <left4downtown>
 #include <l4d2_direct>
+#include <colors>
 
 /*
 1: Collect underpants
@@ -22,7 +23,7 @@ public Plugin:myinfo =
 	name = "Custom Map Transitions",
 	author = "Stabby",
 	description = "Makes games more fun and varied! Yay!",
-	version = "10",
+	version = "11",
 	url = "https://github.com/Stabbath/L4D2-Stuff"
 };
 
@@ -67,7 +68,7 @@ public OnPluginStart() {
 					"Shows a player cmt's selected map list.");
 	RegConsoleCmd(	"sm_veto",			Veto,
 					"Lets players veto a map. Uses per team per game cvar'd.");
-
+	RegConsoleCmd("sm_scorefix", SwapScores, "");
 
 	g_hCvarPoolsize = CreateConVar(		"cmt_poolsize", "1000",
 										"How many maps will be initially pooled for each tag for each rank that uses that tag (can be a float).",
@@ -97,17 +98,51 @@ public OnPluginStart() {
 	else LogError("Could not find 'SetCampaignScores' signature in gamedata (left4downtown.l4d2.txt).");
 }
 
-public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {
+/*public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {
 	if (!g_bMapsetInitialized) return;
 	scoreA = g_iTeamCampaignScore[0];	//overwrite scores every time the game tries to change them
 	scoreB = g_iTeamCampaignScore[1];	//
-}
+}*/
 
-public OnRoundStart() {
+public OnRoundStart(){
+	CreateTimer(5.0, Timed_PostOnRoundStart);
+}
+public Action:Timed_PostOnRoundStart(Handle:timer) {
 	if (!g_bMapsetInitialized) return;
 	SDKCall(g_hSDKCallSetCampaignScores, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
 	L4D2Direct_SetVSCampaignScore(0, g_iTeamCampaignScore[0]);
 	L4D2Direct_SetVSCampaignScore(1, g_iTeamCampaignScore[1]);
+
+	if (g_iTeamCampaignScore[0] < g_iTeamCampaignScore[1]) {
+		SwapScores();
+
+		new Handle:stack[2] = CreateStack();
+		for (new i = 1; i <= MaxClients; i++) {
+			if (IsClientInGame(i) && !IsFakeClient(i)) {
+				PushStackCell(stack[GetClientTeam(i) - 2], i);
+			}
+		}
+
+		decl survivor, infected;
+		if (!IsStackEmpty(stack[1])) {
+			PopStackCell(stack[1], infected);
+			ChangeClientTeam(infected, 1);
+		}
+		while (!IsStackEmpty(stack[0]) && !IsStackEmpty(stack[1])) {
+			PopStackCell(stack[0], survivor);
+			PopStackCell(stack[1], infected);
+			ChangeClientTeam(survivor, 3);
+			ChangeClientTeam(infected, 2);
+		}
+		while (!IsStackEmpty(stack[0])) {
+			PopStackCell(stack[0], survivor);
+			ChangeClientTeam(survivor, 3);
+		}
+		while (!IsStackEmpty(stack[1])) {
+			PopStackCell(stack[1], infected);
+			ChangeClientTeam(infected, 2);
+		}
+	}
 }
 
 //maybe replace with Action:L4D2_OnEndVersusModeRound(bool:countSurvivors);
@@ -117,7 +152,7 @@ public OnRoundEnd() {
 }
 public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 	if (!g_bMaplistFinalized) return;
-
+	
 	new score = L4D_GetTeamScore(round + 1);
 	if (!round) {	//this if-el is so that scores for a map are shown right after round 1
 		PushArrayCell(g_hArrayTeamMapScore[0], score);
@@ -129,6 +164,7 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 	L4D2Direct_SetVSCampaignScore(round, g_iTeamCampaignScore[round]);
 
 	if (round) {
+		SDKCall(g_hSDKCallSetCampaignScores, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
 		if (++g_iMapsPlayed < g_iMapCount)	GotoNextMap(true/*L4D_IsMissionFinalMap()*/);	//nextmap's don't get reset after plugin ends
 		else	ServerCommand("sm_resetmatch");
 	}
@@ -138,6 +174,23 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 //to play normal campaigns without the plugin
 //public OnMapStart() 	SetNextMap("#game_nextmap");
 //public OnPluginEnd()	SetNextMap("#game_nextmap");
+
+stock SwapScores(client, args) {
+	decl buf;
+	for (new i = 0; i < GetArraySize(g_hArrayTeamMapScore[0]); i++)
+	{
+		buf = GetArrayCell(g_hArrayTeamMapScore[0], i);
+		SetArrayCell(g_hArrayTeamMapScore[0], i, GetArrayCell(g_hArrayTeamMapScore[1], i));
+		SetArrayCell(g_hArrayTeamMapScore[1], i, buf);
+	}
+	
+	buf = g_iTeamCampaignScore[0];
+	g_iTeamCampaignScore[0] = g_iTeamCampaignScore[1];
+	g_iTeamCampaignScore[1] = buf;
+	L4D2Direct_SetVSCampaignScore(0, g_iTeamCampaignScore[0]);
+	L4D2Direct_SetVSCampaignScore(1, g_iTeamCampaignScore[1]);
+	SDKCall(g_hSDKCallSetCampaignScores, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
+}
 
 //console cmd: loads a specified set of maps
 public Action:ForceMapSet(client, args) {
@@ -183,7 +236,7 @@ public Action:MapSet(client, args) {
 	GetCmdArg(1, group, BUF_SZ);
 	
 	ServerCommand("exec %s%s.cfg", DIR_CFGS, group);
-	PrintToChatAll("Loading %s preset...", group);
+	PrintToChatAll("\x01Loading \x05%s \x01preset...", group);
 	g_bMapsetInitialized = true;
 	CreateTimer(0.1, Timed_PostMapSet);
 
@@ -197,13 +250,13 @@ public Action:Timed_PostMapSet(Handle:timer) {
 	
 	if (mapnum == 0) {
 		g_bMapsetInitialized = false;	//failed to load it on the exec
-		PrintToChatAll("Failed to load preset.");
+		CPrintToChatAll("{red}Failed to load preset!");
 		return Plugin_Handled;
 	}
 
 	if (g_iMapCount < triesize) {
 		g_bMapsetInitialized = false;	//bad preset format
-		PrintToChatAll("Preset has improper tagranks: the number of maps to be played does not match the highest rank. Should have N+1 tagranks for highest rank N.");
+		CPrintToChatAll("Preset has {red}improper tagranks{default}: the number of maps to be played does not match the highest rank. Should have N+1 tagranks for highest rank N.");
 		return Plugin_Handled;
 	}
 	
@@ -228,11 +281,11 @@ public Action:Timed_PostMapSet(Handle:timer) {
 	if (GetConVarInt(g_hCvarVetoCount) == 0) {
 		VetoingIsOver();
 	} else {
-		PrintToChatAll("You may now veto maps from the map list. (!veto for more info)");
 		for (new i = 1; i <= MaxClients; i++) {
 			if (IsClientInGame(i) && !IsFakeClient(i))
 				FakeClientCommand(i, "sm_maplist");
 		}
+		PrintToChatAll("\x01You may now veto maps from the map list. \x05ex: !veto c1m1_hotel \n(\x05!veto \x01for more info)");
 	}
 
 	return Plugin_Handled;
@@ -276,7 +329,7 @@ public Action:Veto(client, args) {
 	}
 
 	if (args < 1) {
-		ReplyToCommand(client, "Syntax: \"!veto <mapname|@void|@voidall>\". @void throws away one of your vetoes, @voidall throws away all remaining ones.");
+		PrintToChat(client, "\x01Syntax: \"\x05!veto \x01<\x05mapname\x01|\x05@void\x01|\x05@voidall\x01>\". \x05@void \x01throws away one of your vetoes, \x05@voidall \x01throws away all remaining ones.");
 		return Plugin_Handled;
 	}
 	
@@ -286,38 +339,38 @@ public Action:Veto(client, args) {
 	if (StrEqual(map, "@void", false)) {
 		new tmp = GetConVarInt(g_hCvarVetoCount);
 		++g_iVetoesUsed[team];
-		PrintToChatAll("Veto discarded.\n Remaining vetoes: %d - %d.", tmp - g_iVetoesUsed[0], tmp - g_iVetoesUsed[1]);
+		PrintToChatAll("\x01Veto discarded.\n Remaining vetoes: \x05%d \x01- \x05%d\x01.", tmp - g_iVetoesUsed[0], tmp - g_iVetoesUsed[1]);
 	} else
 	if (StrEqual(map, "@voidall", false)) {
 		new tmp = GetConVarInt(g_hCvarVetoCount);
 		g_iVetoesUsed[team] = tmp;
-		PrintToChatAll("All vetoes discarded.\n Remaining vetoes: %d - %d.", tmp - g_iVetoesUsed[0], tmp - g_iVetoesUsed[1]);
+		PrintToChatAll("\x01All vetoes discarded.\n Remaining vetoes: \x05%d \x01- \x05%d\x01.", tmp - g_iVetoesUsed[0], tmp - g_iVetoesUsed[1]);
 	} else {
 	
 		decl index;
 		decl String:tag[BUF_SZ];
 		new Handle:hArrayPool = GetPoolThatContainsMap(map, index, tag);
 		if (hArrayPool == INVALID_HANDLE) {
-			ReplyToCommand(client, "Invalid map, no pool contains it.");
+			CPrintToChat(client, "{red}Invalid map! {default}No pool contains it.");
 			return Plugin_Handled;
 		}
 
 		decl tagUses;
 		GetTrieValue(g_hTrieTagUses, tag, tagUses);
 		if (GetArraySize(hArrayPool) <= GetConVarInt(g_hCvarMinPoolsize)*tagUses) {
-			ReplyToCommand(client, "Sorry! There are too few maps in the pool the specified map belongs to: no more can be removed. If this happens with all of the pools, use !veto @void to get rid of all remaining vetoes.");
+			CPrintToChat(client, "{red}Sorry! {default}There are too few maps in the pool the specified map belongs to: no more can be removed. If this happens with all of the pools, use !veto @void to get rid of all remaining vetoes.");
 			return Plugin_Handled;
 		}
 	
 		RemoveFromArray(hArrayPool, index);
 		new tmp = GetConVarInt(g_hCvarVetoCount);
 		++g_iVetoesUsed[team];
-		PrintToChatAll("Map %s has been removed from its pool. Remaining vetoes: %d - %d.", map, tmp - g_iVetoesUsed[0], tmp - g_iVetoesUsed[1]);
+		PrintToChatAll("\x01Map \x05%s \x01has been removed from it's pool. \nRemaining vetoes: \x05%d \x01- \x05%d\x01.", map, tmp - g_iVetoesUsed[0], tmp - g_iVetoesUsed[1]);
 
 	}
 
 	if (g_iVetoesUsed[0] == GetConVarInt(g_hCvarVetoCount) && g_iVetoesUsed[1] == GetConVarInt(g_hCvarVetoCount)) {
-		PrintToChatAll("Vetoing is over.");
+		PrintToChatAll("\x04Vetoing is over!");
 		VetoingIsOver();
 	}
 	
@@ -360,7 +413,7 @@ stock VetoingIsOver() {
 			FakeClientCommand(i, "sm_maplist");
 	}
 
-	PrintToChatAll("Game will start in 8 seconds.");
+	PrintToChatAll("\x01Game will start in \x048 \x01seconds.");
 	CreateTimer(8.0, Timed_GiveThemTimeToReadTheMapList);
 }
 
@@ -390,7 +443,7 @@ public Action:Maplist(client, args) {
 			GetArrayString(g_hArrayMapOrder, i, buffer, BUF_SZ);
 			FormatEx(output, BUF_SZ, "%d - %s", i + 1, buffer);
 
-			if (GetPrettyName(buffer)) Format(output, BUF_SZ, "%s (%s)", output, buffer);
+			if (GetPrettyName(buffer)) Format(output, BUF_SZ, "\x05%s \x01(%s)", output, buffer);
 
 			if (g_iMapsPlayed > i) 
 				Format(output, BUF_SZ, "%s\t %-4d-%4d", output, GetArrayCell(g_hArrayTeamMapScore[0], i), GetArrayCell(g_hArrayTeamMapScore[1], i));
@@ -417,7 +470,7 @@ public Action:Maplist(client, args) {
 				GetArrayString(hArrayMapPool, j, buffer, BUF_SZ);
 
 				FormatEx(output, BUF_SZ, "\t%s", buffer);
-				if (GetPrettyName(buffer)) Format(output, BUF_SZ, "%s (%s)", output, buffer);
+				if (GetPrettyName(buffer)) Format(output, BUF_SZ, "\x05%s \x01(%s)", output, buffer);
 				PrintToChat(client, "%s", output);
 			}
 		}
