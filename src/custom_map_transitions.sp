@@ -68,7 +68,6 @@ public OnPluginStart() {
 					"Shows a player cmt's selected map list.");
 	RegConsoleCmd(	"sm_veto",			Veto,
 					"Lets players veto a map. Uses per team per game cvar'd.");
-	RegConsoleCmd("sm_scorefix", SwapScores, "");
 
 	g_hCvarPoolsize = CreateConVar(		"cmt_poolsize", "1000",
 										"How many maps will be initially pooled for each tag for each rank that uses that tag (can be a float).",
@@ -116,7 +115,9 @@ public Action:Timed_PostOnRoundStart(Handle:timer) {
 	if (g_iTeamCampaignScore[0] < g_iTeamCampaignScore[1]) {
 		SwapScores();
 
-		new Handle:stack[2] = CreateStack();
+		decl Handle:stack[2]; 
+		stack[0] = CreateStack();
+		stack[1] = CreateStack();
 		for (new i = 1; i <= MaxClients; i++) {
 			if (IsClientInGame(i) && !IsFakeClient(i)) {
 				PushStackCell(stack[GetClientTeam(i) - 2], i);
@@ -175,7 +176,7 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 //public OnMapStart() 	SetNextMap("#game_nextmap");
 //public OnPluginEnd()	SetNextMap("#game_nextmap");
 
-stock SwapScores(client, args) {
+stock SwapScores() {
 	decl buf;
 	for (new i = 0; i < GetArraySize(g_hArrayTeamMapScore[0]); i++)
 	{
