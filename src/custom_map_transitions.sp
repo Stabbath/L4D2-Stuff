@@ -42,8 +42,8 @@ new Handle:	g_hTriePools;				//stores pool array handles by tag name
 new Handle:	g_hArrayTagOrder;			//stores tags by rank
 new Handle:	g_hArrayMapOrder;			//stores finalised map list in order
 new Handle:	g_hTrieTagUses;				//how many different ranks a tag has, ie how many played maps will be based on this tag
-new Handle:g_hArrayUserIdTeamPairs;
-
+new Handle:	g_hArrayUserIdTeamPairs;
+new bool:	g_bTeamsNeedSwitching;
 new			g_iVetoesUsed[2];
 new bool:	g_bMaplistFinalized;
 new			g_iMapsPlayed;
@@ -117,7 +117,7 @@ public Action:Timed_PostPutInServer(Handle:timer, any:client) {
 		GetArrayArray(g_hArrayUserIdTeamPairs, i, array);
 		
 		if (array[0] == GetClientUserId(client)) {
-			if (g_iTeamCampaignScore[0] > g_iTeamCampaignScore[1] && array[1] > 1) {
+			if (g_bTeamsNeedSwitching && array[1] > 1) {
 				ChangeClientTeam(client, (array[1] == 2) ? 3 : 2);
 			} else {
 				ChangeClientTeam(client, array[1]);
@@ -139,7 +139,7 @@ stock SaveAllUserTeamPairs() {
 stock SaveUserIdTeamPair(userid, team) {
 	new array[2];
 	array[0] = userid;
-	array[1] = team;
+	array[1] = team == 1 ? 1 : team == 2 ? 3 : 2;
 	PushArrayArray(g_hArrayUserIdTeamPairs, array);
 }
 
@@ -151,14 +151,15 @@ public Action:Timed_PostOnRoundStart(Handle:timer) {
 	SDKCall(g_hSDKCallSetCampaignScores, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
 	L4D2Direct_SetVSCampaignScore(0, g_iTeamCampaignScore[0]);
 	L4D2Direct_SetVSCampaignScore(1, g_iTeamCampaignScore[1]);
-
+	
 	if (g_iTeamCampaignScore[0] < g_iTeamCampaignScore[1]) {
+		g_bTeamsNeedSwitching = true;
 		SwapScores();
 	}
 }
 
-//maybe replace with Action:L4D2_OnEndVersusModeRound(bool:countSurvivors);
 public OnRoundEnd() {
+	g_bTeamsNeedSwitching = false; //needs to be reset somewhere, why not here?
 	new round = _:InSecondHalfOfRound();
 	CreateTimer(round ? TIME_MAPCHANGE_DELAY : TIME_POSTROUND1_SCORE_DELAY, Timed_PostOnRoundEnd, round);
 }
