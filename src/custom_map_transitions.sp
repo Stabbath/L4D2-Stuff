@@ -42,6 +42,8 @@ new Handle:	g_hTriePools;				//stores pool array handles by tag name
 new Handle:	g_hArrayTagOrder;			//stores tags by rank
 new Handle:	g_hArrayMapOrder;			//stores finalised map list in order
 new Handle:	g_hTrieTagUses;				//how many different ranks a tag has, ie how many played maps will be based on this tag
+new Handle:g_hArrayUserIdTeamPairs;
+
 new			g_iVetoesUsed[2];
 new bool:	g_bMaplistFinalized;
 new			g_iMapsPlayed;
@@ -105,15 +107,17 @@ public OnPluginStart() {
 	scoreB = g_iTeamCampaignScore[1];	//
 }*/
 
-new Handle:g_hArrayUserIdTeamPairs;
-
 public OnClientPutInServer(client) {
+	CreateTimer(1.0, Timed_PostPutInServer, client);
+}
+
+public Action:Timed_PostPutInServer(Handle:timer, any:client) {
 	decl array[2];
 	for (new i = 0; i < GetArraySize(g_hArrayUserIdTeamPairs); i++) {
 		GetArrayArray(g_hArrayUserIdTeamPairs, i, array);
 		
 		if (array[0] == GetClientUserId(client)) {
-			if (g_iTeamCampaignScore[0] < g_iTeamCampaignScore[1] && array[1] > 1) {
+			if (g_iTeamCampaignScore[0] > g_iTeamCampaignScore[1] && array[1] > 1) {
 				ChangeClientTeam(client, (array[1] == 2) ? 3 : 2);
 			} else {
 				ChangeClientTeam(client, array[1]);
@@ -175,9 +179,9 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 		SDKCall(g_hSDKCallSetCampaignScores, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
 		if (++g_iMapsPlayed < g_iMapCount)	GotoNextMap(true/*L4D_IsMissionFinalMap()*/);	//nextmap's don't get reset after plugin ends
 		else	ServerCommand("sm_resetmatch");
-	}
 
-	SaveAllUserTeamPairs();
+		SaveAllUserTeamPairs();
+	}
 }
 
 //SetNextMap: Otherwise nextmap would be stuck and people wouldn't be able
