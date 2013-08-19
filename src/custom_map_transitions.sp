@@ -85,6 +85,8 @@ public OnPluginStart() {
 	g_hArrayMapOrder = CreateArray(BUF_SZ/4);
 	g_hTrieTagUses = CreateTrie();
 
+	g_hArrayUserIdTeamPairs = CreateArray(2);
+
 	g_hArrayTeamMapScore[0] = CreateArray();
 	g_hArrayTeamMapScore[1] = CreateArray();
 
@@ -103,12 +105,12 @@ public OnPluginStart() {
 	scoreB = g_iTeamCampaignScore[1];	//
 }*/
 
-new Handle:userIdTeamPairs;
+new Handle:g_hArrayUserIdTeamPairs;
 
 public OnClientPutInServer(client) {
 	decl array[2];
-	for (new i = 0; i < GetArraySize(userIdTeamPairs); i++) {
-		GetArrayArray(userIdTeamPairs, i, array);
+	for (new i = 0; i < GetArraySize(g_hArrayUserIdTeamPairs); i++) {
+		GetArrayArray(g_hArrayUserIdTeamPairs, i, array);
 		
 		if (array[0] == GetClientUserId(client)) {
 			if (g_iTeamCampaignScore[0] < g_iTeamCampaignScore[1] && array[1] > 1) {
@@ -116,7 +118,7 @@ public OnClientPutInServer(client) {
 			} else {
 				ChangeClientTeam(client, array[1]);
 			}
-			RemoveFromArray(userIdTeamPairs, i);
+			RemoveFromArray(g_hArrayUserIdTeamPairs, i);
 			return;
 		}
 	}
@@ -131,8 +133,10 @@ stock SaveAllUserTeamPairs() {
 }
 
 stock SaveUserIdTeamPair(userid, team) {
-	new array[2] = {userid, team};
-	PushArrayArray(userIdTeamPairs, array);
+	new array[2];
+	array[0] = userid;
+	array[1] = team;
+	PushArrayArray(g_hArrayUserIdTeamPairs, array);
 }
 
 public OnRoundStart(){
