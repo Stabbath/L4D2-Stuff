@@ -230,6 +230,7 @@ public Action:ForceMapSet(client, args) {
 		ServerCommand("sm_addmap %s %d", map, i);
 		ServerCommand("sm_tagrank %d %d", i, i-1);
 	}
+	g_bMapsetInitialized = true;
 	CreateTimer(0.1, Timed_PostMapSet);
 
 	return Plugin_Handled;
