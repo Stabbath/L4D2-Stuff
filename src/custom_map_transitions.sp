@@ -30,7 +30,7 @@ public Plugin:myinfo =
 #define DIR_CFGS "cmt/"
 #define PATH_KV  "cfg/cmt/mapnames.txt"
 #define BUF_SZ   64
-#define TIME_MAPCHANGE_DELAY 5.0
+#define TIME_MAPCHANGE_DELAY 8.0
 #define TIME_POSTROUND1_SCORE_DELAY 1.0
 
 new Handle:	g_hCvarPoolsize;
@@ -112,15 +112,17 @@ public OnClientPutInServer(client) {
 }
 
 public Action:Timed_PostPutInServer(Handle:timer, any:client) {
+	decl String:cmd[BUF_SZ];
 	decl array[2];
 	for (new i = 0; i < GetArraySize(g_hArrayUserIdTeamPairs); i++) {
 		GetArrayArray(g_hArrayUserIdTeamPairs, i, array);
-		
 		if (array[0] == GetClientUserId(client)) {
 			if (g_bTeamsNeedSwitching && array[1] > 1) {
-				ChangeClientTeam(client, (array[1] == 2) ? 3 : 2);
+				FormatEx(cmd, sizeof(cmd), "sm_swapuserto %d %d", client, (array[1] == 2) ? 3 : 2);
+				ServerCommand(cmd);
 			} else {
-				ChangeClientTeam(client, array[1]);
+				FormatEx(cmd, sizeof(cmd), "sm_swapuserto %d %d", client, array[1]);
+				ServerCommand(cmd);
 			}
 			RemoveFromArray(g_hArrayUserIdTeamPairs, i);
 			return;
