@@ -118,10 +118,10 @@ public Action:Timed_PostPutInServer(Handle:timer, any:client) {
 		GetArrayArray(g_hArrayUserIdTeamPairs, i, array);
 		if (array[0] == GetClientUserId(client)) {
 			if (g_bTeamsNeedSwitching && array[1] > 1) {
-				FormatEx(cmd, sizeof(cmd), "sm_swapuserto %d %d", (array[1] == 2) ? 3 : 2, array[0]);
+				FormatEx(cmd, sizeof(cmd), "sm_swapto %d #%d", (array[1] == 2) ? 3 : 2, array[0]);
 				ServerCommand(cmd);
 			} else {
-				FormatEx(cmd, sizeof(cmd), "sm_swapuserto %d %d", array[1], array[0]);
+				FormatEx(cmd, sizeof(cmd), "sm_swapto %d #%d", array[1], array[0]);
 				ServerCommand(cmd);
 			}
 			RemoveFromArray(g_hArrayUserIdTeamPairs, i);
