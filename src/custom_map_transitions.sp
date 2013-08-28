@@ -108,7 +108,7 @@ public OnPluginStart() {
 }*/
 
 public OnClientPutInServer(client) {
-	CreateTimer(1.0, Timed_PostPutInServer, client);
+	CreateTimer(2.0, Timed_PostPutInServer, client);
 }
 
 public Action:Timed_PostPutInServer(Handle:timer, any:client) {
