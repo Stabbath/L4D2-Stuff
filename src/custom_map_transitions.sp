@@ -107,8 +107,18 @@ public OnPluginStart() {
 	scoreB = g_iTeamCampaignScore[1];	//
 }*/
 
+new Handle:hClearTimer = INVALID_HANDLE;
+
 public OnClientPutInServer(client) {
 	CreateTimer(2.0, Timed_PostPutInServer, client);
+	if (hClearTimer == INVALID_HANDLE) {
+		hClearTimer = CreateTimer(120.0, Timed_ClearUsers, _, TIMER_FLAG_NO_MAPCHANGE);
+	}
+}
+
+public Action:Timed_ClearUsers(Handle:timer) {
+	hClearTimer = INVALID_HANDLE;
+	ClearArray(g_hArrayUserIdTeamPairs);
 }
 
 public Action:Timed_PostPutInServer(Handle:timer, any:client) {
@@ -116,7 +126,7 @@ public Action:Timed_PostPutInServer(Handle:timer, any:client) {
 	decl array[2];
 	for (new i = 0; i < GetArraySize(g_hArrayUserIdTeamPairs); i++) {
 		GetArrayArray(g_hArrayUserIdTeamPairs, i, array);
-		if (array[0] == GetClientUserId(client)) {
+		if (IsClientConnected(client) && array[0] == GetClientUserId(client)) {
 			if (g_bTeamsNeedSwitching && array[1] > 1) {
 				FormatEx(cmd, sizeof(cmd), "sm_swapto %d #%d", (array[1] == 2) ? 3 : 2, array[0]);
 				ServerCommand(cmd);
