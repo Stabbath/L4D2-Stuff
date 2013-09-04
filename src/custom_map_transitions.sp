@@ -30,12 +30,12 @@ public Plugin:myinfo =
 #define DIR_CFGS "cmt/"
 #define PATH_KV  "cfg/cmt/mapnames.txt"
 #define BUF_SZ   64
-#define TIME_MAPCHANGE_DELAY 8.0
 #define TIME_POSTROUND1_SCORE_DELAY 1.0
 
 new Handle:	g_hCvarPoolsize;
 new Handle:	g_hCvarMinPoolsize;
 new Handle:	g_hCvarVetoCount;
+new Handle:	g_hCvarMapChangeDelay;
 
 new Handle:	g_hArrayTags;				//stores tags for indexing g_hTriePools
 new Handle:	g_hTriePools;				//stores pool array handles by tag name
@@ -51,7 +51,7 @@ new bool:	g_bMapsetInitialized;
 new			g_iMapCount;
 new 		g_iTeamCampaignScore[2];
 new Handle:	g_hArrayTeamMapScore[2];
-new Handle: g_hSDKCallSetCampaignScores;
+new Handle:	g_hSDKCallSetCampaignScores;
 
 public OnPluginStart() {
 	SetRandomSeed(seed:GetEngineTime());
@@ -80,6 +80,9 @@ public OnPluginStart() {
 	g_hCvarVetoCount = CreateConVar(	"cmt_veto_count", "0",
 										"How many vetoes each team gets.",
 										FCVAR_PLUGIN, true, 0.0, false);
+	g_hCvarMapChangeDelay = CreateConVar("cmt_mapchange_delay", "8.0",
+										"How long to wait after round end before forcing the map change.",
+										FCVAR_PLUGIN, true, 1.0, false);
 
 	g_hArrayTags = CreateArray(BUF_SZ/4);	//1 block = 4 characters => X characters = X/4 blocks
 	g_hTriePools = CreateTrie();
@@ -173,7 +176,7 @@ public Action:Timed_PostOnRoundStart(Handle:timer) {
 public OnRoundEnd() {
 	g_bTeamsNeedSwitching = false; //needs to be reset somewhere, why not here?
 	new round = _:InSecondHalfOfRound();
-	CreateTimer(round ? TIME_MAPCHANGE_DELAY : TIME_POSTROUND1_SCORE_DELAY, Timed_PostOnRoundEnd, round);
+	CreateTimer(round ? GetConVarFloat(g_hCvarMapChangeDelay) : TIME_POSTROUND1_SCORE_DELAY, Timed_PostOnRoundEnd, round);
 }
 public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 	if (!g_bMaplistFinalized) return;
