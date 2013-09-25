@@ -18,6 +18,13 @@
 3: Profit
 */
 
+/*
+TODO
+	- find a way to intercept and override the map that the game will change to, for cleaner transitions that don't risk breaking things
+	- replace "poolsize" and "minpoolsize" with parameters in the tagrank command, so we can specify those variables on a per-rank basis
+	- add command to abort mapset
+*/
+
 public Plugin:myinfo =
 {
 	name = "Custom Map Transitions",
