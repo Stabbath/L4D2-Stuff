@@ -30,7 +30,7 @@ public Plugin:myinfo =
 	name = "Custom Map Transitions",
 	author = "Stabby",
 	description = "Makes games more fun and varied! Yay!",
-	version = "11",
+	version = "11a",
 	url = "https://github.com/Stabbath/L4D2-Stuff"
 };
 
@@ -59,6 +59,18 @@ new			g_iMapCount;
 new 		g_iTeamCampaignScore[2];
 new Handle:	g_hArrayTeamMapScore[2];
 new Handle:	g_hSDKCallSetCampaignScores;
+new Handle: g_hForwardStart;
+new Handle: g_hForwardNext;
+new Handle: g_hForwardEnd;
+
+public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
+{
+	g_hForwardStart = CreateGlobalForward("OnCMTStart", ET_Ignore, Param_Cell, Param_String );	// right before loading first map; params: 1 = maplist size; 2 = name of first map
+	g_hForwardNext = CreateGlobalForward("OnCMTNextKnown", ET_Ignore, Param_String );			// after loading a map (to let other plugins know what the next map will be ahead of time); 1 = name of next map
+	g_hForwardEnd = CreateGlobalForward("OnCMTEnd", ET_Ignore );								// after last map is played; no params
+	
+	return APLRes_Success;
+}
 
 public OnPluginStart() {
 	SetRandomSeed(seed:GetEngineTime());
@@ -107,7 +119,7 @@ public OnPluginStart() {
 		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 		g_hSDKCallSetCampaignScores = EndPrepSDKCall();
-	} 
+	}
 	else LogError("Could not find 'SetCampaignScores' signature in gamedata (left4downtown.l4d2.txt).");
 }
 
@@ -200,8 +212,16 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 
 	if (round) {
 		SDKCall(g_hSDKCallSetCampaignScores, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
-		if (++g_iMapsPlayed < g_iMapCount)	GotoNextMap(true/*L4D_IsMissionFinalMap()*/);	//nextmap's don't get reset after plugin ends
-		else	ServerCommand("sm_resetmatch");
+		if (++g_iMapsPlayed < g_iMapCount) {
+			GotoNextMap(true/*L4D_IsMissionFinalMap()*/);	//nextmap's don't get reset after plugin ends
+		}
+		else {
+			// call ending forward
+			Call_StartForward(g_hForwardEnd);
+			Call_Finish();
+		
+			ServerCommand("sm_resetmatch");
+		}
 
 		SaveAllUserTeamPairs();
 	}
@@ -457,6 +477,12 @@ stock VetoingIsOver() {
 
 public Action:Timed_GiveThemTimeToReadTheMapList(Handle:timer) {
 	ResetScores();	//scores wouldn't cross over because of forced map change before 2nd round end, but doesnt hurt
+	
+	// call starting forward
+	Call_StartForward(g_hForwardStart);
+	Call_PushCell(g_iMapCount);
+	Call_Finish();
+	
 	GotoNextMap(true);
 }
 
@@ -520,6 +546,11 @@ public Action:Maplist(client, args) {
 GotoNextMap(bool:force=false) {
 	decl String:buffer[BUF_SZ];
 	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
+	
+	// call next-known-map forward
+	Call_StartForward(g_hForwardNext);
+	Call_PushString(buffer);
+	Call_Finish();
 	
 	if (force) {
 		ForceChangeLevel(buffer, "Custom map transitions.");
