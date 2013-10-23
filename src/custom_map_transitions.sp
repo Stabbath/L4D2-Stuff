@@ -490,8 +490,12 @@ public Action:Timed_GiveThemTimeToReadTheMapList(Handle:timer) {
 	ResetScores();	//scores wouldn't cross over because of forced map change before 2nd round end, but doesnt hurt
 	
 	// call starting forward
+	decl String:buffer[BUF_SZ];
+	GetArrayString(g_hArrayMapOrder, 0, buffer, BUF_SZ);
+	
 	Call_StartForward(g_hForwardStart);
 	Call_PushCell(g_iMapCount);
+	Call_PushString(buffer);
 	Call_Finish();
 	
 	GotoNextMap(true);
