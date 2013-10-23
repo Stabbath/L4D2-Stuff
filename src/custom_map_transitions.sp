@@ -177,6 +177,17 @@ stock SaveUserIdTeamPair(userid, team) {
 	PushArrayArray(g_hArrayUserIdTeamPairs, array);
 }
 
+public OnMapStart() {
+	// let other plugins know what the map *after* this one will be (unless it is the last map)
+	if (!g_bMaplistFinalized || g_iMapsPlayed >= g_iMapCount-1) return;
+	decl String:buffer[BUF_SZ];
+	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed+1, buffer, BUF_SZ);
+	
+	Call_StartForward(g_hForwardNext);
+	Call_PushString(buffer);
+	Call_Finish();
+}
+
 public OnRoundStart(){
 	CreateTimer(5.0, Timed_PostOnRoundStart);
 }
@@ -546,11 +557,6 @@ public Action:Maplist(client, args) {
 GotoNextMap(bool:force=false) {
 	decl String:buffer[BUF_SZ];
 	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
-	
-	// call next-known-map forward
-	Call_StartForward(g_hForwardNext);
-	Call_PushString(buffer);
-	Call_Finish();
 	
 	if (force) {
 		ForceChangeLevel(buffer, "Custom map transitions.");
