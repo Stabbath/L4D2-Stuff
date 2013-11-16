@@ -31,7 +31,7 @@ public Plugin:myinfo =
 	name = "Custom Map Transitions",
 	author = "Stabby",
 	description = "Makes games more fun and varied! Yay!",
-	version = "11a",
+	version = "11b",
 	url = "https://github.com/Stabbath/L4D2-Stuff"
 };
 
@@ -63,12 +63,14 @@ new Handle:	g_hSDKCallSetCampaignScores;
 new Handle: g_hForwardStart;
 new Handle: g_hForwardNext;
 new Handle: g_hForwardEnd;
+new Handle: g_hForwardTeamSwap;
 
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 {
 	g_hForwardStart = CreateGlobalForward("OnCMTStart", ET_Ignore, Param_Cell, Param_String );	// right before loading first map; params: 1 = maplist size; 2 = name of first map
 	g_hForwardNext = CreateGlobalForward("OnCMTNextKnown", ET_Ignore, Param_String );			// after loading a map (to let other plugins know what the next map will be ahead of time); 1 = name of next map
 	g_hForwardEnd = CreateGlobalForward("OnCMTEnd", ET_Ignore );								// after last map is played; no params
+	g_hForwardTeamSwap = CreateGlobalForward("OnCMTTeamSwap", ET_Ignore );						// if CMT will swap A/B logical teams in this round
 	
 	return APLRes_Success;
 }
@@ -201,6 +203,10 @@ public Action:Timed_PostOnRoundStart(Handle:timer) {
 	if (g_iTeamCampaignScore[0] < g_iTeamCampaignScore[1]) {
 		g_bTeamsNeedSwitching = true;
 		SwapScores();
+		
+		// let other plugins know that CMT will swap the teams
+		Call_StartForward(g_hForwardTeamSwap);
+		Call_Finish();
 	}
 }
 
