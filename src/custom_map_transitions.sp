@@ -173,7 +173,12 @@ stock SaveUserIdTeamPair(userid, team) {
 	PushArrayArray(g_hArrayUserIdTeamPairs, array);
 }
 
+//sm_nextmap '': Otherwise nextmap would be stuck and people wouldn't be able
+//to play normal campaigns without the plugin
+public OnPluginEnd() ServerCommand("sm_nextmap ''");
 public OnMapStart() {
+	ServerCommand("sm_nextmap ''");
+
 	// let other plugins know what the map *after* this one will be (unless it is the last map)
 	if (!g_bMaplistFinalized || g_iMapsPlayed >= g_iMapCount-1) return;
 	decl String:buffer[BUF_SZ];
@@ -236,11 +241,6 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 		SaveAllUserTeamPairs();
 	}
 }
-
-//SetNextMap: Otherwise nextmap would be stuck and people wouldn't be able
-//to play normal campaigns without the plugin
-public OnMapStart() 	ServerCommand("sm_nextmap ''");
-public OnPluginEnd()	ServerCommand("sm_nextmap ''");
 
 stock SwapScores() {
 	decl buf;
