@@ -31,7 +31,7 @@ public Plugin:myinfo =
 	name = "Custom Map Transitions",
 	author = "Stabby",
 	description = "Makes games more fun and varied! Yay!",
-	version = "11b",
+	version = "12",
 	url = "https://github.com/Stabbath/L4D2-Stuff"
 };
 
