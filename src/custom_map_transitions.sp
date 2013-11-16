@@ -102,9 +102,6 @@ public OnPluginStart() {
 	g_hCvarVetoCount = CreateConVar(	"cmt_veto_count", "0",
 										"How many vetoes each team gets.",
 										FCVAR_PLUGIN, true, 0.0, false);
-	g_hCvarMapChangeDelay = CreateConVar("cmt_mapchange_delay", "8.0",
-										"How long to wait after round end before forcing the map change.",
-										FCVAR_PLUGIN, true, 1.0, false);
 
 	g_hArrayTags = CreateArray(BUF_SZ/4);	//1 block = 4 characters => X characters = X/4 blocks
 	g_hTriePools = CreateTrie();
@@ -213,7 +210,7 @@ public Action:Timed_PostOnRoundStart(Handle:timer) {
 public OnRoundEnd() {
 	g_bTeamsNeedSwitching = false; //needs to be reset somewhere, why not here?
 	new round = _:InSecondHalfOfRound();
-	CreateTimer(round ? GetConVarFloat(g_hCvarMapChangeDelay) : TIME_POSTROUND1_SCORE_DELAY, Timed_PostOnRoundEnd, round);
+	CreateTimer(round ? 1.0 : TIME_POSTROUND1_SCORE_DELAY, Timed_PostOnRoundEnd, round);
 }
 public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 	if (!g_bMaplistFinalized) return;
@@ -231,9 +228,8 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 	if (round) {
 		SDKCall(g_hSDKCallSetCampaignScores, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
 		if (++g_iMapsPlayed < g_iMapCount) {
-			GotoNextMap(true/*L4D_IsMissionFinalMap()*/);	//nextmap's don't get reset after plugin ends
-		}
-		else {
+			GotoNextMap();
+		} else {
 			// call ending forward
 			Call_StartForward(g_hForwardEnd);
 			Call_Finish();
@@ -247,8 +243,8 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 
 //SetNextMap: Otherwise nextmap would be stuck and people wouldn't be able
 //to play normal campaigns without the plugin
-//public OnMapStart() 	SetNextMap("#game_nextmap");
-//public OnPluginEnd()	SetNextMap("#game_nextmap");
+public OnMapStart() 	ServerCommand("sm_nextmap ''");
+public OnPluginEnd()	ServerCommand("sm_nextmap ''");
 
 stock SwapScores() {
 	decl buf;
