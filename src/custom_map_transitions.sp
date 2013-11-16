@@ -20,8 +20,6 @@
 
 /*
 TODO
-	- find a way to intercept and override the map that the game will change to, for cleaner transitions that don't risk breaking things
-		- thought: change info_changelevel's "new map name" keyvalue to the map that CMT decides is next, it might work! Also trigger_changelevel
 	- replace "poolsize" and "minpoolsize" with parameters in the tagrank command, so we can specify those variables on a per-rank basis
 	- add command to abort mapset
 */
@@ -38,12 +36,10 @@ public Plugin:myinfo =
 #define DIR_CFGS "cmt/"
 #define PATH_KV  "cfg/cmt/mapnames.txt"
 #define BUF_SZ   64
-#define TIME_POSTROUND1_SCORE_DELAY 1.0
 
 new Handle:	g_hCvarPoolsize;
 new Handle:	g_hCvarMinPoolsize;
 new Handle:	g_hCvarVetoCount;
-new Handle:	g_hCvarMapChangeDelay;
 
 new Handle:	g_hArrayTags;				//stores tags for indexing g_hTriePools
 new Handle:	g_hTriePools;				//stores pool array handles by tag name
@@ -210,7 +206,7 @@ public Action:Timed_PostOnRoundStart(Handle:timer) {
 public OnRoundEnd() {
 	g_bTeamsNeedSwitching = false; //needs to be reset somewhere, why not here?
 	new round = _:InSecondHalfOfRound();
-	CreateTimer(round ? 1.0 : TIME_POSTROUND1_SCORE_DELAY, Timed_PostOnRoundEnd, round);
+	CreateTimer(1.0, Timed_PostOnRoundEnd, round);
 }
 public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 	if (!g_bMaplistFinalized) return;
