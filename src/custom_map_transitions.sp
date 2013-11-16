@@ -37,37 +37,33 @@ public Plugin:myinfo =
 #define PATH_KV  "cfg/cmt/mapnames.txt"
 #define BUF_SZ   64
 
-new Handle:	g_hCvarPoolsize;
-new Handle:	g_hCvarMinPoolsize;
-new Handle:	g_hCvarVetoCount;
+new Handle: g_hCvarPoolsize;
+new Handle: g_hCvarMinPoolsize;
+new Handle: g_hCvarVetoCount;
 
-new Handle:	g_hArrayTags;				//stores tags for indexing g_hTriePools
-new Handle:	g_hTriePools;				//stores pool array handles by tag name
-new Handle:	g_hArrayTagOrder;			//stores tags by rank
-new Handle:	g_hArrayMapOrder;			//stores finalised map list in order
-new Handle:	g_hTrieTagUses;				//how many different ranks a tag has, ie how many played maps will be based on this tag
-new Handle:	g_hArrayUserIdTeamPairs;
-new bool:	g_bTeamsNeedSwitching;
-new			g_iVetoesUsed[2];
-new bool:	g_bMaplistFinalized;
-new			g_iMapsPlayed;
-new bool:	g_bMapsetInitialized;
-new			g_iMapCount;
-new 		g_iTeamCampaignScore[2];
-new Handle:	g_hArrayTeamMapScore[2];
-new Handle:	g_hSDKCallSetCampaignScores;
+new Handle: g_hArrayTags;				//stores tags for indexing g_hTriePools
+new Handle: g_hTriePools;				//stores pool array handles by tag name
+new Handle: g_hArrayTagOrder;			//stores tags by rank
+new Handle: g_hArrayMapOrder;			//stores finalised map list in order
+new Handle: g_hTrieTagUses;				//how many different ranks a tag has, ie how many played maps will be based on this tag
+new         g_iVetoesUsed[2];
+new bool:   g_bMaplistFinalized;
+new         g_iMapsPlayed;
+new bool:   g_bMapsetInitialized;
+new         g_iMapCount;
+new         g_iTeamCampaignScore[2];
+new Handle: g_hArrayTeamMapScore[2];
+new Handle: g_hSDKCallSetCampaignScores;
 new Handle: g_hForwardStart;
 new Handle: g_hForwardNext;
 new Handle: g_hForwardEnd;
-new Handle: g_hForwardTeamSwap;
 
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 {
 	g_hForwardStart = CreateGlobalForward("OnCMTStart", ET_Ignore, Param_Cell, Param_String );	// right before loading first map; params: 1 = maplist size; 2 = name of first map
 	g_hForwardNext = CreateGlobalForward("OnCMTNextKnown", ET_Ignore, Param_String );			// after loading a map (to let other plugins know what the next map will be ahead of time); 1 = name of next map
 	g_hForwardEnd = CreateGlobalForward("OnCMTEnd", ET_Ignore );								// after last map is played; no params
-	g_hForwardTeamSwap = CreateGlobalForward("OnCMTTeamSwap", ET_Ignore );						// if CMT will swap A/B logical teams in this round
-	
+
 	return APLRes_Success;
 }
 
@@ -105,8 +101,6 @@ public OnPluginStart() {
 	g_hArrayMapOrder = CreateArray(BUF_SZ/4);
 	g_hTrieTagUses = CreateTrie();
 
-	g_hArrayUserIdTeamPairs = CreateArray(2);
-
 	g_hArrayTeamMapScore[0] = CreateArray();
 	g_hArrayTeamMapScore[1] = CreateArray();
 
@@ -117,60 +111,6 @@ public OnPluginStart() {
 		g_hSDKCallSetCampaignScores = EndPrepSDKCall();
 	}
 	else LogError("Could not find 'SetCampaignScores' signature in gamedata (left4downtown.l4d2.txt).");
-}
-
-/*public Action:L4D_OnSetCampaignScores(&scoreA, &scoreB) {
-	if (!g_bMapsetInitialized) return;
-	scoreA = g_iTeamCampaignScore[0];	//overwrite scores every time the game tries to change them
-	scoreB = g_iTeamCampaignScore[1];	//
-}*/
-
-new Handle:hClearTimer = INVALID_HANDLE;
-
-public OnClientPutInServer(client) {
-	CreateTimer(2.0, Timed_PostPutInServer, client);
-	if (hClearTimer == INVALID_HANDLE) {
-		hClearTimer = CreateTimer(120.0, Timed_ClearUsers, _, TIMER_FLAG_NO_MAPCHANGE);
-	}
-}
-
-public Action:Timed_ClearUsers(Handle:timer) {
-	hClearTimer = INVALID_HANDLE;
-	ClearArray(g_hArrayUserIdTeamPairs);
-}
-
-public Action:Timed_PostPutInServer(Handle:timer, any:client) {
-	decl String:cmd[BUF_SZ];
-	decl array[2];
-	for (new i = 0; i < GetArraySize(g_hArrayUserIdTeamPairs); i++) {
-		GetArrayArray(g_hArrayUserIdTeamPairs, i, array);
-		if (IsClientConnected(client) && array[0] == GetClientUserId(client)) {
-			if (g_bTeamsNeedSwitching && array[1] > 1) {
-				FormatEx(cmd, sizeof(cmd), "sm_swapto %d #%d", (array[1] == 2) ? 3 : 2, array[0]);
-				ServerCommand(cmd);
-			} else {
-				FormatEx(cmd, sizeof(cmd), "sm_swapto %d #%d", array[1], array[0]);
-				ServerCommand(cmd);
-			}
-			RemoveFromArray(g_hArrayUserIdTeamPairs, i);
-			return;
-		}
-	}
-}
-
-stock SaveAllUserTeamPairs() {
-	for (new i = 1; i <= MaxClients; i++) {
-		if (IsClientInGame(i) && !IsFakeClient(i)) {
-			SaveUserIdTeamPair(GetClientUserId(i), GetClientTeam(i));
-		}
-	}
-}
-
-stock SaveUserIdTeamPair(userid, team) {
-	new array[2];
-	array[0] = userid;
-	array[1] = team == 1 ? 1 : team == 2 ? 3 : 2;
-	PushArrayArray(g_hArrayUserIdTeamPairs, array);
 }
 
 //sm_nextmap '': Otherwise nextmap would be stuck and people wouldn't be able
@@ -197,19 +137,9 @@ public Action:Timed_PostOnRoundStart(Handle:timer) {
 	SDKCall(g_hSDKCallSetCampaignScores, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
 	L4D2Direct_SetVSCampaignScore(0, g_iTeamCampaignScore[0]);
 	L4D2Direct_SetVSCampaignScore(1, g_iTeamCampaignScore[1]);
-	
-	if (g_iTeamCampaignScore[0] < g_iTeamCampaignScore[1]) {
-		g_bTeamsNeedSwitching = true;
-		SwapScores();
-		
-		// let other plugins know that CMT will swap the teams
-		Call_StartForward(g_hForwardTeamSwap);
-		Call_Finish();
-	}
 }
 
 public OnRoundEnd() {
-	g_bTeamsNeedSwitching = false; //needs to be reset somewhere, why not here?
 	new round = _:InSecondHalfOfRound();
 	CreateTimer(1.0, Timed_PostOnRoundEnd, round);
 }
@@ -237,26 +167,7 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 		
 			ServerCommand("sm_resetmatch");
 		}
-
-		SaveAllUserTeamPairs();
 	}
-}
-
-stock SwapScores() {
-	decl buf;
-	for (new i = 0; i < GetArraySize(g_hArrayTeamMapScore[0]); i++)
-	{
-		buf = GetArrayCell(g_hArrayTeamMapScore[0], i);
-		SetArrayCell(g_hArrayTeamMapScore[0], i, GetArrayCell(g_hArrayTeamMapScore[1], i));
-		SetArrayCell(g_hArrayTeamMapScore[1], i, buf);
-	}
-	
-	buf = g_iTeamCampaignScore[0];
-	g_iTeamCampaignScore[0] = g_iTeamCampaignScore[1];
-	g_iTeamCampaignScore[1] = buf;
-	L4D2Direct_SetVSCampaignScore(0, g_iTeamCampaignScore[0]);
-	L4D2Direct_SetVSCampaignScore(1, g_iTeamCampaignScore[1]);
-	SDKCall(g_hSDKCallSetCampaignScores, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
 }
 
 //console cmd: loads a specified set of maps
