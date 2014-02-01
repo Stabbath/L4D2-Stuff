@@ -61,31 +61,31 @@ public OnPluginStart()
 	hHittable = CreateConVar(	"gfc_hittable_override", "0",
 									"Allow hittables to always ignore godframes.",
 									FCVAR_PLUGIN, true, 0.0, true, 1.0 );
-	hWitch = CreateConVar(		 "gfc_witch_override", "0",
+	hWitch = CreateConVar( 		"gfc_witch_override", "0",
 									"Allow witches to always ignore godframes.",
 									FCVAR_PLUGIN, true, 0.0, true, 1.0 );
-	hFF = CreateConVar(		 "gfc_ff_min_time", "0.0",
+	hFF = CreateConVar( 		"gfc_ff_min_time", "0.0",
 									"Minimum time before FF damage is allowed.",
 									FCVAR_PLUGIN, true, 0.0, true, 3.0 );
-	hSpit = CreateConVar(		 "gfc_spit_extra_time", "0.0",
+	hSpit = CreateConVar( 		"gfc_spit_extra_time", "0.0",
 									"Additional godframe time before spit damage is allowed.",
 									FCVAR_PLUGIN, true, 0.0, true, 3.0 );
-	hCommon = CreateConVar(	 "gfc_common_extra_time", "0.0",
+	hCommon = CreateConVar( 	"gfc_common_extra_time", "0.0",
 									"Additional godframe time before common damage is allowed.",
 									FCVAR_PLUGIN, true, 0.0, true, 3.0 );
-	hHunter = CreateConVar(	 "gfc_hunter_duration", "2.0",
+	hHunter = CreateConVar( 	"gfc_hunter_duration", "2.0",
 									"How long should godframes after a pounce last?",
 									FCVAR_PLUGIN, true, 0.0, true, 3.0 );
-	hJockey = CreateConVar(	 "gfc_jockey_duration", "2.0",
+	hJockey = CreateConVar( 	"gfc_jockey_duration", "2.0",
 									"How long should godframes after a ride last?",
 									FCVAR_PLUGIN, true, 0.0, true, 3.0 );
-	hSmoker = CreateConVar(	 "gfc_smoker_duration", "2.0",
+	hSmoker = CreateConVar( 	"gfc_smoker_duration", "2.0",
 									"How long should godframes after a pull or choke last?",
 									FCVAR_PLUGIN, true, 0.0, true, 3.0 );
-	hCharger = CreateConVar(	 "gfc_charger_duration", "2.0",
+	hCharger = CreateConVar( 	"gfc_charger_duration", "2.0",
 									"How long should godframes after a pummel last?",
 									FCVAR_PLUGIN, true, 0.0, true, 3.0 );
-	hSpitFlags = CreateConVar(	 "gfc_spit_zc_flags", "0",
+	hSpitFlags = CreateConVar( 	"gfc_spit_zc_flags", "0",
 									"Which classes will be affected by extra spit protection time. 1 - Hunter. 2 - Smoker. 4 - Jockey. 8 - Charger.",
 									FCVAR_PLUGIN, true, 0.0, true, 15.0 );
 	hCommonFlags= CreateConVar( "gfc_common_zc_flags", "0",
