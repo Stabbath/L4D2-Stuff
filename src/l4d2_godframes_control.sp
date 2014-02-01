@@ -16,32 +16,6 @@
 #define CLASSNAME_LENGTH 64
 
 
-stock RGB_RED(x) {
-	return (x << 16);
-}
-
-stock RGB_GRN(x) {
-	return (x << 9);
-}
-
-stock RGB_BLU(x) {
-	return (x << 0);
-}
-
-stock RGB(x, y, z) {
-	return RGB_RED(x)+RGB_GRN(y)+RGB_BLU(z);
-}
-/* I Don't Understand SourcePawn Macros
-#define RGB_RED(%0)		(%0 << 16)
-#define RGB_GRN(%0)		(%0 << 8)
-#define RGB_BLU(%0)		(%0 << 0)
-#define RGB(%0, %1, %2)	(RGB_RED(%0)+RGB_GRN(%1)+RGB_BLU(%2))
-*/
-#define COLOR_GODFRAMED       RGB(255, 255, 255)
-#define COLOR_GODFRAMED_PUKED RGB(160, 20,  255)
-#define COLOR_NORMAL          RGB(0,   0,   0  )	//iirc 0,0,0 resets to default, rather than setting to black
-#define COLOR_PUKED           COLOR_NORMAL	//might have a different color when boomed, needs testing
-
 //cvars
 new Handle: hRageRock = INVALID_HANDLE;
 new Handle: hRageHittables = INVALID_HANDLE;
@@ -61,7 +35,6 @@ new Handle: hGodframeGlows = INVALID_HANDLE;
 //fake godframes
 new Float: fFakeGodframeEnd[MAXPLAYERS + 1];
 new iLastSI[MAXPLAYERS + 1];
-new bIsBoomed[MAXPLAYERS + 1];
 
 //frustration
 new frustrationOffset[MAXPLAYERS + 1];
@@ -69,15 +42,15 @@ new frustrationOffset[MAXPLAYERS + 1];
 public Plugin:myinfo =
 {
 	name = "L4D2 Godframes Control (starring Austin Powers, Baby Yeah!)",
-	author = "Stabby, CircleSquared",
-	version = "0.3.1",
+	author = "Stabby, CircleSquared, Tabun",
+	version = "0.3.1b",
 	description = "Allows for control of what gets godframed and what doesnt."
 };
 
 public OnPluginStart()
 {
 	hGodframeGlows = CreateConVar("gfc_godframe_glows", "0",
-									"Changes the colour of survivor glows while godframed, and makes them flash.",
+									"Changes the rendering of survivors while godframed (red/transparent).",
 									FCVAR_PLUGIN, true, 0.0, true, 1.0 );
 	hRageHittables = CreateConVar("gfc_hittable_rage_override", "0",
 									"Allow tank to gain rage from hittable hits. 0 blocks rage gain.",
@@ -123,8 +96,6 @@ public OnPluginStart()
 	HookEvent("pounce_end", PostSurvivorRelease);
 	HookEvent("jockey_ride_end", PostSurvivorRelease);
 	HookEvent("charger_pummel_end", PostSurvivorRelease);
-	HookEvent("player_now_it", PlayerIt);
-	HookEvent("player_no_longer_it", PlayerNotIt);
 }
 
 public OnRoundStart()
@@ -173,7 +144,6 @@ public PostSurvivorRelease(Handle:event, const String:name[], bool:dontBroadcast
 
 public OnClientPutInServer(client)
 {
-	bIsBoomed[client] = false;
 	SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamage);
 }
 
@@ -275,45 +245,22 @@ public Action:Timed_ResetGlow(Handle:timer, any:client) {
 
 ResetGlow(client) {
 	if (IsClientAndInGame(client)) {
-		SetEntProp(client, Prop_Send, "m_bFlashing", false);
-		
-		if (IsPlayerBoomed(client)) {
-			SetEntProp(client, Prop_Send, "m_glowColorOverride", COLOR_PUKED);
-		} else {
-			SetEntProp(client, Prop_Send, "m_glowColorOverride", COLOR_NORMAL);
-		}
+		// remove transparency/color
+		SetEntityRenderMode(client, RenderMode:0);
+		SetEntityRenderColor(client, 255,255,255,255);
 	}
 }
 
 SetGodframedGlow(client) {	//there might be issues with realism
 	if (IsClientAndInGame(client) && IsPlayerAlive(client) && GetClientTeam(client) == 2) {
-		SetEntProp(client, Prop_Send, "m_bFlashing", true);
-		
-		if (IsPlayerBoomed(client)) {
-			SetEntProp(client, Prop_Send, "m_glowColorOverride", COLOR_GODFRAMED_PUKED);
-		} else {
-			SetEntProp(client, Prop_Send, "m_glowColorOverride", COLOR_GODFRAMED);
-		}
+		// make player transparent/red while godframed
+		SetEntityRenderMode( client, RenderMode:3 );
+		SetEntityRenderColor (client, 255,0,0,200 );
 	}
-}
-
-IsPlayerBoomed(client) {
-	return bIsBoomed[client];
-}
-
-public PlayerIt(Handle:event, const String:name[], bool:dontBroadcast) {
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	bIsBoomed[client] = true;
-}
-
-public PlayerNotIt(Handle:event, const String:name[], bool:dontBroadcast) {
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	bIsBoomed[client] = false;	
 }
 
 public OnMapStart() {
 	for (new i = 0; i <= MaxClients; i++) {
 		ResetGlow(i);
-		bIsBoomed[i] = false;
 	}
 }
