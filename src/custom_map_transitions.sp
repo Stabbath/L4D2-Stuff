@@ -3,8 +3,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <l4d2util_rounds>
-#include <left4downtown>
-#include <l4d2_direct>
+#include <left4dhooks>
 #include <colors>
 
 /*
