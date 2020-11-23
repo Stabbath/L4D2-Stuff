@@ -86,13 +86,13 @@ public OnPluginStart() {
 
 	g_hCvarPoolsize = CreateConVar(		"cmt_poolsize", "1000",
 										"How many maps will be initially pooled for each tag for each rank that uses that tag (can be a float).",
-										FCVAR_PLUGIN, true, 1.0, false);
+										FCVAR_NONE, true, 1.0, false);
 	g_hCvarMinPoolsize = CreateConVar(	"cmt_minimum_poolsize", "1",
 										"How many maps must remain in each pool after vetoing for each time that pool's tag is used/ranked.",
-										FCVAR_PLUGIN, true, 1.0, false);
+										FCVAR_NONE, true, 1.0, false);
 	g_hCvarVetoCount = CreateConVar(	"cmt_veto_count", "0",
 										"How many vetoes each team gets.",
-										FCVAR_PLUGIN, true, 0.0, false);
+										FCVAR_NONE, true, 0.0, false);
 
 	g_hArrayTags = CreateArray(BUF_SZ/4);	//1 block = 4 characters => X characters = X/4 blocks
 	g_hTriePools = CreateTrie();
