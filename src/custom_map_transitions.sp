@@ -104,12 +104,12 @@ public OnPluginStart() {
 	g_hArrayTeamMapScore[1] = CreateArray();
 
 	StartPrepSDKCall(SDKCall_GameRules);
-	if (PrepSDKCall_SetFromConf(LoadGameConfigFile("left4downtown.l4d2"), SDKConf_Signature, "SetCampaignScores")) {
+	if (PrepSDKCall_SetFromConf(LoadGameConfigFile("left4dhooks.l4d2"), SDKConf_Signature, "SetCampaignScores")) {
 		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 		g_hSDKCallSetCampaignScores = EndPrepSDKCall();
 	}
-	else LogError("Could not find 'SetCampaignScores' signature in gamedata (left4downtown.l4d2.txt).");
+	else LogError("Could not find 'SetCampaignScores' signature in gamedata (left4dhooks.l4d2.txt).");
 }
 
 //sm_nextmap '': Otherwise nextmap would be stuck and people wouldn't be able
