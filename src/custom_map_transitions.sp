@@ -5,6 +5,7 @@
 #include <l4d2util_rounds>
 #include <left4dhooks>
 #include <colors>
+#include <nextmap>
 
 /*
 1: Collect underpants
@@ -28,7 +29,7 @@ public Plugin:myinfo =
 	name = "Custom Map Transitions",
 	author = "Stabby",
 	description = "Makes games more fun and varied! Yay!",
-	version = "12",
+	version = "13",
 	url = "https://github.com/Stabbath/L4D2-Stuff"
 };
 
