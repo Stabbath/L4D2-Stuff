@@ -215,9 +215,7 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 public OnMapEnd() {
 	PrintDebug(4, "[cmt] OnMapEnd");
 
-	decl String:sGameMode[32];
-	GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
-	if (StrContains(sGameMode, "coop", false) != -1) {
+	if (IsCoopMode()) {
 		CreateTimer(1.0, Timed_PostOnMapEnd);
 	}
 }
@@ -679,6 +677,19 @@ stock GetPrettyName(String:map[]) {
 		return 1;
 	}
 	return 0;
+}
+
+bool: IsCoopMode() {
+	decl String:sGameMode[32];
+	GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
+
+	if (StrContains(sGameMode, "coop", false) != -1) {
+		return true;
+	}
+
+	return StrEqual(sGameMode, "mutation4", false) ||       // hard eight
+		StrEqual(sGameMode, "mutation14", false) ||         // gib fest
+		StrEqual(sGameMode, "mutation20", false);  			// healing gnome
 }
 
 public PrintDebug(debugLevel, const String:Message[], any:...)
