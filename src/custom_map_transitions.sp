@@ -43,6 +43,7 @@ public Plugin:myinfo =
 #define PATH_KV  "cfg/cmt/mapnames.txt"
 #define BUF_SZ   64
 
+new Handle: g_hCvarDebug;
 new Handle: g_hCvarPoolsize;
 new Handle: g_hCvarMinPoolsize;
 new Handle: g_hCvarVetoCount;
@@ -117,7 +118,9 @@ public OnPluginStart() {
 					"Shows a player cmt's selected map list.");
 	RegConsoleCmd(	"sm_veto",			Veto,
 					"Lets players veto a map. Uses per team per game cvar'd.");
-
+	g_hCvarDebug = CreateConVar(        "cmt_debug", "0",
+		                                "Debug mode. (0: only error reporting, -1: disable all reports, 1+: set debug report level)",
+		                                FCVAR_NONE, true, -1.0);
 
 	g_hCvarPoolsize = CreateConVar(		"cmt_poolsize", "1000",
 										"How many maps will be initially pooled for each tag for each rank that uses that tag (can be a float).",
@@ -143,7 +146,10 @@ public OnPluginStart() {
 //sm_nextmap '': Otherwise nextmap would be stuck and people wouldn't be able
 //to play normal campaigns without the plugin
 public OnPluginEnd() ServerCommand("sm_nextmap ''");
+
 public OnMapStart() {
+	PrintDebug(4, "[cmt] OnMapStart");
+
 	ServerCommand("sm_nextmap ''");
 
 	// let other plugins know what the map *after* this one will be (unless it is the last map)
@@ -156,22 +162,31 @@ public OnMapStart() {
 	Call_Finish();
 }
 
-public OnRoundStart(){
+public OnRoundStart() {
+	PrintDebug(4, "[cmt] OnRoundStart");
+
 	CreateTimer(5.0, Timed_PostOnRoundStart);
 }
+
 public Action:Timed_PostOnRoundStart(Handle:timer) {
 	if (!g_bMapsetInitialized) return;
-	
+
+	PrintDebug(4, "[cmt] PostOnRoundStart");
+
 	SDKCall(g_hSDKCallSetCampaignScores, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
 	L4D2Direct_SetVSCampaignScore(0, g_iTeamCampaignScore[0]);
 	L4D2Direct_SetVSCampaignScore(1, g_iTeamCampaignScore[1]);
 }
 
 public OnRoundEnd() {
+	PrintDebug(4, "[cmt] OnRoundEnd");
+
 	new round = _:InSecondHalfOfRound();
 	CreateTimer(1.0, Timed_PostOnRoundEnd, round);
 }
 public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
+	PrintDebug(4, "[cmt] PostOnRoundEnd");
+
 	new score = L4D_GetTeamScore(round + 1);
 	if (!round) {	//this if-el is so that scores for a map are shown right after round 1
 		PushArrayCell(g_hArrayTeamMapScore[0], score);
@@ -198,6 +213,8 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 
 /* for coop */
 public OnMapEnd() {
+	PrintDebug(4, "[cmt] OnMapEnd");
+
 	decl String:sGameMode[32];
 	GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
 	if (StrContains(sGameMode, "coop", false) != -1) {
@@ -205,6 +222,8 @@ public OnMapEnd() {
 	}
 }
 public Action:Timed_PostOnMapEnd(Handle:timer) {
+	PrintDebug(4, "[cmt] PostOnMapEnd");
+
 	if (++g_iMapsPlayed < g_iMapCount) {
 		GotoNextMap();
 	} else {
@@ -557,6 +576,8 @@ public Action:Maplist(client, args) {
 
 //changes map
 GotoNextMap(bool:force=false) {
+	PrintDebug(3, "[cmt] GotoNextMap");
+
 	decl String:buffer[BUF_SZ];
 	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
 	
@@ -652,4 +673,14 @@ stock GetPrettyName(String:map[]) {
 		return 1;
 	}
 	return 0;
+}
+
+public PrintDebug(debugLevel, const String:Message[], any:...)
+{
+    if (debugLevel > GetConVarInt(g_hCvarDebug)) { return; }
+
+    decl String:DebugBuff[256];
+    VFormat(DebugBuff, sizeof(DebugBuff), Message, 3);
+    LogMessage(DebugBuff);
+    PrintToServer(DebugBuff);
 }
