@@ -2,7 +2,7 @@
 
 #include <sourcemod>
 #include <sdktools>
-#include <l4d2util_rounds>
+#include <l4d2util>
 #include <left4dhooks>
 #include <colors>
 #include <nextmap>
@@ -20,16 +20,22 @@
 
 /*
 TODO
-	- replace "poolsize" and "minpoolsize" with parameters in the tagrank command, so we can specify those variables on a per-rank basis
-	- add command to abort mapset
+	coop - doing the map change in the passive non-forced way causes a weird issue where one survivor gets disappeared away on map change. On one occasion, it instead replaced Nick with a second Ellis, with this second Ellis not showing up on the HUD despite being a valid user and being considered a (bot) player in every other way. Although that extra info isn't relevant I guess.
+		trying to force it requires us to check if we are already transitioning, otherwise it chains mapend events and thence forcechangelevel calls, leading to the players getting kicked out and the server to load every map in quick succession up to the last one in the mapset. Checking if we're transitioning seems to still kick players out. I tested a couple different ways of tracking the transitions, and the result I got was that the map changes to the next one correctly, but kicks players on map change. On one occasion, upon rejoining the server, it also had players in weird coordinates out of bounds - probably because something glitched out and it was using the coordinates for the saferoom spawns for a different map? Who knows how that works.
+
+	coop madness mode - if/when coop transitions work normally, could add an option to also change map when the team wipes, cycling through the maps at that rank randomly until they eventually survive one.
+
+	? who cares - make the delay before game start after maplist is settled a CVar
+
+	? not worth it - replace "poolsize" and "minpoolsize" with parameters in the tagrank command, so we can specify those variables on a per-rank basis
 */
 
 public Plugin:myinfo =
 {
 	name = "Custom Map Transitions",
 	author = "Stabby",
-	description = "Makes games more fun and varied! Yay!",
-	version = "13",
+	description = "Makes games more fun and varied! Yay! By allowing players to select a custom map sequence, replacing the normal campaign map sequence.",
+	version = "14",
 	url = "https://github.com/Stabbath/L4D2-Stuff"
 };
 
@@ -52,11 +58,14 @@ new         g_iMapsPlayed;
 new bool:   g_bMapsetInitialized;
 new         g_iMapCount;
 new         g_iTeamCampaignScore[2];
+new bool:   g_bForcingMapset;
 new Handle: g_hArrayTeamMapScore[2];
 new Handle: g_hSDKCallSetCampaignScores;
 new Handle: g_hForwardStart;
 new Handle: g_hForwardNext;
 new Handle: g_hForwardEnd;
+
+new Handle: g_hCountDownTimer;
 
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 {
@@ -67,34 +76,7 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 	return APLRes_Success;
 }
 
-public OnPluginStart() {
-	SetRandomSeed(seed:GetEngineTime());
-
-	//Pre-match commands
-	RegConsoleCmd(	"sm_forcemapset",	ForceMapSet,
-					"Starts a mapset according to the maps specified in the params.");
-	RegConsoleCmd(	"sm_mapset",		MapSet,
-					"Loads the mapset for the specified group. Use without params for syntax.");
-	RegServerCmd(	"sm_addmap",		AddMap,
-					"Adds a map to a map group under the specified tags. Use without params for syntax.");
-	RegServerCmd(	"sm_tagrank",		TagRank,
-					"Sets a tag's rank in the group. Use without params for syntax.");
-	//Match commands
-	RegConsoleCmd(	"sm_maplist",		Maplist,
-					"Shows a player cmt's selected map list.");
-	RegConsoleCmd(	"sm_veto",			Veto,
-					"Lets players veto a map. Uses per team per game cvar'd.");
-
-	g_hCvarPoolsize = CreateConVar(		"cmt_poolsize", "1000",
-										"How many maps will be initially pooled for each tag for each rank that uses that tag (can be a float).",
-										FCVAR_NONE, true, 1.0, false);
-	g_hCvarMinPoolsize = CreateConVar(	"cmt_minimum_poolsize", "1",
-										"How many maps must remain in each pool after vetoing for each time that pool's tag is used/ranked.",
-										FCVAR_NONE, true, 1.0, false);
-	g_hCvarVetoCount = CreateConVar(	"cmt_veto_count", "0",
-										"How many vetoes each team gets.",
-										FCVAR_NONE, true, 0.0, false);
-
+PluginStartInit() {
 	g_hArrayTags = CreateArray(BUF_SZ/4);	//1 block = 4 characters => X characters = X/4 blocks
 	g_hTriePools = CreateTrie();
 	g_hArrayTagOrder = CreateArray(BUF_SZ/4);
@@ -103,6 +85,51 @@ public OnPluginStart() {
 
 	g_hArrayTeamMapScore[0] = CreateArray();
 	g_hArrayTeamMapScore[1] = CreateArray();
+	
+	g_bMapsetInitialized = false;
+	g_bMaplistFinalized = false;
+	g_bForcingMapset = false;
+	
+	g_hCountDownTimer = null;
+}
+
+public OnPluginStart() {
+	SetRandomSeed(seed:GetEngineTime());
+
+	//Server (config) commands
+	RegServerCmd(	"sm_addmap",		AddMap,
+					"Adds a map to a map group (or pool) under the specified tags. Use without params for syntax.");
+	RegServerCmd(	"sm_tagrank",		TagRank,
+					"Sets a tag's rank in the group. Use without params for syntax.");
+
+	//Start/Abort commands
+	RegConsoleCmd(	"sm_manualmapset",	ManualMapSet,
+					"Starts a mapset according to the maps specified in the params.");
+	RegConsoleCmd(	"sm_forcemapset",	ForceMapSet,
+					"Forces a mapset with random selection, no vetoing.");
+	RegConsoleCmd(	"sm_mapset",		MapSet,
+					"Loads the mapset for the specified group. Use without params for syntax.");
+	RegConsoleCmd(	"sm_abortmapset",	AbortMapSet,
+					"Resets the maplist and aborts any ongoing (or completed) mapset selection.");
+
+	//Mid-match commands
+	RegConsoleCmd(	"sm_maplist",		Maplist,
+					"Shows a player cmt's selected map list.");
+	RegConsoleCmd(	"sm_veto",			Veto,
+					"Lets players veto a map. Uses per team per game cvar'd.");
+
+
+	g_hCvarPoolsize = CreateConVar(		"cmt_poolsize", "1000",
+										"How many maps will be initially pooled for each tag for each rank that uses that tag (can be a float).",
+										FCVAR_NONE, true, 1.0, false);
+	g_hCvarMinPoolsize = CreateConVar(	"cmt_minimum_poolsize", "1",
+										"How many maps must remain in each pool after vetoing for each time that pool's tag is used/ranked. For example, if set to 1 (the minimum), there must be at least 1 map for each position in the map sequence; if set to 2, then there must be at least 2 - and whenever there's more than one option left at the end, the map that will be played is chosen from the remaining options.",
+										FCVAR_NONE, true, 1.0, false);
+	g_hCvarVetoCount = CreateConVar(	"cmt_veto_count", "0",
+										"How many vetoes each team gets.",
+										FCVAR_NONE, true, 0.0, false);
+
+	PluginStartInit();
 
 	StartPrepSDKCall(SDKCall_GameRules);
 	if (PrepSDKCall_SetFromConf(LoadGameConfigFile("left4dhooks.l4d2"), SDKConf_Signature, "SetCampaignScores")) {
@@ -134,6 +161,7 @@ public OnRoundStart(){
 }
 public Action:Timed_PostOnRoundStart(Handle:timer) {
 	if (!g_bMapsetInitialized) return;
+	
 	SDKCall(g_hSDKCallSetCampaignScores, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
 	L4D2Direct_SetVSCampaignScore(0, g_iTeamCampaignScore[0]);
 	L4D2Direct_SetVSCampaignScore(1, g_iTeamCampaignScore[1]);
@@ -144,8 +172,6 @@ public OnRoundEnd() {
 	CreateTimer(1.0, Timed_PostOnRoundEnd, round);
 }
 public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
-	if (!g_bMaplistFinalized) return;
-	
 	new score = L4D_GetTeamScore(round + 1);
 	if (!round) {	//this if-el is so that scores for a map are shown right after round 1
 		PushArrayCell(g_hArrayTeamMapScore[0], score);
@@ -170,15 +196,59 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 	}
 }
 
+/* for coop */
+public OnMapEnd() {
+	decl String:sGameMode[32];
+	GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
+	if (StrContains(sGameMode, "coop", false) != -1) {
+		CreateTimer(1.0, Timed_PostOnMapEnd);
+	}
+}
+public Action:Timed_PostOnMapEnd(Handle:timer) {
+	if (++g_iMapsPlayed < g_iMapCount) {
+		GotoNextMap();
+	} else {
+		// call ending forward
+		Call_StartForward(g_hForwardEnd);
+		Call_Finish();
+		
+		ServerCommand("sm_resetmatch");
+	}
+}
+
 //console cmd: loads a specified set of maps
 public Action:ForceMapSet(client, args) {
 	if (args < 1) {
-		ReplyToCommand(client, "Syntax: sm_mapset <map1> <map2> <map3> <...>");
+		ReplyToCommand(client, "Syntax: sm_forcemapset <mapset>");
 		ReplyToCommand(client, "Launches a mapset as specified.");
 	}
 	
 	if (g_bMapsetInitialized) {
-		ReplyToCommand(client, "Sorry, a map preset is already loaded. To select a different one you have to resetmatch and then load the config again before selecting a different mapset.");
+		ReplyToCommand(client, "Sorry, a map preset is already loaded. To select a different one, first abort the current process with sm_abortmapset.");
+		return Plugin_Handled;
+	}
+	
+	decl String:group[BUF_SZ];
+	GetCmdArg(1, group, BUF_SZ);
+	
+	ServerCommand("exec %s%s.cfg", DIR_CFGS, group);
+	PrintToChatAll("\x01Loading \x05%s \x01preset...", group);
+	g_bMapsetInitialized = true;
+	g_bForcingMapset = true;
+	CreateTimer(0.1, Timed_PostMapSet);
+
+	return Plugin_Handled;
+}
+
+//console cmd: loads a specified set of maps
+public Action:ManualMapSet(client, args) {
+	if (args < 1) {
+		ReplyToCommand(client, "Syntax: sm_manualmapset <map1> <map2> <map3> <...>");
+		ReplyToCommand(client, "Launches a mapset as specified.");
+	}
+	
+	if (g_bMapsetInitialized) {
+		ReplyToCommand(client, "Sorry, a map preset is already loaded. To select a different one, first abort the current process with sm_abortmapset.");
 		return Plugin_Handled;
 	}
 	
@@ -199,6 +269,22 @@ public Action:ForceMapSet(client, args) {
 	return Plugin_Handled;
 }
 
+public Action:AbortMapSet(client, args) {
+	if (!g_bMapsetInitialized) {
+		ReplyToCommand(client, "No map preset is loaded, nothing to abort.");
+		return Plugin_Handled;
+	}
+
+	if (g_hCountDownTimer) {
+		KillTimer(g_hCountDownTimer, true); //interrupt any upcoming transitions
+	}
+	
+	PluginStartInit();
+	
+	PrintToChatAll("\x01Custom Map Transitions - mapset aborted! Resetting...");
+	return Plugin_Handled;
+}
+
 //console cmd: loads a cmt cfg
 public Action:MapSet(client, args) {
 	if (args < 1) {
@@ -207,7 +293,7 @@ public Action:MapSet(client, args) {
 	}
 
 	if (g_bMapsetInitialized) {
-		ReplyToCommand(client, "Sorry, a map preset is already loaded. To select a different one you have to resetmatch and then load the config again before selecting a different mapset.");
+		ReplyToCommand(client, "Sorry, a map preset is already loaded. To select a different one, first abort the current process with sm_abortmapset.");
 		return Plugin_Handled;
 	}
 	
@@ -257,7 +343,7 @@ public Action:Timed_PostMapSet(Handle:timer) {
 	PrintToChatAll("Map set has been loaded!");
 
 	//if no vetoes are allowed, just go straight to vetoingisover
-	if (GetConVarInt(g_hCvarVetoCount) == 0) {
+	if (GetConVarInt(g_hCvarVetoCount) == 0 || g_bForcingMapset) {
 		VetoingIsOver();
 	} else {
 		for (new i = 1; i <= MaxClients; i++) {
@@ -397,6 +483,8 @@ stock VetoingIsOver() {
 }
 
 public Action:Timed_GiveThemTimeToReadTheMapList(Handle:timer) {
+	g_hCountDownTimer = null;
+
 	ResetScores();	//scores wouldn't cross over because of forced map change before 2nd round end, but doesnt hurt
 	
 	// call starting forward
