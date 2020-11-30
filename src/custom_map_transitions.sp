@@ -329,6 +329,8 @@ public Action:MapSet(client, args) {
 
 //creates the initial map list after a map set has been loaded
 public Action:Timed_PostMapSet(Handle:timer) {
+	PrintDebug(5, "[cmt] PostMapSet");
+
 	new mapnum = GetArraySize(g_hArrayTagOrder);
 	new triesize = GetTrieSize(g_hTriePools);
 	
@@ -463,6 +465,8 @@ public Action:Veto(client, args) {
 
 //called after the last veto has been used
 stock VetoingIsOver() {
+	PrintDebug(4, "[cmt] VetoingIsOver");
+
 	g_bMaplistFinalized = true;
 	
 	decl i, mapIndex;
@@ -576,15 +580,17 @@ public Action:Maplist(client, args) {
 
 //changes map
 GotoNextMap(bool:force=false) {
-	PrintDebug(3, "[cmt] GotoNextMap");
+	PrintDebug(4, "[cmt] GotoNextMap");
 
 	decl String:buffer[BUF_SZ];
 	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
 	
 	if (force) {
+		PrintDebug(2, "[cmt] Forcing next map (%s)", buffer);
 		ForceChangeLevel(buffer, "Custom map transitions.");
 	} else {
 //		L4D2Direct_SetVSInFinaleMap(false);	//so finales won't cause the game to end
+		PrintDebug(2, "[cmt] Using SetNextMap (%s)", buffer);
 		SetNextMap(buffer);
 	}
 }
