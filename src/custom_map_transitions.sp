@@ -86,11 +86,11 @@ PluginStartInit() {
 
 	g_hArrayTeamMapScore[0] = CreateArray();
 	g_hArrayTeamMapScore[1] = CreateArray();
-	
+
 	g_bMapsetInitialized = false;
 	g_bMaplistFinalized = false;
 	g_bForcingMapset = false;
-	
+
 	g_hCountDownTimer = null;
 }
 
@@ -156,7 +156,7 @@ public OnMapStart() {
 	if (!g_bMaplistFinalized || g_iMapsPlayed >= g_iMapCount-1) return;
 	decl String:buffer[BUF_SZ];
 	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed+1, buffer, BUF_SZ);
-	
+
 	Call_StartForward(g_hForwardNext);
 	Call_PushString(buffer);
 	Call_Finish();
@@ -205,7 +205,7 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 			// call ending forward
 			Call_StartForward(g_hForwardEnd);
 			Call_Finish();
-		
+
 			ServerCommand("sm_resetmatch");
 		}
 	}
@@ -219,6 +219,7 @@ public OnMapEnd() {
 		CreateTimer(1.0, Timed_PostOnMapEnd);
 	}
 }
+
 public Action:Timed_PostOnMapEnd(Handle:timer) {
 	PrintDebug(4, "[cmt] PostOnMapEnd");
 
@@ -228,7 +229,7 @@ public Action:Timed_PostOnMapEnd(Handle:timer) {
 		// call ending forward
 		Call_StartForward(g_hForwardEnd);
 		Call_Finish();
-		
+
 		ServerCommand("sm_resetmatch");
 	}
 }
@@ -239,15 +240,15 @@ public Action:ForceMapSet(client, args) {
 		ReplyToCommand(client, "Syntax: sm_forcemapset <mapset>");
 		ReplyToCommand(client, "Launches a mapset as specified.");
 	}
-	
+
 	if (g_bMapsetInitialized) {
 		ReplyToCommand(client, "Sorry, a map preset is already loaded. To select a different one, first abort the current process with sm_abortmapset.");
 		return Plugin_Handled;
 	}
-	
+
 	decl String:group[BUF_SZ];
 	GetCmdArg(1, group, BUF_SZ);
-	
+
 	ServerCommand("exec %s%s.cfg", DIR_CFGS, group);
 	PrintToChatAll("\x01Loading \x05%s \x01preset...", group);
 	g_bMapsetInitialized = true;
@@ -263,12 +264,12 @@ public Action:ManualMapSet(client, args) {
 		ReplyToCommand(client, "Syntax: sm_manualmapset <map1> <map2> <map3> <...>");
 		ReplyToCommand(client, "Launches a mapset as specified.");
 	}
-	
+
 	if (g_bMapsetInitialized) {
 		ReplyToCommand(client, "Sorry, a map preset is already loaded. To select a different one, first abort the current process with sm_abortmapset.");
 		return Plugin_Handled;
 	}
-	
+
 	//so things don't break and so the game starts right away
 	ResetConVar(g_hCvarPoolsize);
 	ResetConVar(g_hCvarMinPoolsize);
@@ -295,9 +296,9 @@ public Action:AbortMapSet(client, args) {
 	if (g_hCountDownTimer) {
 		KillTimer(g_hCountDownTimer, true); //interrupt any upcoming transitions
 	}
-	
+
 	PluginStartInit();
-	
+
 	PrintToChatAll("\x01Custom Map Transitions - mapset aborted! Resetting...");
 	return Plugin_Handled;
 }
@@ -313,10 +314,10 @@ public Action:MapSet(client, args) {
 		ReplyToCommand(client, "Sorry, a map preset is already loaded. To select a different one, first abort the current process with sm_abortmapset.");
 		return Plugin_Handled;
 	}
-	
+
 	decl String:group[BUF_SZ];
 	GetCmdArg(1, group, BUF_SZ);
-	
+
 	ServerCommand("exec %s%s.cfg", DIR_CFGS, group);
 	PrintToChatAll("\x01Loading \x05%s \x01preset...", group);
 	g_bMapsetInitialized = true;
@@ -331,7 +332,7 @@ public Action:Timed_PostMapSet(Handle:timer) {
 
 	new mapnum = GetArraySize(g_hArrayTagOrder);
 	new triesize = GetTrieSize(g_hTriePools);
-	
+
 	if (mapnum == 0) {
 		g_bMapsetInitialized = false;	//failed to load it on the exec
 		CPrintToChatAll("{red}Failed to load preset!");
@@ -343,7 +344,7 @@ public Action:Timed_PostMapSet(Handle:timer) {
 		CPrintToChatAll("Preset has {red}improper tagranks{default}: the number of maps to be played does not match the highest rank. Should have N+1 tagranks for highest rank N.");
 		return Plugin_Handled;
 	}
-	
+
 	//all this to cut each pool down to cmt_poolsize*tagUses maps
 	decl String:buffer[BUF_SZ];
 	decl Handle:hArrayMapPool;
@@ -393,7 +394,7 @@ stock Handle:GetPoolThatContainsMap(String:map[], &index, String:tag[]) {
 public Action:Veto(client, args) {
 	if (!g_bMapsetInitialized) {
 		ReplyToCommand(client, "No mapset is loaded, what are you trying to veto?");
-		return Plugin_Handled;		
+		return Plugin_Handled;
 	}
 
 	new team = GetClientTeam(client) - 2;
@@ -401,12 +402,12 @@ public Action:Veto(client, args) {
 		ReplyToCommand(client, "You're a spectator, no veto for you.");
 		return Plugin_Handled;
 	}
-	
+
 	if (g_bMaplistFinalized) {
 		ReplyToCommand(client, "The time for vetoes is already over!");
 		return Plugin_Handled;
 	}
-	
+
 	if (g_iVetoesUsed[team] == GetConVarInt(g_hCvarVetoCount)) {
 		ReplyToCommand(client, "Your team has used all of its vetoes!");
 		return Plugin_Handled;
@@ -416,10 +417,10 @@ public Action:Veto(client, args) {
 		PrintToChat(client, "\x01Syntax: \"\x05!veto \x01<\x05mapname\x01|\x05@void\x01|\x05@voidall\x01>\". \x05@void \x01throws away one of your vetoes, \x05@voidall \x01throws away all remaining ones.");
 		return Plugin_Handled;
 	}
-	
+
 	decl String:map[BUF_SZ];
 	GetCmdArg(1, map, BUF_SZ);
-	
+
 	if (StrEqual(map, "@void", false)) {
 		new tmp = GetConVarInt(g_hCvarVetoCount);
 		++g_iVetoesUsed[team];
@@ -430,7 +431,7 @@ public Action:Veto(client, args) {
 		g_iVetoesUsed[team] = tmp;
 		PrintToChatAll("\x01All vetoes discarded.\n Remaining vetoes: \x05%d \x01- \x05%d\x01.", tmp - g_iVetoesUsed[0], tmp - g_iVetoesUsed[1]);
 	} else {
-	
+
 		decl index;
 		decl String:tag[BUF_SZ];
 		new Handle:hArrayPool = GetPoolThatContainsMap(map, index, tag);
@@ -445,7 +446,7 @@ public Action:Veto(client, args) {
 			CPrintToChat(client, "{red}Sorry! {default}There are too few maps in the pool the specified map belongs to: no more can be removed. If this happens with all of the pools, use !veto @void to get rid of all remaining vetoes.");
 			return Plugin_Handled;
 		}
-	
+
 		RemoveFromArray(hArrayPool, index);
 		new tmp = GetConVarInt(g_hCvarVetoCount);
 		++g_iVetoesUsed[team];
@@ -457,7 +458,7 @@ public Action:Veto(client, args) {
 		PrintToChatAll("\x04Vetoing is over!");
 		VetoingIsOver();
 	}
-	
+
 	return Plugin_Handled;
 }
 
@@ -466,7 +467,7 @@ stock VetoingIsOver() {
 	PrintDebug(4, "[cmt] VetoingIsOver");
 
 	g_bMaplistFinalized = true;
-	
+
 	decl i, mapIndex;
 	decl Handle:hArrayPool;
 	decl String:tag[BUF_SZ];
@@ -476,7 +477,7 @@ stock VetoingIsOver() {
 	for (i = 0; i < GetArraySize(g_hArrayTagOrder); i++) {
 		GetArrayString(g_hArrayTagOrder, i, tag, BUF_SZ);
 		GetTrieValue(g_hTriePools, tag, hArrayPool);
-		mapIndex = GetRandomInt(0, GetArraySize(hArrayPool) - 1);	
+		mapIndex = GetRandomInt(0, GetArraySize(hArrayPool) - 1);
 
 		GetArrayString(hArrayPool, mapIndex, map, BUF_SZ);
 		RemoveFromArray(hArrayPool, mapIndex);
@@ -507,16 +508,16 @@ public Action:Timed_GiveThemTimeToReadTheMapList(Handle:timer) {
 	g_hCountDownTimer = null;
 
 	ResetScores();	//scores wouldn't cross over because of forced map change before 2nd round end, but doesnt hurt
-	
+
 	// call starting forward
 	decl String:buffer[BUF_SZ];
 	GetArrayString(g_hArrayMapOrder, 0, buffer, BUF_SZ);
-	
+
 	Call_StartForward(g_hForwardStart);
 	Call_PushCell(g_iMapCount);
 	Call_PushString(buffer);
 	Call_Finish();
-	
+
 	GotoNextMap(true);
 }
 
@@ -543,10 +544,10 @@ public Action:Maplist(client, args) {
 
 			if (GetPrettyName(buffer)) Format(output, BUF_SZ, "\x05%s \x01(%s)", output, buffer);
 
-			if (g_iMapsPlayed > i) 
+			if (g_iMapsPlayed > i)
 				Format(output, BUF_SZ, "%s\t %-4d-%4d", output, GetArrayCell(g_hArrayTeamMapScore[0], i), GetArrayCell(g_hArrayTeamMapScore[1], i));
 
-			PrintToChat(client, "%s", output);				
+			PrintToChat(client, "%s", output);
 		}
 	} else {
 		/*	Mid-veto Maplist	*/
@@ -582,12 +583,11 @@ GotoNextMap(bool:force=false) {
 
 	decl String:buffer[BUF_SZ];
 	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
-	
+
 	if (force) {
 		PrintDebug(2, "[cmt] Forcing next map (%s)", buffer);
 		ForceChangeLevel(buffer, "Custom map transitions.");
 	} else {
-//		L4D2Direct_SetVSInFinaleMap(false);	//so finales won't cause the game to end
 		PrintDebug(2, "[cmt] Using SetNextMap (%s)", buffer);
 		SetNextMap(buffer);
 	}
@@ -609,9 +609,9 @@ public Action:TagRank(args) {
 		decl String:buffer[BUF_SZ];
 		GetCmdArg(2, buffer, BUF_SZ);
 		new index = StringToInt(buffer);
-		
+
 		GetCmdArg(1, buffer, BUF_SZ);
-		
+
 		decl tagUses;
 		if (!GetTrieValue(g_hTrieTagUses, buffer, tagUses)) tagUses = 0;
 		SetTrieValue(g_hTrieTagUses, buffer, ++tagUses);
@@ -619,12 +619,12 @@ public Action:TagRank(args) {
 		if (index >= GetArraySize(g_hArrayTagOrder)) {
 			ResizeArray(g_hArrayTagOrder, index + 1);
 		}
-		
+
 		g_iMapCount++;
 		SetArrayString(g_hArrayTagOrder, index, buffer);
 		if (FindStringInArray(g_hArrayTags, buffer) < 0) PushArrayString(g_hArrayTags, buffer);
 	}
-	
+
 	return Plugin_Handled;
 }
 
@@ -636,9 +636,9 @@ public Action:AddMap(args) {
 	} else {
 		decl String:map[BUF_SZ];
 		GetCmdArg(1, map, BUF_SZ);
-		
+
 		decl String:tag[BUF_SZ];
-		
+
 		//add the map under only one of the tags
 		//TODO - maybe we should add it under all tags, since it might be removed from 1+ or even all of them anyway
 		//also, if that ends up being implemented, remember to remove vetoed maps from ALL the pools it belongs to
@@ -654,7 +654,7 @@ public Action:AddMap(args) {
 
 		PushArrayString(hArrayMapPool, map);
 	}
-	
+
 	return Plugin_Handled;
 }
 
@@ -669,7 +669,7 @@ stock GetPrettyName(String:map[]) {
 			return 0;
 		}
 	}
-	
+
 	decl String:buffer[BUF_SZ];
 	KvGetString(hKvMapNames, map, buffer, BUF_SZ, "no");
 	if (!StrEqual(buffer, "no")) {
