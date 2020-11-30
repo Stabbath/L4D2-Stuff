@@ -139,13 +139,16 @@ public OnPluginStart() {
 		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 		g_hSDKCallSetCampaignScores = EndPrepSDKCall();
+	} else {
+		LogError("Could not find 'SetCampaignScores' signature in gamedata (left4dhooks.l4d2.txt).");
 	}
-	else LogError("Could not find 'SetCampaignScores' signature in gamedata (left4dhooks.l4d2.txt).");
 }
 
 //sm_nextmap '': Otherwise nextmap would be stuck and people wouldn't be able
 //to play normal campaigns without the plugin
-public OnPluginEnd() ServerCommand("sm_nextmap ''");
+public OnPluginEnd() {
+	ServerCommand("sm_nextmap ''");
+}
 
 public OnMapStart() {
 	PrintDebug(4, "[cmt] OnMapStart");
@@ -153,7 +156,8 @@ public OnMapStart() {
 	ServerCommand("sm_nextmap ''");
 
 	// let other plugins know what the map *after* this one will be (unless it is the last map)
-	if (!g_bMaplistFinalized || g_iMapsPlayed >= g_iMapCount-1) return;
+	if (!g_bMaplistFinalized || g_iMapsPlayed >= g_iMapCount-1) { return; }
+
 	decl String:buffer[BUF_SZ];
 	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed+1, buffer, BUF_SZ);
 
@@ -173,7 +177,7 @@ public Action:Timed_PostOnRoundStart(Handle:timer) {
 
 	PrintDebug(4, "[cmt] PostOnRoundStart");
 
-	SDKCall(g_hSDKCallSetCampaignScores, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
+	CallSetCampaignScoresSdk();
 	L4D2Direct_SetVSCampaignScore(0, g_iTeamCampaignScore[0]);
 	L4D2Direct_SetVSCampaignScore(1, g_iTeamCampaignScore[1]);
 }
@@ -198,16 +202,8 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 	L4D2Direct_SetVSCampaignScore(round, g_iTeamCampaignScore[round]);
 
 	if (round) {
-		SDKCall(g_hSDKCallSetCampaignScores, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
-		if (++g_iMapsPlayed < g_iMapCount) {
-			GotoNextMap();
-		} else {
-			// call ending forward
-			Call_StartForward(g_hForwardEnd);
-			Call_Finish();
-
-			ServerCommand("sm_resetmatch");
-		}
+		CallSetCampaignScoresSdk();
+		PerformMapProgression();
 	}
 }
 
@@ -222,16 +218,7 @@ public OnMapEnd() {
 
 public Action:Timed_PostOnMapEnd(Handle:timer) {
 	PrintDebug(4, "[cmt] PostOnMapEnd");
-
-	if (++g_iMapsPlayed < g_iMapCount) {
-		GotoNextMap();
-	} else {
-		// call ending forward
-		Call_StartForward(g_hForwardEnd);
-		Call_Finish();
-
-		ServerCommand("sm_resetmatch");
-	}
+	PerformMapProgression();
 }
 
 //console cmd: loads a specified set of maps
@@ -374,6 +361,10 @@ public Action:Timed_PostMapSet(Handle:timer) {
 	}
 
 	return Plugin_Handled;
+}
+
+stock CallSetCampaignScoresSdk() {
+	SDKCall(g_hSDKCallSetCampaignScores, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
 }
 
 //returns a handle to the first array which is found to contain the specified mapname (should be the first and only one)
@@ -575,6 +566,18 @@ public Action:Maplist(client, args) {
 		}
 	}
 	return Plugin_Handled;
+}
+
+stock PerformMapProgression() {
+	if (++g_iMapsPlayed < g_iMapCount) {
+		GotoNextMap();
+	} else {
+		// call ending forward
+		Call_StartForward(g_hForwardEnd);
+		Call_Finish();
+
+		ServerCommand("sm_resetmatch");
+	}
 }
 
 //changes map
