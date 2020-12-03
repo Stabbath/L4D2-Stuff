@@ -21,9 +21,6 @@
 
 /*
 TODO
-	coop - doing the map change in the passive non-forced way causes a weird issue where one survivor gets disappeared away on map change. On one occasion, it instead replaced Nick with a second Ellis, with this second Ellis not showing up on the HUD despite being a valid user and being considered a (bot) player in every other way. Although that extra info isn't relevant I guess.
-		trying to force it requires us to check if we are already transitioning, otherwise it chains mapend events and thence forcechangelevel calls, leading to the players getting kicked out and the server to load every map in quick succession up to the last one in the mapset. Checking if we're transitioning seems to still kick players out. I tested a couple different ways of tracking the transitions, and the result I got was that the map changes to the next one correctly, but kicks players on map change. On one occasion, upon rejoining the server, it also had players in weird coordinates out of bounds - probably because something glitched out and it was using the coordinates for the saferoom spawns for a different map? Who knows how that works.
-
 	coop madness mode - if/when coop transitions work normally, could add an option to also change map when the team wipes, cycling through the maps at that rank randomly until they eventually survive one.
 
 	? who cares - make the delay before game start after maplist is settled a CVar
