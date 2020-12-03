@@ -6,6 +6,7 @@
 #include <left4dhooks>
 #include <colors>
 #include <nextmap>
+#include <l4d2_saferoom_detect>
 
 /*
 1: Collect underpants
@@ -39,14 +40,18 @@ public Plugin:myinfo =
 	url = "https://github.com/Stabbath/L4D2-Stuff"
 };
 
-#define DIR_CFGS "cmt/"
-#define PATH_KV  "cfg/cmt/mapnames.txt"
-#define BUF_SZ   64
+#define DIR_CFGS 	"cmt/"
+#define PATH_KV  	"cfg/cmt/mapnames.txt"
+#define BUF_SZ   	64
+#define DOOR_DELAY  0.1
+
+const TEAM_SURVIVOR = 2;
 
 new Handle: g_hCvarDebug;
 new Handle: g_hCvarPoolsize;
 new Handle: g_hCvarMinPoolsize;
 new Handle: g_hCvarVetoCount;
+new Handle: g_hCvarCoopSwitchDelay;
 
 new Handle: g_hArrayTags;				// Stores tags for indexing g_hTriePools
 new Handle: g_hTriePools;				// Stores pool array handles by tag name
@@ -60,6 +65,9 @@ new bool:   g_bMapsetInitialized;
 new         g_iMapCount;
 new         g_iTeamCampaignScore[2];
 new bool:   g_bForcingMapset;
+new bool:   g_bCoopEndSaferoomClosed;	// Whether the end saferoom door has been closed
+new bool:   g_bSwitchingForCoop;		// Whether we're already doing a delayed map switch for coop
+
 new Handle: g_hArrayTeamMapScore[2];
 new Handle: g_hSDKCallSetCampaignScores;
 new Handle: g_hForwardStart;
@@ -125,6 +133,13 @@ public OnPluginStart() {
 	g_hCvarVetoCount = CreateConVar("cmt_veto_count", "0",
 		"How many vetoes each team gets.",
 		FCVAR_NONE, true, 0.0, false);
+	g_hCvarCoopSwitchDelay = CreateConVar("cmt_coop_switch_delay", "0.25",
+		"How long in seconds to wait before switching (don't set this too high, or the normal mapswitch happens).",
+		FCVAR_NONE, true, 0.0, false);
+
+	HookEvent("door_close", OnDoorClose, EventHookMode_Post);
+	HookEvent("door_open", OnDoorOpen, EventHookMode_Post);
+	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
 
 	PluginStartInit();
 
@@ -145,6 +160,8 @@ PluginStartInit() {
 	g_bMapsetInitialized = false;
 	g_bMaplistFinalized = false;
 	g_bForcingMapset = false;
+	g_bCoopEndSaferoomClosed = false;
+	g_bSwitchingForCoop = false;
 
 	g_hCountDownTimer = null;
 }
@@ -200,6 +217,9 @@ public OnMapStart() {
 	PrintDebug(4, "[cmt] OnMapStart");
 
 	ServerCommand("sm_nextmap ''");
+
+	g_bCoopEndSaferoomClosed = false;
+	g_bSwitchingForCoop = false;
 
 	// let other plugins know what the map *after* this one will be (unless it is the last map)
 	if (! g_bMaplistFinalized || g_iMapsPlayed >= g_iMapCount-1) {
@@ -257,18 +277,109 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 	}
 }
 
-/* for coop */
-public OnMapEnd() {
-	PrintDebug(4, "[cmt] OnMapEnd");
-
-	if (IsCoopMode()) {
-		CreateTimer(1.0, Timed_PostOnMapEnd);
+// Coop game fix: when the end saferoom door closes, we instantly move to the next map,
+// avoiding issues that happen in coop when changing maps at the normal time on actual round end.
+public void OnDoorClose(Event event, const char[] name, bool dontBroadcast) {
+	if (! event.GetBool("checkpoint") || g_bSwitchingForCoop) {
+		return;
 	}
+
+	PrintDebug(6, "[cmt] OnDoorClose for checkpoint door");
+
+	if (! IsCoopMode()) {
+		PrintDebug(6, "[cmt] not coop");
+		return;
+	}
+
+	g_bCoopEndSaferoomClosed = true;
+
+	new Float:delay = GetConVarFloat(g_hCvarCoopSwitchDelay);
+
+	PrintDebug(6, "[cmt] read switch delay value");
+
+	if (delay < 0.1) {
+		PerformCoopMapProgressionIfConditionsApply();
+		return;
+	}
+
+	CreateTimer(delay, Timed_PostOnDoorCloseMapSwitch);
 }
 
-public Action:Timed_PostOnMapEnd(Handle:timer) {
-	PrintDebug(4, "[cmt] PostOnMapEnd");
+public Action:Timed_PostOnDoorCloseMapSwitch(Handle:timer) {
+	PerformCoopMapProgressionIfConditionsApply();
+}
+
+// When the end saferoom door opens (again), we shouldn't end the map.
+public void OnDoorOpen(Event event, const char[] name, bool dontBroadcast) {
+	if (! event.GetBool("checkpoint") || g_bSwitchingForCoop) {
+		return;
+	}
+
+	PrintDebug(6, "[cmt] OnDoorOpen for checkpoint door");
+
+	if (! IsCoopMode()) {
+		return;
+	}
+
+	g_bCoopEndSaferoomClosed = false;
+
+	return;
+}
+
+// If a survivor dies, while the end saferoom door is closed, and all living survivors are in the end saferoom,
+// that's when we should do a mapswitch.
+public Action:Event_PlayerDeath(Handle:hEvent, const String:name[], bool:dontBroadcast) {
+	if (! g_bCoopEndSaferoomClosed || ! IsCoopMode()) {
+		return Plugin_Continue;
+	}
+
+	new victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+
+	if (! IsSurvivorClient(victim)) {
+		return Plugin_Continue;
+	}
+
+	PerformCoopMapProgressionIfConditionsApply();
+
+	return Plugin_Continue;
+}
+
+void PerformCoopMapProgressionIfConditionsApply() {
+	PrintDebug(5, "[cmt] PerformCoopMapProgressionIfConditionsApply");
+
+	if (! AreAllLivingSurivorsInEndSafeRoom()) {
+		return;
+	}
+
+	PrintDebug(3, "[cmt] Performing map progression (coop)");
+
+	g_bSwitchingForCoop = true;
 	PerformMapProgression();
+}
+
+bool: AreAllLivingSurivorsInEndSafeRoom() {
+	for (new client = 1; client <= MaxClients; client++) {
+		if (! IsSurvivorClient(client)) {
+			continue;
+		}
+
+		if (! IsPlayerAlive(client)) {
+			PrintDebug(9, "[cmt] Client %d is dead.", client);
+			continue;
+		}
+
+		if (SAFEDETECT_IsPlayerInEndSaferoom(client)) {
+			PrintDebug(9, "[cmt] Client %d is in end saferoom.", client);
+			continue;
+		}
+
+
+		return false;
+	}
+
+	PrintDebug(9, "[cmt] All living survivors are in the end saferoom");
+
+	return true;
 }
 
 
@@ -851,10 +962,20 @@ bool:IsCoopMode() {
 		||	StrEqual(sGameMode, "mutation20", false);  		// healing gnome
 }
 
+bool:IsSurvivorClient(client)
+{
+    return IsClientAndInGame(client) && GetClientTeam(client) == TEAM_SURVIVOR;
+}
+
+stock bool:IsClientAndInGame(index) {
+	return index > 0 && index <= MaxClients && IsClientInGame(index);
+}
+
 public PrintDebug(debugLevel, const String:Message[], any:...)
 {
     if (debugLevel > GetConVarInt(g_hCvarDebug)) {
     	return;
+    }
 
     decl String:DebugBuff[256];
     VFormat(DebugBuff, sizeof(DebugBuff), Message, 3);
