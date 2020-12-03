@@ -48,11 +48,11 @@ new Handle: g_hCvarPoolsize;
 new Handle: g_hCvarMinPoolsize;
 new Handle: g_hCvarVetoCount;
 
-new Handle: g_hArrayTags;				//stores tags for indexing g_hTriePools
-new Handle: g_hTriePools;				//stores pool array handles by tag name
-new Handle: g_hArrayTagOrder;			//stores tags by rank
-new Handle: g_hArrayMapOrder;			//stores finalised map list in order
-new Handle: g_hTrieTagUses;				//how many different ranks a tag has, ie how many played maps will be based on this tag
+new Handle: g_hArrayTags;				// Stores tags for indexing g_hTriePools
+new Handle: g_hTriePools;				// Stores pool array handles by tag name
+new Handle: g_hArrayTagOrder;			// Stores tags by rank
+new Handle: g_hArrayMapOrder;			// Stores finalised map list in order
+new Handle: g_hTrieTagUses;				// How many different ranks a tag has, ie how many played maps will be based on this tag
 new         g_iVetoesUsed[2];
 new bool:   g_bMaplistFinalized;
 new         g_iMapsPlayed;
@@ -68,30 +68,22 @@ new Handle: g_hForwardEnd;
 
 new Handle: g_hCountDownTimer;
 
+
+
+// ----------------------------------------------------------
+// 		Setup
+// ----------------------------------------------------------
+
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 {
-	g_hForwardStart = CreateGlobalForward("OnCMTStart", ET_Ignore, Param_Cell, Param_String );	// right before loading first map; params: 1 = maplist size; 2 = name of first map
-	g_hForwardNext = CreateGlobalForward("OnCMTNextKnown", ET_Ignore, Param_String );			// after loading a map (to let other plugins know what the next map will be ahead of time); 1 = name of next map
-	g_hForwardEnd = CreateGlobalForward("OnCMTEnd", ET_Ignore );								// after last map is played; no params
+	// Right before loading first map; params: 1 = maplist size; 2 = name of first map
+	g_hForwardStart = CreateGlobalForward("OnCMTStart", ET_Ignore, Param_Cell, Param_String );
+	// After loading a map (to let other plugins know what the next map will be ahead of time); 1 = name of next map
+	g_hForwardNext = CreateGlobalForward("OnCMTNextKnown", ET_Ignore, Param_String );
+	// After last map is played; no params
+	g_hForwardEnd = CreateGlobalForward("OnCMTEnd", ET_Ignore );
 
 	return APLRes_Success;
-}
-
-PluginStartInit() {
-	g_hArrayTags = CreateArray(BUF_SZ/4);	//1 block = 4 characters => X characters = X/4 blocks
-	g_hTriePools = CreateTrie();
-	g_hArrayTagOrder = CreateArray(BUF_SZ/4);
-	g_hArrayMapOrder = CreateArray(BUF_SZ/4);
-	g_hTrieTagUses = CreateTrie();
-
-	g_hArrayTeamMapScore[0] = CreateArray();
-	g_hArrayTeamMapScore[1] = CreateArray();
-
-	g_bMapsetInitialized = false;
-	g_bMaplistFinalized = false;
-	g_bForcingMapset = false;
-
-	g_hCountDownTimer = null;
 }
 
 public OnPluginStart() {
@@ -118,34 +110,61 @@ public OnPluginStart() {
 					"Shows a player cmt's selected map list.");
 	RegConsoleCmd(	"sm_veto",			Veto,
 					"Lets players veto a map. Uses per team per game cvar'd.");
-	g_hCvarDebug = CreateConVar(        "cmt_debug", "0",
-		                                "Debug mode. (0: only error reporting, -1: disable all reports, 1+: set debug report level)",
-		                                FCVAR_NONE, true, -1.0);
 
-	g_hCvarPoolsize = CreateConVar(		"cmt_poolsize", "1000",
-										"How many maps will be initially pooled for each tag for each rank that uses that tag (can be a float).",
-										FCVAR_NONE, true, 1.0, false);
-	g_hCvarMinPoolsize = CreateConVar(	"cmt_minimum_poolsize", "1",
-										"How many maps must remain in each pool after vetoing for each time that pool's tag is used/ranked. For example, if set to 1 (the minimum), there must be at least 1 map for each position in the map sequence; if set to 2, then there must be at least 2 - and whenever there's more than one option left at the end, the map that will be played is chosen from the remaining options.",
-										FCVAR_NONE, true, 1.0, false);
-	g_hCvarVetoCount = CreateConVar(	"cmt_veto_count", "0",
-										"How many vetoes each team gets.",
-										FCVAR_NONE, true, 0.0, false);
+	g_hCvarDebug = CreateConVar("cmt_debug", "0",
+		"Debug mode. (0: only error reporting, -1: disable all reports, 1+: set debug report level)",
+		FCVAR_NONE, true, -1.0);
+	g_hCvarPoolsize = CreateConVar("cmt_poolsize", "1000",
+		"How many maps will be initially pooled for each tag for each rank that uses that tag (can be a float).",
+		FCVAR_NONE, true, 1.0, false);
+	g_hCvarMinPoolsize = CreateConVar("cmt_minimum_poolsize", "1",
+		"How many maps must remain in each pool after vetoing for each time that pool's tag is used/ranked. For example, if set to 1 (the minimum), there must be at least 1 map for each position in the map sequence; if set to 2, then there must be at least 2 - and whenever there's more than one option left at the end, the map that will be played is chosen from the remaining options.",
+		FCVAR_NONE, true, 1.0, false);
+	g_hCvarVetoCount = CreateConVar("cmt_veto_count", "0",
+		"How many vetoes each team gets.",
+		FCVAR_NONE, true, 0.0, false);
 
 	PluginStartInit();
 
-	StartPrepSDKCall(SDKCall_GameRules);
-	if (PrepSDKCall_SetFromConf(LoadGameConfigFile("left4dhooks.l4d2"), SDKConf_Signature, "SetCampaignScores")) {
-		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
-		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
-		g_hSDKCallSetCampaignScores = EndPrepSDKCall();
-	} else {
-		LogError("Could not find 'SetCampaignScores' signature in gamedata (left4dhooks.l4d2.txt).");
-	}
+	PrepareScoreSignature();
 }
 
-//sm_nextmap '': Otherwise nextmap would be stuck and people wouldn't be able
-//to play normal campaigns without the plugin
+PluginStartInit() {
+	g_hArrayTags = CreateArray(BUF_SZ/4);	//1 block = 4 characters => X characters = X/4 blocks
+	g_hTriePools = CreateTrie();
+	g_hArrayTagOrder = CreateArray(BUF_SZ/4);
+	g_hArrayMapOrder = CreateArray(BUF_SZ/4);
+	g_hTrieTagUses = CreateTrie();
+
+	g_hArrayTeamMapScore[0] = CreateArray();
+	g_hArrayTeamMapScore[1] = CreateArray();
+
+	g_bMapsetInitialized = false;
+	g_bMaplistFinalized = false;
+	g_bForcingMapset = false;
+
+	g_hCountDownTimer = null;
+}
+
+void PrepareScoreSignature() {
+	StartPrepSDKCall(SDKCall_GameRules);
+
+	if (! PrepSDKCall_SetFromConf(LoadGameConfigFile("left4dhooks.l4d2"), SDKConf_Signature, "SetCampaignScores")) {
+		LogError("Could not find 'SetCampaignScores' signature in gamedata (left4dhooks.l4d2.txt).");
+		return;
+	}
+
+	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
+	g_hSDKCallSetCampaignScores = EndPrepSDKCall();
+}
+
+
+
+// ----------------------------------------------------------
+// 		Hooks
+// ----------------------------------------------------------
+
+// Otherwise nextmap would be stuck and people wouldn't be able to play normal campaigns without the plugin
 public OnPluginEnd() {
 	ServerCommand("sm_nextmap ''");
 }
@@ -156,7 +175,9 @@ public OnMapStart() {
 	ServerCommand("sm_nextmap ''");
 
 	// let other plugins know what the map *after* this one will be (unless it is the last map)
-	if (!g_bMaplistFinalized || g_iMapsPlayed >= g_iMapCount-1) { return; }
+	if (! g_bMaplistFinalized || g_iMapsPlayed >= g_iMapCount-1) {
+		return;
+	}
 
 	decl String:buffer[BUF_SZ];
 	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed+1, buffer, BUF_SZ);
@@ -173,33 +194,35 @@ public OnRoundStart() {
 }
 
 public Action:Timed_PostOnRoundStart(Handle:timer) {
-	if (!g_bMapsetInitialized) return;
+	if (! g_bMapsetInitialized) {
+		return;
+	}
 
 	PrintDebug(4, "[cmt] PostOnRoundStart");
 
+	if (IsCoopMode()) {
+		return;
+	}
+
 	CallSetCampaignScoresSdk();
-	L4D2Direct_SetVSCampaignScore(0, g_iTeamCampaignScore[0]);
-	L4D2Direct_SetVSCampaignScore(1, g_iTeamCampaignScore[1]);
+	DirectlySetVersusCampaignScores();
 }
 
 public OnRoundEnd() {
 	PrintDebug(4, "[cmt] OnRoundEnd");
 
+	if (IsCoopMode()) {
+		return;
+	}
+
 	new round = _:InSecondHalfOfRound();
 	CreateTimer(1.0, Timed_PostOnRoundEnd, round);
 }
+
 public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 	PrintDebug(4, "[cmt] PostOnRoundEnd");
 
-	new score = L4D_GetTeamScore(round + 1);
-	if (!round) {	//this if-el is so that scores for a map are shown right after round 1
-		PushArrayCell(g_hArrayTeamMapScore[0], score);
-		PushArrayCell(g_hArrayTeamMapScore[1], 0);
-	} else {
-		SetArrayCell(g_hArrayTeamMapScore[1], GetArraySize(g_hArrayTeamMapScore[1]) - 1, score);
-	}
-	g_iTeamCampaignScore[round] += score;
-	L4D2Direct_SetVSCampaignScore(round, g_iTeamCampaignScore[round]);
+	RememberRoundScore(round);
 
 	if (round) {
 		CallSetCampaignScoresSdk();
@@ -221,7 +244,12 @@ public Action:Timed_PostOnMapEnd(Handle:timer) {
 	PerformMapProgression();
 }
 
-//console cmd: loads a specified set of maps
+
+// ----------------------------------------------------------
+// 		Commands: Console/Admin
+// ----------------------------------------------------------
+
+// Loads a specified set of maps
 public Action:ForceMapSet(client, args) {
 	if (args < 1) {
 		ReplyToCommand(client, "Syntax: sm_forcemapset <mapset>");
@@ -245,7 +273,7 @@ public Action:ForceMapSet(client, args) {
 	return Plugin_Handled;
 }
 
-//console cmd: loads a specified set of maps
+// Load a specified set of maps
 public Action:ManualMapSet(client, args) {
 	if (args < 1) {
 		ReplyToCommand(client, "Syntax: sm_manualmapset <map1> <map2> <map3> <...>");
@@ -274,6 +302,7 @@ public Action:ManualMapSet(client, args) {
 	return Plugin_Handled;
 }
 
+// Abort a currently loaded mapset
 public Action:AbortMapSet(client, args) {
 	if (!g_bMapsetInitialized) {
 		ReplyToCommand(client, "No map preset is loaded, nothing to abort.");
@@ -281,7 +310,8 @@ public Action:AbortMapSet(client, args) {
 	}
 
 	if (g_hCountDownTimer) {
-		KillTimer(g_hCountDownTimer, true); //interrupt any upcoming transitions
+		// interrupt any upcoming transitions
+		KillTimer(g_hCountDownTimer, true);
 	}
 
 	PluginStartInit();
@@ -290,7 +320,12 @@ public Action:AbortMapSet(client, args) {
 	return Plugin_Handled;
 }
 
-//console cmd: loads a cmt cfg
+
+// ----------------------------------------------------------
+// 		Commands: Client
+// ----------------------------------------------------------
+
+// Load a cmt cfg
 public Action:MapSet(client, args) {
 	if (args < 1) {
 		ReplyToCommand(client, "Syntax: sm_mapset <groupname>");
@@ -313,77 +348,9 @@ public Action:MapSet(client, args) {
 	return Plugin_Handled;
 }
 
-//creates the initial map list after a map set has been loaded
-public Action:Timed_PostMapSet(Handle:timer) {
-	PrintDebug(5, "[cmt] PostMapSet");
-
-	new mapnum = GetArraySize(g_hArrayTagOrder);
-	new triesize = GetTrieSize(g_hTriePools);
-
-	if (mapnum == 0) {
-		g_bMapsetInitialized = false;	//failed to load it on the exec
-		CPrintToChatAll("{red}Failed to load preset!");
-		return Plugin_Handled;
-	}
-
-	if (g_iMapCount < triesize) {
-		g_bMapsetInitialized = false;	//bad preset format
-		CPrintToChatAll("Preset has {red}improper tagranks{default}: the number of maps to be played does not match the highest rank. Should have N+1 tagranks for highest rank N.");
-		return Plugin_Handled;
-	}
-
-	//all this to cut each pool down to cmt_poolsize*tagUses maps
-	decl String:buffer[BUF_SZ];
-	decl Handle:hArrayMapPool;
-	new Float:poolsize = GetConVarFloat(g_hCvarPoolsize);
-	new tagnum = GetArraySize(g_hArrayTags);
-	decl sizepool, tagUses;
-	for (new i = 0; i < tagnum; i++) {
-		GetArrayString(g_hArrayTags, i, buffer, BUF_SZ);
-		GetTrieValue(g_hTrieTagUses, buffer, tagUses);
-		GetTrieValue(g_hTriePools, buffer, hArrayMapPool);
-		while ((sizepool = GetArraySize(hArrayMapPool)) > RoundToFloor(poolsize*float(tagUses))) {
-			RemoveFromArray(hArrayMapPool, GetRandomInt(0, sizepool - 1));
-		}
-	}
-
-	PrintToChatAll("Map set has been loaded!");
-
-	//if no vetoes are allowed, just go straight to vetoingisover
-	if (GetConVarInt(g_hCvarVetoCount) == 0 || g_bForcingMapset) {
-		VetoingIsOver();
-	} else {
-		for (new i = 1; i <= MaxClients; i++) {
-			if (IsClientInGame(i) && !IsFakeClient(i))
-				FakeClientCommand(i, "sm_maplist");
-		}
-		PrintToChatAll("\x01You may now veto maps from the map list. \x05ex: !veto c1m1_hotel \n(\x05!veto \x01for more info)");
-	}
-
-	return Plugin_Handled;
-}
-
-stock CallSetCampaignScoresSdk() {
-	SDKCall(g_hSDKCallSetCampaignScores, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
-}
-
-//returns a handle to the first array which is found to contain the specified mapname (should be the first and only one)
-stock Handle:GetPoolThatContainsMap(String:map[], &index, String:tag[]) {
-	decl Handle:hArrayMapPool;
-
-	for (new i = 0; i < GetArraySize(g_hArrayTags); i++) {
-		GetArrayString(g_hArrayTags, i, tag, BUF_SZ);
-		GetTrieValue(g_hTriePools, tag, hArrayMapPool);
-		if ((index = FindStringInArray(hArrayMapPool, map)) >= 0) {
-			return hArrayMapPool;
-		}
-	}
-	return INVALID_HANDLE;
-}
-
-//client cmd: vetoes a map off the list
+// Veto a map off the list
 public Action:Veto(client, args) {
-	if (!g_bMapsetInitialized) {
+	if (! g_bMapsetInitialized) {
 		ReplyToCommand(client, "No mapset is loaded, what are you trying to veto?");
 		return Plugin_Handled;
 	}
@@ -416,8 +383,7 @@ public Action:Veto(client, args) {
 		new tmp = GetConVarInt(g_hCvarVetoCount);
 		++g_iVetoesUsed[team];
 		PrintToChatAll("\x01Veto discarded.\n Remaining vetoes: \x05%d \x01- \x05%d\x01.", tmp - g_iVetoesUsed[0], tmp - g_iVetoesUsed[1]);
-	} else
-	if (StrEqual(map, "@voidall", false)) {
+	} else if (StrEqual(map, "@voidall", false)) {
 		new tmp = GetConVarInt(g_hCvarVetoCount);
 		g_iVetoesUsed[team] = tmp;
 		PrintToChatAll("\x01All vetoes discarded.\n Remaining vetoes: \x05%d \x01- \x05%d\x01.", tmp - g_iVetoesUsed[0], tmp - g_iVetoesUsed[1]);
@@ -426,6 +392,7 @@ public Action:Veto(client, args) {
 		decl index;
 		decl String:tag[BUF_SZ];
 		new Handle:hArrayPool = GetPoolThatContainsMap(map, index, tag);
+
 		if (hArrayPool == INVALID_HANDLE) {
 			CPrintToChat(client, "{red}Invalid map! {default}No pool contains it.");
 			return Plugin_Handled;
@@ -433,6 +400,7 @@ public Action:Veto(client, args) {
 
 		decl tagUses;
 		GetTrieValue(g_hTrieTagUses, tag, tagUses);
+
 		if (GetArraySize(hArrayPool) <= GetConVarInt(g_hCvarMinPoolsize)*tagUses) {
 			CPrintToChat(client, "{red}Sorry! {default}There are too few maps in the pool the specified map belongs to: no more can be removed. If this happens with all of the pools, use !veto @void to get rid of all remaining vetoes.");
 			return Plugin_Handled;
@@ -441,8 +409,8 @@ public Action:Veto(client, args) {
 		RemoveFromArray(hArrayPool, index);
 		new tmp = GetConVarInt(g_hCvarVetoCount);
 		++g_iVetoesUsed[team];
-		PrintToChatAll("\x01Map \x05%s \x01has been removed from its pool. \nRemaining vetoes: \x05%d \x01- \x05%d\x01.", map, tmp - g_iVetoesUsed[0], tmp - g_iVetoesUsed[1]);
 
+		PrintToChatAll("\x01Map \x05%s \x01has been removed from its pool. \nRemaining vetoes: \x05%d \x01- \x05%d\x01.", map, tmp - g_iVetoesUsed[0], tmp - g_iVetoesUsed[1]);
 	}
 
 	if (g_iVetoesUsed[0] == GetConVarInt(g_hCvarVetoCount) && g_iVetoesUsed[1] == GetConVarInt(g_hCvarVetoCount)) {
@@ -453,7 +421,152 @@ public Action:Veto(client, args) {
 	return Plugin_Handled;
 }
 
-//called after the last veto has been used
+// Display current map list
+public Action:Maplist(client, args) {
+	if (! g_bMapsetInitialized) {
+		PrintToChat(client, "No mapset is loaded, so there's no maplist.");
+		return Plugin_Handled;
+	}
+
+	new String:output[BUF_SZ] = "Maplist: ";
+	decl String:buffer[BUF_SZ];
+
+	if (g_bMaplistFinalized) {
+		Format(output, BUF_SZ, "%s\t %-4d-%4d", output, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
+	}
+
+	PrintToChat(client, output);
+
+	// Final Maplist
+	if (g_bMaplistFinalized) {
+		for (new i = 0; i < GetArraySize(g_hArrayMapOrder); i++) {
+			GetArrayString(g_hArrayMapOrder, i, buffer, BUF_SZ);
+			FormatEx(output, BUF_SZ, "%d - %s", i + 1, buffer);
+
+			if (GetPrettyName(buffer)) Format(output, BUF_SZ, "\x05%s \x01(%s)", output, buffer);
+
+			if (g_iMapsPlayed > i)
+				Format(output, BUF_SZ, "%s\t %-4d-%4d", output, GetArrayCell(g_hArrayTeamMapScore[0], i), GetArrayCell(g_hArrayTeamMapScore[1], i));
+
+			PrintToChat(client, "%s", output);
+		}
+
+		return Plugin_Handled;
+	}
+
+	// Mid-veto Maplist
+	decl Handle:hArrayMapPool;
+	decl String:tag[BUF_SZ];
+	decl j;
+
+	for (new i = 0; i < GetArraySize(g_hArrayTags); i++) {
+		GetArrayString(g_hArrayTags, i, tag, BUF_SZ);
+
+		output = "";
+		for (j = 0; j < GetArraySize(g_hArrayTagOrder); j++) {
+			GetArrayString(g_hArrayTagOrder, j, buffer, BUF_SZ);
+			if (StrEqual(tag, buffer, false)) Format(output, BUF_SZ, "%s%s %d", output, output[0] == '\0' ? "" : ",", j + 1);
+		}
+		PrintToChat(client, "%s - %s", output, tag);
+
+		GetTrieValue(g_hTriePools, tag, hArrayMapPool);
+		for (j = 0; j < GetArraySize(hArrayMapPool); j++) {
+			GetArrayString(hArrayMapPool, j, buffer, BUF_SZ);
+
+			FormatEx(output, BUF_SZ, "\t%s", buffer);
+			if (GetPrettyName(buffer)) Format(output, BUF_SZ, "\x05%s \x01(%s)", output, buffer);
+			PrintToChat(client, "%s", output);
+		}
+	}
+
+	return Plugin_Handled;
+}
+
+
+// ----------------------------------------------------------
+// 		Map set picking
+// ----------------------------------------------------------
+
+//creates the initial map list after a map set has been loaded
+public Action:Timed_PostMapSet(Handle:timer) {
+	PrintDebug(5, "[cmt] PostMapSet");
+
+	new mapnum = GetArraySize(g_hArrayTagOrder);
+	new triesize = GetTrieSize(g_hTriePools);
+
+	if (mapnum == 0) {
+		g_bMapsetInitialized = false;	//failed to load it on the exec
+		CPrintToChatAll("{red}Failed to load preset!");
+		return Plugin_Handled;
+	}
+
+	if (g_iMapCount < triesize) {
+		g_bMapsetInitialized = false;	//bad preset format
+		CPrintToChatAll("Preset has {red}improper tagranks{default}: the number of maps to be played does not match the highest rank. Should have N+1 tagranks for highest rank N.");
+		return Plugin_Handled;
+	}
+
+	//all this to cut each pool down to cmt_poolsize*tagUses maps
+	decl String:buffer[BUF_SZ];
+	decl Handle:hArrayMapPool;
+	new Float:poolsize = GetConVarFloat(g_hCvarPoolsize);
+	new tagnum = GetArraySize(g_hArrayTags);
+	decl sizepool, tagUses;
+
+	for (new i = 0; i < tagnum; i++) {
+		GetArrayString(g_hArrayTags, i, buffer, BUF_SZ);
+		GetTrieValue(g_hTrieTagUses, buffer, tagUses);
+		GetTrieValue(g_hTriePools, buffer, hArrayMapPool);
+
+		while ((sizepool = GetArraySize(hArrayMapPool)) > RoundToFloor(poolsize*float(tagUses))) {
+			RemoveFromArray(hArrayMapPool, GetRandomInt(0, sizepool - 1));
+		}
+	}
+
+	PrintToChatAll("Map set has been loaded!");
+
+	// If no vetoes are allowed, just go straight to vetoingisover
+	if (GetConVarInt(g_hCvarVetoCount) == 0 || g_bForcingMapset) {
+		VetoingIsOver();
+		return Plugin_Handled;
+	}
+
+	for (new i = 1; i <= MaxClients; i++) {
+		if (IsClientInGame(i) && !IsFakeClient(i)) {
+			FakeClientCommand(i, "sm_maplist");
+		}
+	}
+	PrintToChatAll("\x01You may now veto maps from the map list. \x05ex: !veto c1m1_hotel \n(\x05!veto \x01for more info)");
+
+	return Plugin_Handled;
+}
+
+
+// ----------------------------------------------------------
+// 		Map switching logic
+// ----------------------------------------------------------
+
+
+// ----------------------------------------------------------
+// 		Map pool logic
+// ----------------------------------------------------------
+
+// Returns a handle to the first array which is found to contain the specified mapname
+// (should be the first and only one)
+stock Handle:GetPoolThatContainsMap(String:map[], &index, String:tag[]) {
+	decl Handle:hArrayMapPool;
+
+	for (new i = 0; i < GetArraySize(g_hArrayTags); i++) {
+		GetArrayString(g_hArrayTags, i, tag, BUF_SZ);
+		GetTrieValue(g_hTriePools, tag, hArrayMapPool);
+		if ((index = FindStringInArray(hArrayMapPool, map)) >= 0) {
+			return hArrayMapPool;
+		}
+	}
+	return INVALID_HANDLE;
+}
+
+// Called after the last veto has been used
 stock VetoingIsOver() {
 	PrintDebug(4, "[cmt] VetoingIsOver");
 
@@ -464,7 +577,7 @@ stock VetoingIsOver() {
 	decl String:tag[BUF_SZ];
 	decl String:map[BUF_SZ];
 
-	//Select 1 random map for each rank out of the remaining ones
+	// Select 1 random map for each rank out of the remaining ones
 	for (i = 0; i < GetArraySize(g_hArrayTagOrder); i++) {
 		GetArrayString(g_hArrayTagOrder, i, tag, BUF_SZ);
 		GetTrieValue(g_hTriePools, tag, hArrayPool);
@@ -475,7 +588,7 @@ stock VetoingIsOver() {
 		PushArrayString(g_hArrayMapOrder, map);
 	}
 
-	//clear things because we only need the finalised map order in memory
+	// Clear things because we only need the finalised map order in memory
 	for (i = 0; i < GetArraySize(g_hArrayTagOrder); i++) {
 		GetArrayString(g_hArrayTagOrder, i, tag, BUF_SZ);
 		GetTrieValue(g_hTriePools, tag, hArrayPool);
@@ -484,11 +597,12 @@ stock VetoingIsOver() {
 	ClearTrie(g_hTriePools);
 	ClearArray(g_hArrayTagOrder);
 
-	//Show final maplist to everyone
+	// Show final maplist to everyone
 	PrintToChatAll("Map list has been settled!");
 	for (i = 1; i <= MaxClients; i++) {
-		if (IsClientInGame(i) && !IsFakeClient(i))
+		if (IsClientInGame(i) && !IsFakeClient(i)) {
 			FakeClientCommand(i, "sm_maplist");
+		}
 	}
 
 	PrintToChatAll("\x01Game will start in \x048 \x01seconds.");
@@ -498,7 +612,8 @@ stock VetoingIsOver() {
 public Action:Timed_GiveThemTimeToReadTheMapList(Handle:timer) {
 	g_hCountDownTimer = null;
 
-	ResetScores();	//scores wouldn't cross over because of forced map change before 2nd round end, but doesnt hurt
+	// Scores wouldn't cross over because of forced map change before 2nd round end, but doesnt hurt
+	ResetScores();
 
 	// call starting forward
 	decl String:buffer[BUF_SZ];
@@ -512,161 +627,79 @@ public Action:Timed_GiveThemTimeToReadTheMapList(Handle:timer) {
 	GotoNextMap(true);
 }
 
-//client cmd: displays map list
-public Action:Maplist(client, args) {
-	if (!g_bMapsetInitialized) {
-		PrintToChat(client, "No mapset is loaded, so there's no maplist.");
-		return Plugin_Handled;
-	}
-
-	new String:output[BUF_SZ] = "Maplist: ";
-	decl String:buffer[BUF_SZ];
-
-	if (g_bMaplistFinalized)
-		Format(output, BUF_SZ, "%s\t %-4d-%4d", output, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
-
-	PrintToChat(client, output);
-
-	if (g_bMaplistFinalized) {
-		/*	Final Maplist	*/
-		for (new i = 0; i < GetArraySize(g_hArrayMapOrder); i++) {
-			GetArrayString(g_hArrayMapOrder, i, buffer, BUF_SZ);
-			FormatEx(output, BUF_SZ, "%d - %s", i + 1, buffer);
-
-			if (GetPrettyName(buffer)) Format(output, BUF_SZ, "\x05%s \x01(%s)", output, buffer);
-
-			if (g_iMapsPlayed > i)
-				Format(output, BUF_SZ, "%s\t %-4d-%4d", output, GetArrayCell(g_hArrayTeamMapScore[0], i), GetArrayCell(g_hArrayTeamMapScore[1], i));
-
-			PrintToChat(client, "%s", output);
-		}
-	} else {
-		/*	Mid-veto Maplist	*/
-		decl Handle:hArrayMapPool;
-		decl String:tag[BUF_SZ];
-		decl j;
-		for (new i = 0; i < GetArraySize(g_hArrayTags); i++) {
-			GetArrayString(g_hArrayTags, i, tag, BUF_SZ);
-
-			output = "";
-			for (j = 0; j < GetArraySize(g_hArrayTagOrder); j++) {
-				GetArrayString(g_hArrayTagOrder, j, buffer, BUF_SZ);
-				if (StrEqual(tag, buffer, false)) Format(output, BUF_SZ, "%s%s %d", output, output[0] == '\0' ? "" : ",", j + 1);
-			}
-			PrintToChat(client, "%s - %s", output, tag);
-
-			GetTrieValue(g_hTriePools, tag, hArrayMapPool);
-			for (j = 0; j < GetArraySize(hArrayMapPool); j++) {
-				GetArrayString(hArrayMapPool, j, buffer, BUF_SZ);
-
-				FormatEx(output, BUF_SZ, "\t%s", buffer);
-				if (GetPrettyName(buffer)) Format(output, BUF_SZ, "\x05%s \x01(%s)", output, buffer);
-				PrintToChat(client, "%s", output);
-			}
-		}
-	}
-	return Plugin_Handled;
-}
-
-stock PerformMapProgression() {
-	if (++g_iMapsPlayed < g_iMapCount) {
-		GotoNextMap();
-	} else {
-		// call ending forward
-		Call_StartForward(g_hForwardEnd);
-		Call_Finish();
-
-		ServerCommand("sm_resetmatch");
-	}
-}
-
-//changes map
-GotoNextMap(bool:force=false) {
-	PrintDebug(4, "[cmt] GotoNextMap");
-
-	decl String:buffer[BUF_SZ];
-	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, buffer, BUF_SZ);
-
-	if (force) {
-		PrintDebug(2, "[cmt] Forcing next map (%s)", buffer);
-		ForceChangeLevel(buffer, "Custom map transitions.");
-	} else {
-		PrintDebug(2, "[cmt] Using SetNextMap (%s)", buffer);
-		SetNextMap(buffer);
-	}
-}
-
-//sets teams' campagin scores to 0
-stock ResetScores() {
-	GameRules_SetProp("m_iSurvivorScore", 0, _, 0); //reset scores
-	GameRules_SetProp("m_iSurvivorScore", 0, _, 1); //
-}
-
-//server cmd: specifies a rank for a given tag
+// Specifiy a rank for a given tag
 public Action:TagRank(args) {
 	if (args < 2) {
 		ReplyToCommand(0, "Syntax: sm_tagrank <tag> <map number>");
 		ReplyToCommand(0, "Sets tag <tag> as the tag to be used to fetch maps for map <map number> in the map list.");
 		ReplyToCommand(0, "Rank 0 is map 1, rank 1 is map 2, etc.");
-	} else {
-		decl String:buffer[BUF_SZ];
-		GetCmdArg(2, buffer, BUF_SZ);
-		new index = StringToInt(buffer);
 
-		GetCmdArg(1, buffer, BUF_SZ);
+		return Plugin_Handled;
+	}
 
-		decl tagUses;
-		if (!GetTrieValue(g_hTrieTagUses, buffer, tagUses)) tagUses = 0;
+	decl String:buffer[BUF_SZ];
+	GetCmdArg(2, buffer, BUF_SZ);
+	new index = StringToInt(buffer);
+
+	GetCmdArg(1, buffer, BUF_SZ);
+
+	decl tagUses;
+	if (! GetTrieValue(g_hTrieTagUses, buffer, tagUses)) tagUses = 0; {
 		SetTrieValue(g_hTrieTagUses, buffer, ++tagUses);
+	}
 
-		if (index >= GetArraySize(g_hArrayTagOrder)) {
-			ResizeArray(g_hArrayTagOrder, index + 1);
-		}
+	if (index >= GetArraySize(g_hArrayTagOrder)) {
+		ResizeArray(g_hArrayTagOrder, index + 1);
+	}
 
-		g_iMapCount++;
-		SetArrayString(g_hArrayTagOrder, index, buffer);
-		if (FindStringInArray(g_hArrayTags, buffer) < 0) PushArrayString(g_hArrayTags, buffer);
+	g_iMapCount++;
+	SetArrayString(g_hArrayTagOrder, index, buffer);
+	if (FindStringInArray(g_hArrayTags, buffer) < 0) {
+		PushArrayString(g_hArrayTags, buffer);
 	}
 
 	return Plugin_Handled;
 }
 
-//server cmd: adds a map to the maplist under specified tags
+// Add a map to the maplist under specified tags
 public Action:AddMap(args) {
 	if (args < 2) {
 		ReplyToCommand(0, "Syntax: sm_addmap <mapname> <tag1> <tag2> <...>");
 		ReplyToCommand(0, "Adds <mapname> to the map selection and tags it with every mentioned tag.");
-	} else {
-		decl String:map[BUF_SZ];
-		GetCmdArg(1, map, BUF_SZ);
 
-		decl String:tag[BUF_SZ];
-
-		//add the map under only one of the tags
-		//TODO - maybe we should add it under all tags, since it might be removed from 1+ or even all of them anyway
-		//also, if that ends up being implemented, remember to remove vetoed maps from ALL the pools it belongs to
-		if (args == 2) {
-			GetCmdArg(2, tag, BUF_SZ);
-		} else {
-			GetCmdArg(GetRandomInt(2, args), tag, BUF_SZ);
-		}
-
-		decl Handle:hArrayMapPool;
-		if (!GetTrieValue(g_hTriePools, tag, hArrayMapPool))
-			SetTrieValue(g_hTriePools, tag, (hArrayMapPool = CreateArray(BUF_SZ/4)));
-
-		PushArrayString(hArrayMapPool, map);
+		return Plugin_Handled;
 	}
+
+	decl String:map[BUF_SZ];
+	GetCmdArg(1, map, BUF_SZ);
+
+	decl String:tag[BUF_SZ];
+
+	//add the map under only one of the tags
+	//TODO - maybe we should add it under all tags, since it might be removed from 1+ or even all of them anyway
+	//also, if that ends up being implemented, remember to remove vetoed maps from ALL the pools it belongs to
+	if (args == 2) {
+		GetCmdArg(2, tag, BUF_SZ);
+	} else {
+		GetCmdArg(GetRandomInt(2, args), tag, BUF_SZ);
+	}
+
+	decl Handle:hArrayMapPool;
+	if (! GetTrieValue(g_hTriePools, tag, hArrayMapPool)) {
+		SetTrieValue(g_hTriePools, tag, (hArrayMapPool = CreateArray(BUF_SZ/4)));
+	}
+
+	PushArrayString(hArrayMapPool, map);
 
 	return Plugin_Handled;
 }
 
-//return 0 if pretty name not found, 1 otherwise
+// Return 0 if pretty name not found, 1 otherwise
 stock GetPrettyName(String:map[]) {
 	static Handle:hKvMapNames = INVALID_HANDLE;
 	if (hKvMapNames == INVALID_HANDLE) {
 		hKvMapNames = CreateKeyValues("Custom Map Transitions Map Names");
-		if (!FileToKeyValues(hKvMapNames, PATH_KV)) {
+		if (! FileToKeyValues(hKvMapNames, PATH_KV)) {
 			LogMessage("Couldn't create KV for map names.");
 			hKvMapNames = INVALID_HANDLE;
 			return 0;
@@ -675,14 +708,18 @@ stock GetPrettyName(String:map[]) {
 
 	decl String:buffer[BUF_SZ];
 	KvGetString(hKvMapNames, map, buffer, BUF_SZ, "no");
-	if (!StrEqual(buffer, "no")) {
+	if (! StrEqual(buffer, "no")) {
 		strcopy(map, BUF_SZ, buffer);
 		return 1;
 	}
 	return 0;
 }
 
-bool: IsCoopMode() {
+// ----------------------------------------------------------
+// 		Basic helpers
+// ----------------------------------------------------------
+
+bool:IsCoopMode() {
 	decl String:sGameMode[32];
 	GetConVarString(FindConVar("mp_gamemode"), sGameMode, sizeof(sGameMode));
 
@@ -690,14 +727,15 @@ bool: IsCoopMode() {
 		return true;
 	}
 
-	return StrEqual(sGameMode, "mutation4", false) ||       // hard eight
-		StrEqual(sGameMode, "mutation14", false) ||         // gib fest
-		StrEqual(sGameMode, "mutation20", false);  			// healing gnome
+	return 	StrEqual(sGameMode, "mutation4", false)       	// hard eight
+		||	StrEqual(sGameMode, "mutation14", false)        // gib fest
+		||	StrEqual(sGameMode, "mutation20", false);  		// healing gnome
 }
 
 public PrintDebug(debugLevel, const String:Message[], any:...)
 {
-    if (debugLevel > GetConVarInt(g_hCvarDebug)) { return; }
+    if (debugLevel > GetConVarInt(g_hCvarDebug)) {
+    	return;
 
     decl String:DebugBuff[256];
     VFormat(DebugBuff, sizeof(DebugBuff), Message, 3);
