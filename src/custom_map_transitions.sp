@@ -626,6 +626,45 @@ public Action Timer_AlternateChangeMap(Handle timer, DataPack dp) {
 }
 
 
+// ----------------------------------------------------------
+// 		Score handling logic
+// ----------------------------------------------------------
+
+void RememberRoundScore(any:round) {
+	new score = L4D_GetTeamScore(round + 1);
+
+	// Scores for a map are shown correctly even directly after the first round.
+	if (! round) {
+		PushArrayCell(g_hArrayTeamMapScore[0], score);
+		PushArrayCell(g_hArrayTeamMapScore[1], 0);
+	} else {
+		SetArrayCell(g_hArrayTeamMapScore[1], GetArraySize(g_hArrayTeamMapScore[1]) - 1, score);
+	}
+
+	g_iTeamCampaignScore[round] += score;
+
+	DirectlySetVersusCampaignRoundScore(round);
+}
+
+stock CallSetCampaignScoresSdk() {
+	SDKCall(g_hSDKCallSetCampaignScores, g_iTeamCampaignScore[0], g_iTeamCampaignScore[1]);
+}
+
+stock DirectlySetVersusCampaignScores() {
+	DirectlySetVersusCampaignRoundScore(0);
+	DirectlySetVersusCampaignRoundScore(1);
+}
+
+DirectlySetVersusCampaignRoundScore(any:round) {
+	L4D2Direct_SetVSCampaignScore(round, g_iTeamCampaignScore[round]);
+}
+
+// Sets teams' campagin scores to 0
+stock ResetScores() {
+	GameRules_SetProp("m_iSurvivorScore", 0, _, 0);
+	GameRules_SetProp("m_iSurvivorScore", 0, _, 1);
+}
+
 
 // ----------------------------------------------------------
 // 		Map pool logic
