@@ -78,9 +78,6 @@ new Handle: g_hForwardEnd;
 
 new Handle: g_hCountDownTimer;
 
-static Handle hDirectorChangeLevel;
-static Address TheDirector = Address_Null;
-
 new bool:g_bNativeStatistics = false;
 
 
@@ -171,7 +168,6 @@ public OnPluginStart() {
 	PluginStartInit();
 
 	PrepareScoreSignature();
-	PrepareMapChangeSignature();
 }
 
 PluginStartInit() {
@@ -203,31 +199,6 @@ void PrepareScoreSignature() {
 
 	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 	g_hSDKCallSetCampaignScores = EndPrepSDKCall();
-}
-
-void PrepareMapChangeSignature() {
-	Handle hGamedata = LoadGameConfigFile("l4d_mapchanger");
-	if (hGamedata == null) {
-		SetFailState("Failed to load \"l4d_mapchanger.txt\" gamedata.");
-	}
-
-	StartPrepSDKCall(SDKCall_Raw);
-	if (! PrepSDKCall_SetFromConf(hGamedata, SDKConf_Signature, "CDirector::OnChangeChapterVote")) {
-		SetFailState("Error finding the 'CDirector::OnChangeChapterVote' signature.");
-	}
-	PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-
-	hDirectorChangeLevel = EndPrepSDKCall();
-	if (hDirectorChangeLevel == null) {
-		SetFailState("Unable to prep SDKCall 'CDirector::OnChangeChapterVote'");
-	}
-
-	TheDirector = GameConfGetAddress(hGamedata, "CDirector");
-	if (TheDirector == Address_Null) {
-		SetFailState("Unable to get 'CDirector' Address");
-	}
-
-	delete hGamedata;
 }
 
 
@@ -743,32 +714,12 @@ void GotoNextMap(bool:force = false) {
 void GotoMap(const char[] sMapName, bool:force = false) {
 	if (force || IsCoopMode()) {
 		PrintDebug(2, "[cmt] Forcing next map (%s)", sMapName);
-		//ForceChangeLevel(sMapName, "Custom map transitions.");
-		ForceNextMapSdk(sMapName);
+		ForceChangeLevel(sMapName, "Custom map transitions.");
 		return;
 	}
 
 	PrintDebug(2, "[cmt] Using SetNextMap (%s)", sMapName);
 	SetNextMap(sMapName);
-}
-
-void ForceNextMapSdk(const char[] sMapName) {
-	DataPack dp = new DataPack();
-	dp.WriteString(sMapName);
-
-	CreateTimer(2.0, Timer_AlternateChangeMap, dp, TIMER_FLAG_NO_MAPCHANGE | TIMER_DATA_HNDL_CLOSE);
-
-	SDKCall(hDirectorChangeLevel, TheDirector, sMapName);
-}
-
-public Action Timer_AlternateChangeMap(Handle timer, DataPack dp) {
-	static char g_sNewMap[BUF_SZ];
-
-	dp.Reset();
-	dp.ReadString(g_sNewMap, sizeof g_sNewMap);
-
-	ServerCommand("changelevel %s", g_sNewMap);
-	ServerExecute();
 }
 
 
