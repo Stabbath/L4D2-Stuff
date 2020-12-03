@@ -25,6 +25,7 @@
 
 /*
 TODO
+	finales before last map - make sure they don't break anything in versus nor coop
 	coop madness mode - if/when coop transitions work normally, could add an option to also change map when the team wipes, cycling through the maps at that rank randomly until they eventually survive one.
 
 	? who cares - make the delay before game start after maplist is settled a CVar
@@ -37,7 +38,7 @@ public Plugin:myinfo =
 	name = "Custom Map Transitions",
 	author = "Stabby",
 	description = "Makes games more fun and varied! Yay! By allowing players to select a custom map sequence, replacing the normal campaign map sequence.",
-	version = "14",
+	version = "15",
 	url = "https://github.com/Stabbath/L4D2-Stuff"
 };
 
@@ -373,7 +374,7 @@ public Action:Event_PlayerDeath(Handle:hEvent, const String:name[], bool:dontBro
 void PerformCoopMapProgressionIfConditionsApply() {
 	PrintDebug(5, "[cmt] PerformCoopMapProgressionIfConditionsApply");
 
-	if (! AreAllLivingSurivorsInEndSafeRoom()) {
+	if (! AreAllLivingSurvivorsInEndSafeRoom()) {
 		return;
 	}
 
@@ -383,7 +384,7 @@ void PerformCoopMapProgressionIfConditionsApply() {
 	PerformMapProgression();
 }
 
-bool: AreAllLivingSurivorsInEndSafeRoom() {
+bool: AreAllLivingSurvivorsInEndSafeRoom() {
 	for (new client = 1; client <= MaxClients; client++) {
 		if (! IsSurvivorClient(client)) {
 			continue;
