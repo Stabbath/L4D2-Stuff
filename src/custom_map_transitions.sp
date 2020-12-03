@@ -68,6 +68,8 @@ new Handle: g_hForwardEnd;
 
 new Handle: g_hCountDownTimer;
 
+static Handle hDirectorChangeLevel;
+static Address TheDirector = Address_Null;
 
 
 // ----------------------------------------------------------
@@ -127,6 +129,7 @@ public OnPluginStart() {
 	PluginStartInit();
 
 	PrepareScoreSignature();
+	PrepareMapChangeSignature();
 }
 
 PluginStartInit() {
@@ -158,6 +161,30 @@ void PrepareScoreSignature() {
 	g_hSDKCallSetCampaignScores = EndPrepSDKCall();
 }
 
+void PrepareMapChangeSignature() {
+	Handle hGamedata = LoadGameConfigFile("l4d_mapchanger");
+	if (hGamedata == null) {
+		SetFailState("Failed to load \"l4d_mapchanger.txt\" gamedata.");
+	}
+
+	StartPrepSDKCall(SDKCall_Raw);
+	if (! PrepSDKCall_SetFromConf(hGamedata, SDKConf_Signature, "CDirector::OnChangeChapterVote")) {
+		SetFailState("Error finding the 'CDirector::OnChangeChapterVote' signature.");
+	}
+	PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+
+	hDirectorChangeLevel = EndPrepSDKCall();
+	if (hDirectorChangeLevel == null) {
+		SetFailState("Unable to prep SDKCall 'CDirector::OnChangeChapterVote'");
+	}
+
+	TheDirector = GameConfGetAddress(hGamedata, "CDirector");
+	if (TheDirector == Address_Null) {
+		SetFailState("Unable to get 'CDirector' Address");
+	}
+
+	delete hGamedata;
+}
 
 
 // ----------------------------------------------------------
@@ -545,6 +572,59 @@ public Action:Timed_PostMapSet(Handle:timer) {
 // ----------------------------------------------------------
 // 		Map switching logic
 // ----------------------------------------------------------
+
+stock PerformMapProgression() {
+	if (++g_iMapsPlayed < g_iMapCount) {
+		GotoNextMap();
+		return;
+	}
+
+	Call_StartForward(g_hForwardEnd);
+	Call_Finish();
+
+	ServerCommand("sm_resetmatch");
+}
+
+void GotoNextMap(bool:force = false) {
+	PrintDebug(4, "[cmt] GotoNextMap");
+
+	decl String:sMapName[BUF_SZ];
+	GetArrayString(g_hArrayMapOrder, g_iMapsPlayed, sMapName, BUF_SZ);
+
+	GotoMap(sMapName, force);
+}
+
+void GotoMap(const char[] sMapName, bool:force = false) {
+	if (force || IsCoopMode()) {
+		PrintDebug(2, "[cmt] Forcing next map (%s)", sMapName);
+		//ForceChangeLevel(sMapName, "Custom map transitions.");
+		ForceNextMapSdk(sMapName);
+		return;
+	}
+
+	PrintDebug(2, "[cmt] Using SetNextMap (%s)", sMapName);
+	SetNextMap(sMapName);
+}
+
+void ForceNextMapSdk(const char[] sMapName) {
+	DataPack dp = new DataPack();
+	dp.WriteString(sMapName);
+
+	CreateTimer(2.0, Timer_AlternateChangeMap, dp, TIMER_FLAG_NO_MAPCHANGE | TIMER_DATA_HNDL_CLOSE);
+
+	SDKCall(hDirectorChangeLevel, TheDirector, sMapName);
+}
+
+public Action Timer_AlternateChangeMap(Handle timer, DataPack dp) {
+	static char g_sNewMap[BUF_SZ];
+
+	dp.Reset();
+	dp.ReadString(g_sNewMap, sizeof g_sNewMap);
+
+	ServerCommand("changelevel %s", g_sNewMap);
+	ServerExecute();
+}
+
 
 
 // ----------------------------------------------------------
