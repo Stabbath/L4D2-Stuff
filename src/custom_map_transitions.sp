@@ -7,6 +7,10 @@
 #include <colors>
 #include <nextmap>
 #include <l4d2_saferoom_detect>
+#undef REQUIRE_PLUGIN
+#include <l4d2_playstats>
+#define REQUIRE_PLUGIN
+
 
 /*
 1: Collect underpants
@@ -76,6 +80,28 @@ new Handle: g_hCountDownTimer;
 static Handle hDirectorChangeLevel;
 static Address TheDirector = Address_Null;
 
+new bool:g_bNativeStatistics = false;
+
+
+// ----------------------------------------------------------
+// 		Library tracking
+// ----------------------------------------------------------
+
+public OnAllPluginsLoaded() {
+    g_bNativeStatistics = LibraryExists("playstats");
+}
+
+public OnLibraryAdded(const String:name[]) {
+    if (StrEqual(name, "playstats")) {
+        g_bNativeStatistics = true;
+    }
+}
+
+public OnLibraryRemoved(const String:name[]) {
+    if (StrEqual(name, "playstats")) {
+        g_bNativeStatistics = false;
+    }
+}
 
 // ----------------------------------------------------------
 // 		Setup
@@ -89,6 +115,9 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 	g_hForwardNext = CreateGlobalForward("OnCMTNextKnown", ET_Ignore, Param_String );
 	// After last map is played; no params
 	g_hForwardEnd = CreateGlobalForward("OnCMTEnd", ET_Ignore );
+
+	MarkNativeAsOptional("PLAYSTATS_BroadcastRoundStats");
+	MarkNativeAsOptional("PLAYSTATS_BroadcastGameStats");
 
 	return APLRes_Success;
 }
@@ -683,8 +712,16 @@ public Action:Timed_PostMapSet(Handle:timer) {
 
 stock PerformMapProgression() {
 	if (++g_iMapsPlayed < g_iMapCount) {
+		if (g_bNativeStatistics && IsCoopMode()) {
+			PLAYSTATS_BroadcastRoundStats();
+		}
+
 		GotoNextMap();
 		return;
+	}
+
+	if (g_bNativeStatistics && IsCoopMode()) {
+		PLAYSTATS_BroadcastGameStats();
 	}
 
 	Call_StartForward(g_hForwardEnd);
