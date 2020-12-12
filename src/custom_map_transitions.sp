@@ -254,6 +254,10 @@ public Action:Timed_PostOnRoundStart(Handle:timer) {
 }
 
 public OnRoundEnd() {
+	if (! g_bMapsetInitialized) {
+		return;
+	}
+
 	PrintDebug(4, "[cmt] OnRoundEnd");
 
 	if (IsCoopMode()) {
@@ -279,6 +283,10 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 // avoiding issues that happen in coop when changing maps at the normal time on actual round end.
 public void OnDoorClose(Event event, const char[] name, bool dontBroadcast) {
 	if (! event.GetBool("checkpoint") || g_bSwitchingForCoop) {
+		return;
+	}
+
+	if (! g_bMapsetInitialized) {
 		return;
 	}
 
@@ -312,6 +320,9 @@ public void OnDoorOpen(Event event, const char[] name, bool dontBroadcast) {
 	if (! event.GetBool("checkpoint") || g_bSwitchingForCoop) {
 		return;
 	}
+	if (! g_bMapsetInitialized) {
+		return;
+	}
 
 	PrintDebug(6, "[cmt] OnDoorOpen for checkpoint door");
 
@@ -328,6 +339,9 @@ public void OnDoorOpen(Event event, const char[] name, bool dontBroadcast) {
 // that's when we should do a mapswitch.
 public Action:Event_PlayerDeath(Handle:hEvent, const String:name[], bool:dontBroadcast) {
 	if (! g_bCoopEndSaferoomClosed || ! IsCoopMode()) {
+		return Plugin_Continue;
+	}
+	if (! g_bMapsetInitialized) {
 		return Plugin_Continue;
 	}
 
