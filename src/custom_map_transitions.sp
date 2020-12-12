@@ -47,6 +47,11 @@ public Plugin:myinfo =
 #define BUF_SZ   	64
 #define DOOR_DELAY  0.1
 
+#define SURVIVOR_NICK_BILL      0
+#define SURVIVOR_ROCHELLE_ZOEY  1
+#define SURVIVOR_COACH_LOUIS    2
+#define SURVIVOR_ELLIS_FRANCIS  3
+
 const TEAM_SURVIVOR = 2;
 
 new Handle: g_hCvarDebug;
@@ -79,6 +84,17 @@ new Handle: g_hForwardEnd;
 new Handle: g_hCountDownTimer;
 
 new bool:g_bNativeStatistics = false;
+
+new const String: g_csSurvivorModels[][] = {
+    "models/survivors/survivor_biker.mdl",
+    "models/survivors/survivor_coach.mdl",
+    "models/survivors/survivor_gambler.mdl",
+    "models/survivors/survivor_manager.mdl",
+    "models/survivors/survivor_mechanic.mdl",
+    "models/survivors/survivor_namvet.mdl",
+    "models/survivors/survivor_producer.mdl",
+    "models/survivors/survivor_teenangst.mdl",
+};
 
 
 // ----------------------------------------------------------
@@ -219,6 +235,9 @@ public OnMapStart() {
 	g_bCoopEndSaferoomClosed = false;
 	g_bSwitchingForCoop = false;
 
+
+	PrecacheModels();
+
 	// let other plugins know what the map *after* this one will be (unless it is the last map)
 	if (! g_bMaplistFinalized || g_iMapsPlayed >= g_iMapCount-1) {
 		return;
@@ -254,6 +273,10 @@ public Action:Timed_PostOnRoundStart(Handle:timer) {
 }
 
 public OnRoundEnd() {
+	if (! g_bMapsetInitialized) {
+		return;
+	}
+
 	PrintDebug(4, "[cmt] OnRoundEnd");
 
 	if (IsCoopMode()) {
@@ -279,6 +302,10 @@ public Action:Timed_PostOnRoundEnd(Handle:timer, any:round) {
 // avoiding issues that happen in coop when changing maps at the normal time on actual round end.
 public void OnDoorClose(Event event, const char[] name, bool dontBroadcast) {
 	if (! event.GetBool("checkpoint") || g_bSwitchingForCoop) {
+		return;
+	}
+
+	if (! g_bMapsetInitialized) {
 		return;
 	}
 
@@ -312,6 +339,9 @@ public void OnDoorOpen(Event event, const char[] name, bool dontBroadcast) {
 	if (! event.GetBool("checkpoint") || g_bSwitchingForCoop) {
 		return;
 	}
+	if (! g_bMapsetInitialized) {
+		return;
+	}
 
 	PrintDebug(6, "[cmt] OnDoorOpen for checkpoint door");
 
@@ -328,6 +358,9 @@ public void OnDoorOpen(Event event, const char[] name, bool dontBroadcast) {
 // that's when we should do a mapswitch.
 public Action:Event_PlayerDeath(Handle:hEvent, const String:name[], bool:dontBroadcast) {
 	if (! g_bCoopEndSaferoomClosed || ! IsCoopMode()) {
+		return Plugin_Continue;
+	}
+	if (! g_bMapsetInitialized) {
 		return Plugin_Continue;
 	}
 
@@ -929,6 +962,14 @@ stock GetPrettyName(String:map[]) {
 		return 1;
 	}
 	return 0;
+}
+
+void PrecacheModels() {
+    for (new i = 0; i < sizeof(g_csSurvivorModels); i++) {
+        if (! IsModelPrecached(g_csSurvivorModels[i])) {
+            PrecacheModel(g_csSurvivorModels[i], true);
+        }
+    }
 }
 
 // ----------------------------------------------------------
